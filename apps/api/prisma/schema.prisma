@@ -36,8 +36,22 @@ model User {
 
   projects           Project[]
   push_subscriptions PushSubscription[]
+  admin_invites_sent AdminInvite[]
 
   @@map("users")
+}
+
+// A pending grant of ADMIN role to an email that hasn't authenticated yet.
+// Consumed (deleted) the moment that email's User row is provisioned or
+// synced — see SupabaseAuthService.syncUser.
+model AdminInvite {
+  email      String   @id
+  invited_by String
+  created_at DateTime @default(now())
+
+  invitedBy User @relation(fields: [invited_by], references: [id])
+
+  @@map("admin_invites")
 }
 
 model Project {

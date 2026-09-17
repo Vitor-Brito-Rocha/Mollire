@@ -1,13 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { cn } from "cn";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api, type CurrentUser } from "@/lib/api";
 
+const NAV_ITEMS = [
+  { href: "/admin", label: "Projetos" },
+  { href: "/admin/admins", label: "Admins" },
+];
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   // UX gate only — the actual boundary is the backend's RolesGuard on every
   // /admin/* route. A tenant redirected here client-side never had a way to
   // fetch the data in the first place.
@@ -40,9 +47,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           ← Dashboard
         </Link>
         <h1 className="mt-2 text-2xl font-semibold">Admin</h1>
-        <p className="text-muted-foreground text-sm">
-          Projetos e deployments de todos os tenants (somente leitura).
-        </p>
+        <nav className="mt-4 flex gap-4 border-b">
+          {NAV_ITEMS.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "border-b-2 border-transparent pb-2 text-sm font-medium text-muted-foreground transition-colors",
+                pathname === item.href && "border-primary text-foreground",
+              )}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
       </div>
       {children}
     </div>

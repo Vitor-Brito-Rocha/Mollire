@@ -9,7 +9,6 @@ import { AuthenticatedUser } from './types';
 export class SupabaseAuthService {
   private readonly jwks: ReturnType<typeof createRemoteJWKSet>;
   private readonly issuer: string;
-  private readonly adminEmails: Set<string>;
 
   constructor(
     private readonly config: ConfigService,
@@ -21,12 +20,6 @@ export class SupabaseAuthService {
     // an unknown `kid` so rotation is handled transparently.
     this.jwks = createRemoteJWKSet(new URL(`${projectUrl}/auth/v1/.well-known/jwks.json`));
     this.issuer = `${projectUrl}/auth/v1`;
-    this.adminEmails = new Set(
-      (this.config.get<string>('ADMIN_EMAILS') ?? '')
-        .split(',')
-        .map((email) => email.trim().toLowerCase())
-        .filter(Boolean),
-    );
   }
 
   async verifyAndSync(token: string): Promise<AuthenticatedUser> {
@@ -56,15 +49,26 @@ export class SupabaseAuthService {
   // JIT-provisions our own User row from a verified token — nothing reads User
   // before a first authenticated call, so there's no need for a signup webhook.
   private async syncUser(id: string, email: string): Promise<AuthenticatedUser> {
-    const isAllowlistedAdmin = this.adminEmails.has(email.toLowerCase());
+    const normalizedEmail = email.toLowerCase();
 
     try {
-      const user = await this.prisma.user.upsert({
-        where: { id },
-        create: { id, email, role: isAllowlistedAdmin ? Role.ADMIN : Role.TENANT },
-        // Only ever promotes to ADMIN here, never demotes — removing an email
-        // from ADMIN_EMAILS later shouldn't silently strip an existing admin's access.
-        update: { email, ...(isAllowlistedAdmin ? { role: Role.ADMIN } : {}) },
+      const user = await this.prisma.$transaction(async (tx) => {
+        // An admin can grant ADMIN to an email before that person ever logs in
+        // (AdminService.inviteAdmin) — redeemed here, on that email's first sync.
+        const invite = await tx.adminInvite.findUnique({ where: { email: normalizedEmail } });
+
+        const synced = await tx.user.upsert({
+          where: { id },
+          create: { id, email, role: invite ? Role.ADMIN : Role.TENANT },
+          // Only ever promotes to ADMIN here, never demotes.
+          update: { email, ...(invite ? { role: Role.ADMIN } : {}) },
+        });
+
+        if (invite) {
+          await tx.adminInvite.delete({ where: { email: normalizedEmail } });
+        }
+
+        return synced;
       });
       return { id: user.id, email: user.email, role: user.role };
     } catch (err) {

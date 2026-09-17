@@ -41,12 +41,21 @@ npm run start:dev
 
 - Every project belongs to a user (`user_id`). The `User` row is provisioned lazily from the
   verified Supabase JWT on a user's first authenticated request — there's no signup webhook.
-- `ADMIN_EMAILS` (comma-separated env var) grants `role=ADMIN` at that first sync. Removing an
-  email from the list later never auto-demotes an existing admin — that stays a manual DB action.
+  `role` lives on that row (`Role.ADMIN` / `Role.TENANT`, default `TENANT`) — it is never read
+  from the JWT itself.
+- The very first admin is a manual DB action (no bootstrap env var):
+  `UPDATE users SET role = 'ADMIN' WHERE email = '...';` — that user must have logged in once
+  already, since the row is provisioned lazily.
+- From there, any admin can grant the role to someone else via `POST /admin/admins { email }`.
+  If that email already has a `User` row, it's promoted immediately. If not (hasn't logged in
+  yet), it's parked in `AdminInvite` and redeemed — role set to `ADMIN` — the moment that email
+  first authenticates (`SupabaseAuthService.syncUser`). `GET /admin/admins` lists current admins
+  plus pending invites. Only ever promotes, never demotes.
 - Every tenant-facing query is scoped by `user_id`; an ownership mismatch returns **404**, not
   403, so a tenant can't even confirm another tenant's slug exists.
-- `/admin/*` is strictly **read-only** (view every tenant's projects/deployments/logs), gated by
-  `RolesGuard` + `@Roles('ADMIN')`. It never shares a code path with the tenant-facing services.
+- `/admin/projects*`, `/admin/deployments/*` are strictly **read-only** (view every tenant's
+  projects/deployments/logs); `/admin/admins*` is the one mutating exception. All gated by
+  `RolesGuard` + `@Roles('ADMIN')`, none sharing a code path with the tenant-facing services.
 
 ## Resilience
 
@@ -71,6 +80,8 @@ See [deploy/mollire.service.example](../../deploy/mollire.service.example).
 | GET    | `/admin/projects`          | admin | All projects, every tenant                |
 | GET    | `/admin/projects/:slug`    | admin | Any project's detail + deployment history |
 | GET    | `/admin/deployments/:id`   | admin | Any deployment's status/log               |
+| GET    | `/admin/admins`            | admin | Current admins + pending invites          |
+| POST   | `/admin/admins`            | admin | Promote a user / invite an email to ADMIN |
 
 ## Not built yet
 
