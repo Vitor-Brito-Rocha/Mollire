@@ -17,7 +17,13 @@ async function bootstrap() {
     .split(',')
     .map((url) => url.trim())
     .filter(Boolean);
-  app.enableCors({ origin: frontendUrls.length > 0 ? frontendUrls : true });
+  app.enableCors({
+    origin: frontendUrls.length > 0 ? frontendUrls : true,
+    // ngrok's free tier shows an HTML interstitial to browser requests unless
+    // this header is present — needed when the API itself is tunneled through
+    // ngrok for local testing.
+    allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
+  });
 
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
