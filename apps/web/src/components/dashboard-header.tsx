@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Logo } from "@/components/logo";
+import { HudHeader } from "@/components/hud-header";
 import { NotificationsToggle } from "@/components/notifications-toggle";
 import { Button } from "@/components/ui/button";
 import { api, type CurrentUser } from "@/lib/api";
@@ -30,27 +30,26 @@ export function DashboardHeader({ email }: { email: string }) {
     router.refresh();
   }
 
+  // A barra de nível entra aqui quando a API passar a expor XP — o componente
+  // já existe em level-bar.tsx; o que falta é o dado, não a tela.
   return (
-    <header className="border-border flex items-center justify-between border-b px-6 py-4">
-      <Link href="/" className="flex items-center gap-2">
-        <Logo height={28} />
-        <span className="text-lg font-semibold">Mollire</span>
-      </Link>
-      <div className="flex items-center gap-4">
-        <NotificationsToggle />
-        {user?.role === "ADMIN" && (
-          <Button
-            variant="outline"
-            size="sm"
-            nativeButton={false}
-            render={<Link href="/admin">Admin</Link>}
-          />
-        )}
-        <span className="text-muted-foreground text-sm">{email}</span>
-        <Button variant="ghost" size="sm" onClick={handleLogout}>
-          Sair
-        </Button>
-      </div>
-    </header>
+    <HudHeader>
+      <NotificationsToggle />
+      {user?.role === "ADMIN" && (
+        <Button
+          variant="outline"
+          size="sm"
+          nativeButton={false}
+          render={<Link href="/admin">Admin</Link>}
+        />
+      )}
+      <span className="text-text-3 hidden font-mono text-xs sm:inline">{email}</span>
+      <span className="hex bg-raised font-display text-muted-foreground grid size-[34px] place-items-center text-xs font-bold uppercase">
+        {email.charAt(0) || "?"}
+      </span>
+      <Button variant="ghost" size="sm" onClick={handleLogout}>
+        Sair
+      </Button>
+    </HudHeader>
   );
 }
