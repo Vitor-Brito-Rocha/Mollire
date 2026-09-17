@@ -53,10 +53,10 @@ function LoginForm() {
   }
 
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader>
-        <CardTitle>Entrar</CardTitle>
-        <CardDescription>Acesse sua conta Mollire.</CardDescription>
+    <Card className="corners w-full max-w-[420px]">
+      <CardHeader className="items-center text-center">
+        <CardTitle className="text-2xl font-bold">Entrar</CardTitle>
+        <CardDescription>Publique, receba estrelas, suba de nível.</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -90,7 +90,7 @@ function LoginForm() {
               required
             />
           </div>
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" size="lg" disabled={loading}>
             {loading ? "Entrando..." : "Entrar"}
           </Button>
           <p className="text-muted-foreground text-center text-sm">
