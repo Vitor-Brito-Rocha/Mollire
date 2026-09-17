@@ -70,7 +70,7 @@ export class SupabaseAuthService {
 
         return synced;
       });
-      return { id: user.id, email: user.email, role: user.role };
+      return { id: user.id, email: user.email, role: user.role, xp: user.xp };
     } catch (err) {
       // A brand-new user's first page load fires several authenticated
       // requests at once (header + page data), which can race here — by the
@@ -79,7 +79,7 @@ export class SupabaseAuthService {
       // benign provisioning race.
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
         const user = await this.prisma.user.findUniqueOrThrow({ where: { id } });
-        return { id: user.id, email: user.email, role: user.role };
+        return { id: user.id, email: user.email, role: user.role, xp: user.xp };
       }
       throw err;
     }

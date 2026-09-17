@@ -6,6 +6,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { simpleGit } from 'simple-git';
 import { ErrorLogService } from '../error-log/error-log.service';
+import { ThumbnailService } from '../gallery/thumbnail.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -13,6 +14,11 @@ import { PrismaService } from '../prisma/prisma.service';
 // to keep disk usage flat regardless of deploy frequency. Bump this once storage
 // is cheap enough to afford keeping a few past releases around.
 const RELEASES_TO_KEEP = 1;
+
+// XP paid on every successful deploy, plus a one-time onboarding bonus for a
+// user's very first one — see awardDeployXp.
+const DEPLOY_XP = 10;
+const FIRST_DEPLOY_BONUS_XP = 50;
 
 type ProjectPaths = {
   root: string;
@@ -31,6 +37,7 @@ export class DeploymentsService {
     private readonly config: ConfigService,
     private readonly errorLog: ErrorLogService,
     private readonly notifications: NotificationsService,
+    private readonly thumbnails: ThumbnailService,
   ) {
     this.projectsRoot = path.resolve(this.config.get<string>('PROJECTS_ROOT', './data/projects'));
   }
@@ -102,6 +109,10 @@ export class DeploymentsService {
       await this.setStatus(deploymentId, DeploymentStatus.PUBLISHING);
       const releasePath = await this.publish(paths, project.output_dir);
 
+      // Counts prior successes before this deployment's own row flips to
+      // SUCCESS below, so the first-ever-deploy bonus reads correctly.
+      await this.awardDeployXp(project);
+
       await this.prisma.deployment.update({
         where: { id: deploymentId },
         data: {
@@ -114,6 +125,10 @@ export class DeploymentsService {
       });
 
       await this.pruneOldReleases(paths.releases);
+
+      if (project.is_public) {
+        await this.thumbnails.capture(project.id, project.slug);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       appendLog(`\nFAILED: ${message}`);
@@ -212,5 +227,13 @@ export class DeploymentsService {
 
   private setStatus(deploymentId: string, status: DeploymentStatus) {
     return this.prisma.deployment.update({ where: { id: deploymentId }, data: { status } });
+  }
+
+  private async awardDeployXp(project: Project): Promise<void> {
+    const priorSuccesses = await this.prisma.deployment.count({
+      where: { project: { user_id: project.user_id }, status: DeploymentStatus.SUCCESS },
+    });
+    const xp = DEPLOY_XP + (priorSuccesses === 0 ? FIRST_DEPLOY_BONUS_XP : 0);
+    await this.prisma.user.update({ where: { id: project.user_id }, data: { xp: { increment: xp } } });
   }
 }

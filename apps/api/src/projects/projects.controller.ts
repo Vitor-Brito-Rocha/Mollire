@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser } from '../auth/types';
 import { CreateProjectDto } from './dto/create-project.dto';
+import { SetVisibilityDto } from './dto/set-visibility.dto';
 import { ProjectsService } from './projects.service';
 
 @Controller('projects')
@@ -21,5 +22,14 @@ export class ProjectsController {
   @Get(':slug')
   findOne(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
     return this.projectsService.findBySlugForUser(slug, user.id);
+  }
+
+  @Patch(':slug/visibility')
+  setVisibility(
+    @Param('slug') slug: string,
+    @Body() dto: SetVisibilityDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.projectsService.setVisibility(slug, user.id, dto.is_public);
   }
 }

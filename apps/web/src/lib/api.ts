@@ -1,6 +1,6 @@
 import { createClient } from './supabase/client';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL!;
+export const API_URL = process.env.NEXT_PUBLIC_API_URL!;
 
 export class ApiError extends Error {
   status_code: number;
@@ -41,6 +41,8 @@ export const api = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined }),
+  patch: <T>(path: string, body?: unknown) =>
+    request<T>(path, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
   delete: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: 'DELETE', body: body ? JSON.stringify(body) : undefined }),
 };
@@ -54,6 +56,8 @@ export type Project = {
   repository_url: string;
   build_command: string;
   output_dir: string;
+  is_public: boolean;
+  thumbnail_url: string | null;
   user_id: string;
   created_at: string;
   updated_at: string;
@@ -84,6 +88,27 @@ export type CurrentUser = {
   id: string;
   email: string;
   role: 'ADMIN' | 'TENANT';
+  xp: number;
+  level: number;
+  next: number;
+};
+
+export type GalleryFilter = 'recentes' | 'destaque' | 'todos';
+
+export type GalleryProject = {
+  id: string;
+  name: string;
+  slug: string;
+  author: string;
+  thumbnail_url: string | null;
+  stars: number;
+  starred_by_viewer: boolean;
+  created_at: string;
+};
+
+export type StarState = {
+  stars: number;
+  starred_by_viewer: boolean;
 };
 
 export type AdminUser = {

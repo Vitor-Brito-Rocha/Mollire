@@ -32,8 +32,9 @@ See [nginx/mollire.conf.example](../../nginx/mollire.conf.example) for the actua
 ```bash
 cd apps/api
 npm install
-cp .env.example .env   # DATABASE_URL, SUPABASE_PROJECT_URL, ADMIN_EMAILS, VAPID_* keys
+cp .env.example .env   # DATABASE_URL, SUPABASE_PROJECT_URL, VAPID_* keys
 npx prisma migrate dev
+npx playwright install chromium   # needed for gallery thumbnail capture
 npm run start:dev
 ```
 
@@ -57,6 +58,27 @@ npm run start:dev
   projects/deployments/logs); `/admin/admins*` is the one mutating exception. All gated by
   `RolesGuard` + `@Roles('ADMIN')`, none sharing a code path with the tenant-facing services.
 
+## Gallery & XP
+
+- A project is private by default. Its owner publishes it via
+  `PATCH /projects/:slug/visibility { is_public: true }`; only then does it show up in
+  `GET /gallery`. Unpublishing just flips it back to private — no data is deleted.
+- Stars are a `ProjectStar(project_id, user_id)` row — one per viewer per project, given via
+  `POST /gallery/:slug/star` and removed via `DELETE /gallery/:slug/star`. A project's own owner
+  can't star it. `GET /gallery?filter=recentes|destaque|todos` returns each project's star count
+  and whether the current viewer has starred it (`recentes`/`todos`: newest first; `destaque`:
+  most-starred first).
+- `xp` lives on `User`, incremented directly wherever it's earned (no separate ledger table):
+  **+10** on every successful deploy (**+50** extra the first time ever for that user), **+20**
+  once when a project is first published to the gallery (re-publishing after unpublishing doesn't
+  pay it again — tracked by `Project.published_at`), **+5** to a project's owner each time someone
+  else stars it. `level`/`next` are never stored — `GET /users/me` derives them from `xp` on read
+  (see `common/level.ts`).
+- Thumbnails are real screenshots, not uploads: the first successful deploy of a project *after*
+  it's public triggers a headless Playwright capture of `{slug}.{DOMAIN}` (`GalleryModule`'s
+  `ThumbnailService`), saved to `THUMBNAILS_DIR` and served at `GET /thumbnails/{slug}.png`. A
+  failed capture never fails the deploy — the gallery just shows no thumbnail until the next one.
+
 ## Resilience
 
 A global exception filter logs every error to console; 5xx responses are additionally persisted
@@ -72,9 +94,13 @@ See [deploy/mollire.service.example](../../deploy/mollire.service.example).
 | POST   | `/projects`                | user  | Register a project                        |
 | GET    | `/projects`                | user  | List your own projects                    |
 | GET    | `/projects/:slug`          | user  | Project detail + last 10 deployments      |
+| PATCH  | `/projects/:slug/visibility` | user | Publish/unpublish a project to the gallery |
 | POST   | `/projects/:slug/deploy`   | user  | Trigger a deploy (runs in background)     |
 | GET    | `/deployments/:id`         | user  | Deployment status/log                     |
-| GET    | `/users/me`                | user  | Current user (id, email, role)            |
+| GET    | `/users/me`                | user  | Current user (id, email, role, xp, level, next) |
+| GET    | `/gallery`                 | user  | Public projects (`?filter=recentes\|destaque\|todos`) |
+| POST   | `/gallery/:slug/star`      | user  | Star a public project                     |
+| DELETE | `/gallery/:slug/star`      | user  | Remove your star                          |
 | POST   | `/notifications/subscribe` | user  | Register a web push subscription          |
 | DELETE | `/notifications/subscribe` | user  | Remove a web push subscription            |
 | GET    | `/admin/projects`          | admin | All projects, every tenant                |

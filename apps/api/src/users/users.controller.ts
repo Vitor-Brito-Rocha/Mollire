@@ -1,6 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser } from '../auth/types';
+import { levelForXp } from '../common/level';
 
 @Controller('users')
 export class UsersController {
@@ -9,6 +10,6 @@ export class UsersController {
   // admin section. UX only: RolesGuard is the actual enforcement.
   @Get('me')
   me(@CurrentUser() user: AuthenticatedUser) {
-    return user;
+    return { ...user, ...levelForXp(user.xp) };
   }
 }

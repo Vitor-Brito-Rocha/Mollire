@@ -2,6 +2,10 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 
+// One-time bonus for a project's first-ever publish to the gallery — see
+// Project.published_at, which is what makes this un-farmable by re-toggling.
+const PUBLISH_XP = 20;
+
 @Injectable()
 export class ProjectsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -43,6 +47,34 @@ export class ProjectsService {
       throw new NotFoundException(`project "${slug}" not found`);
     }
     return project;
+  }
+
+  async setVisibility(slug: string, userId: string, isPublic: boolean) {
+    // findFirst on {slug, user_id}, same ownership-scoping reasoning as
+    // findBySlugForUser: a mismatch must 404, not reveal the project exists.
+    const project = await this.prisma.project.findFirst({ where: { slug, user_id: userId } });
+    if (!project) {
+      throw new NotFoundException(`project "${slug}" not found`);
+    }
+
+    const firstPublish = isPublic && !project.published_at;
+
+    const updated = await this.prisma.project.update({
+      where: { id: project.id },
+      data: {
+        is_public: isPublic,
+        ...(firstPublish ? { published_at: new Date() } : {}),
+      },
+    });
+
+    if (firstPublish) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { xp: { increment: PUBLISH_XP } },
+      });
+    }
+
+    return updated;
   }
 
   // Unscoped by design — only AdminController may call these.

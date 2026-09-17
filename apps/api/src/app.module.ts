@@ -1,12 +1,15 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import * as path from 'node:path';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { DeploymentsModule } from './deployments/deployments.module';
 import { ErrorLogModule } from './error-log/error-log.module';
+import { GalleryModule } from './gallery/gallery.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProjectsModule } from './projects/projects.module';
@@ -15,12 +18,24 @@ import { UsersModule } from './users/users.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    // Serves captured gallery thumbnails at /thumbnails/*.png. Nginx handles
+    // the actual published projects; this is just the API's own static assets.
+    ServeStaticModule.forRootAsync({
+      useFactory: (config: ConfigService) => [
+        {
+          rootPath: path.resolve(config.get<string>('THUMBNAILS_DIR', './data/thumbnails')),
+          serveRoot: '/thumbnails',
+        },
+      ],
+      inject: [ConfigService],
+    }),
     PrismaModule,
     ErrorLogModule,
     NotificationsModule,
     AuthModule,
     ProjectsModule,
     DeploymentsModule,
+    GalleryModule,
     UsersModule,
     AdminModule,
   ],

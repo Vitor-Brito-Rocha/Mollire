@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { HudHeader } from "@/components/hud-header";
+import { LevelBar } from "@/components/level-bar";
 import { NotificationsToggle } from "@/components/notifications-toggle";
 import { Button } from "@/components/ui/button";
 import { api, type CurrentUser } from "@/lib/api";
@@ -30,10 +31,9 @@ export function DashboardHeader({ email }: { email: string }) {
     router.refresh();
   }
 
-  // A barra de nível entra aqui quando a API passar a expor XP — o componente
-  // já existe em level-bar.tsx; o que falta é o dado, não a tela.
   return (
     <HudHeader>
+      {user && <LevelBar level={user.level} xp={user.xp} next={user.next} className="hidden sm:flex" />}
       <NotificationsToggle />
       {user?.role === "ADMIN" && (
         <Button

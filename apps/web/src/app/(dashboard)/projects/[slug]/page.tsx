@@ -6,8 +6,10 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { api, ApiError, type Deployment, type Project } from "@/lib/api";
 
 const STATUS_VARIANT: Record<Deployment["status"], "default" | "secondary" | "destructive"> = {
@@ -25,6 +27,7 @@ export default function ProjectDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const [project, setProject] = useState<Project | null>(null);
   const [deploying, setDeploying] = useState(false);
+  const [togglingVisibility, setTogglingVisibility] = useState(false);
 
   const load = useCallback(() => {
     api
@@ -55,6 +58,21 @@ export default function ProjectDetailPage() {
       toast.error(error instanceof ApiError ? error.message : "Erro ao disparar deploy");
     } finally {
       setDeploying(false);
+    }
+  }
+
+  async function handleToggleVisibility(isPublic: boolean) {
+    setTogglingVisibility(true);
+    try {
+      const updated = await api.patch<Project>(`/projects/${slug}/visibility`, {
+        is_public: isPublic,
+      });
+      setProject((prev) => (prev ? { ...prev, ...updated } : updated));
+      toast.success(isPublic ? "Projeto publicado na galeria" : "Projeto removido da galeria");
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Erro ao mudar visibilidade");
+    } finally {
+      setTogglingVisibility(false);
     }
   }
 
@@ -94,6 +112,28 @@ export default function ProjectDetailPage() {
           <p>Repositório: {project.repository_url}</p>
           <p>Build: {project.build_command}</p>
           <p>Saída: {project.output_dir}</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Galeria</CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-between gap-3">
+          <div className="flex flex-col gap-0.5">
+            <Label htmlFor="gallery-visibility">Publicar na galeria</Label>
+            <p className="text-muted-foreground text-xs">
+              {project.is_public
+                ? "Visível para todos em /galeria."
+                : "Só você vê este projeto."}
+            </p>
+          </div>
+          <Switch
+            id="gallery-visibility"
+            checked={project.is_public}
+            disabled={togglingVisibility}
+            onCheckedChange={handleToggleVisibility}
+          />
         </CardContent>
       </Card>
 
