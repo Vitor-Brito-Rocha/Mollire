@@ -43,10 +43,14 @@ export function DashboardHeader({ email }: { email: string }) {
           render={<Link href="/admin">Admin</Link>}
         />
       )}
-      <span className="text-text-3 hidden font-mono text-xs sm:inline">{email}</span>
-      <span className="hex bg-raised font-display text-muted-foreground grid size-[34px] place-items-center text-xs font-bold uppercase">
-        {email.charAt(0) || "?"}
-      </span>
+      {/* O avatar leva ao perfil, onde o apelido público é escolhido. */}
+      <Link
+        href="/perfil"
+        aria-label="Seu perfil"
+        className="hex bg-raised font-display text-muted-foreground hover:text-foreground grid size-[34px] place-items-center text-xs font-bold uppercase transition-colors"
+      >
+        {(user?.handle ?? email).charAt(0) || "?"}
+      </Link>
       <Button variant="ghost" size="sm" onClick={handleLogout}>
         Sair
       </Button>

@@ -1,27 +1,24 @@
 "use client";
 
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
+import { DeployStatus, StatusChip } from "@/components/status-chip";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { api, ApiError, type Deployment, type Project } from "@/lib/api";
-
-const STATUS_VARIANT: Record<Deployment["status"], "default" | "secondary" | "destructive"> = {
-  PENDING: "secondary",
-  CLONING: "secondary",
-  BUILDING: "secondary",
-  PUBLISHING: "secondary",
-  SUCCESS: "default",
-  FAILED: "destructive",
-};
+import { api, API_URL, ApiError, type Deployment, type Project } from "@/lib/api";
 
 const IN_FLIGHT: Deployment["status"][] = ["PENDING", "CLONING", "BUILDING", "PUBLISHING"];
+
+const whenFmt = new Intl.DateTimeFormat("pt-BR", {
+  day: "2-digit",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+});
 
 export default function ProjectDetailPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -41,12 +38,13 @@ export default function ProjectDetailPage() {
   }, [load]);
 
   // Poll while the latest deployment is still in flight.
+  const latest = project?.deployments?.[0];
+  const inFlight = !!latest && IN_FLIGHT.includes(latest.status);
   useEffect(() => {
-    const latest = project?.deployments?.[0];
-    if (!latest || !IN_FLIGHT.includes(latest.status)) return;
+    if (!inFlight) return;
     const interval = setInterval(load, 2000);
     return () => clearInterval(interval);
-  }, [project, load]);
+  }, [inFlight, load]);
 
   async function handleDeploy() {
     setDeploying(true);
@@ -78,96 +76,153 @@ export default function ProjectDetailPage() {
 
   if (!project) {
     return (
-      <div className="mx-auto flex max-w-3xl flex-col gap-4">
+      <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-4">
         <Skeleton className="h-10 w-1/2" />
-        <Skeleton className="h-40 w-full" />
+        <Skeleton className="h-64 w-full" />
       </div>
     );
   }
 
+  const deployments = project.deployments ?? [];
+  const url = `https://${project.slug}.aulvi.com.br`;
+
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">{project.name}</h1>
-          <a
-            href={`https://${project.slug}.aulvi.com.br`}
-            target="_blank"
-            rel="noreferrer"
-            className="text-primary text-sm underline underline-offset-4"
+    <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-6">
+      <div className="flex flex-wrap items-end justify-between gap-6">
+        <div className="flex flex-col gap-2.5">
+          <Link
+            href="/"
+            className="label text-muted-foreground hover:text-foreground flex w-fit items-center gap-2 transition-colors"
           >
-            {project.slug}.aulvi.com.br
-          </a>
+            <svg
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              className="size-3.5"
+              style={{ fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" }}
+            >
+              <path d="M15 6l-6 6 6 6" />
+            </svg>
+            Seus projetos
+          </Link>
+          <h1 className="font-display text-[34px] leading-[1.1] font-bold">{project.name}</h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <a href={url} target="_blank" rel="noreferrer" className="text-text-3 hover:text-foreground font-mono text-xs">
+              {project.slug}.aulvi.com.br
+            </a>
+            {project.is_public ? (
+              <StatusChip tone="good">Na galeria</StatusChip>
+            ) : (
+              <StatusChip tone="idle">Privado</StatusChip>
+            )}
+            {inFlight && <StatusChip tone="busy">Deploy em andamento</StatusChip>}
+          </div>
         </div>
-        <Button onClick={handleDeploy} disabled={deploying}>
+        <Button size="lg" onClick={handleDeploy} disabled={deploying || inFlight}>
           {deploying ? "Disparando..." : "Deploy"}
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Configuração</CardTitle>
-        </CardHeader>
-        <CardContent className="text-muted-foreground flex flex-col gap-1 text-sm">
-          <p>Repositório: {project.repository_url}</p>
-          <p>Build: {project.build_command}</p>
-          <p>Saída: {project.output_dir}</p>
-        </CardContent>
-      </Card>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <section className="corners bg-card border-border flex flex-col border lg:col-span-2">
+          <h2 className="label border-border flex items-center gap-2 border-b px-4 py-3">
+            Histórico de deploys
+            <span className="text-text-3 font-mono text-xs tracking-normal normal-case">{deployments.length}</span>
+          </h2>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Galeria</CardTitle>
-        </CardHeader>
-        <CardContent className="flex items-center justify-between gap-3">
-          <div className="flex flex-col gap-0.5">
-            <Label htmlFor="gallery-visibility">Publicar na galeria</Label>
-            <p className="text-muted-foreground text-xs">
-              {project.is_public
-                ? "Visível para todos em /galeria."
-                : "Só você vê este projeto."}
-            </p>
-          </div>
-          <Switch
-            id="gallery-visibility"
-            checked={project.is_public}
-            disabled={togglingVisibility}
-            onCheckedChange={handleToggleVisibility}
-          />
-        </CardContent>
-      </Card>
-
-      <div>
-        <h2 className="mb-3 text-lg font-semibold">Histórico de deploys</h2>
-        <div className="flex flex-col gap-3">
-          {project.deployments?.length === 0 && (
-            <p className="text-muted-foreground text-sm">Nenhum deploy ainda.</p>
-          )}
-          {project.deployments?.map((deployment) => (
-            <Card key={deployment.id}>
-              <CardHeader className="flex-row items-center justify-between py-3">
-                <div className="flex items-center gap-2">
-                  <Badge variant={STATUS_VARIANT[deployment.status]}>{deployment.status}</Badge>
-                  <span className="text-muted-foreground text-xs">
-                    {new Date(deployment.created_at).toLocaleString("pt-BR")}
+          {deployments.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 px-4 py-12 text-center">
+              <p className="text-muted-foreground">Nenhum deploy ainda.</p>
+              <p className="text-text-3 max-w-[38ch] text-sm">
+                O primeiro deploy clona o repositório, roda o build e publica em {project.slug}.aulvi.com.br.
+              </p>
+            </div>
+          ) : (
+            deployments.map((deployment) => (
+              <details key={deployment.id} className="group border-border border-b last:border-b-0">
+                <summary
+                  className={
+                    "grid grid-cols-12 items-center gap-3 px-4 py-3 " +
+                    (deployment.log ? "hover:bg-raised cursor-pointer" : "cursor-default [&::-webkit-details-marker]:hidden")
+                  }
+                >
+                  <span className="col-span-5 sm:col-span-3">
+                    <DeployStatus status={deployment.status} />
                   </span>
-                </div>
-                {deployment.commit_sha && (
-                  <code className="text-muted-foreground text-xs">
-                    {deployment.commit_sha.slice(0, 7)}
-                  </code>
-                )}
-              </CardHeader>
-              {deployment.log && (
-                <CardContent className="pt-0">
-                  <Separator className="mb-3" />
-                  <pre className="bg-muted max-h-48 overflow-auto rounded-md p-3 text-xs whitespace-pre-wrap">
+                  <span className="text-muted-foreground col-span-5 text-[13px] sm:col-span-4">
+                    {whenFmt.format(new Date(deployment.created_at))}
+                  </span>
+                  <span className="text-text-3 col-span-2 font-mono text-xs sm:col-span-3">
+                    {deployment.commit_sha ? deployment.commit_sha.slice(0, 7) : "—"}
+                  </span>
+                  {deployment.log && (
+                    <span className="text-text-3 label hidden text-[10px] group-open:text-foreground sm:col-span-2 sm:block sm:text-right">
+                      log
+                    </span>
+                  )}
+                </summary>
+                {deployment.log && (
+                  <pre className="bg-background border-border text-muted-foreground mx-4 mb-4 max-h-64 overflow-auto border p-3 font-mono text-xs whitespace-pre-wrap">
                     {deployment.log}
                   </pre>
-                </CardContent>
-              )}
-            </Card>
-          ))}
+                )}
+              </details>
+            ))
+          )}
+        </section>
+
+        <div className="flex flex-col gap-6">
+          <section className="corners bg-card border-border flex flex-col gap-4 border p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="gallery-visibility">Publicar na galeria</Label>
+                <p className="text-muted-foreground text-xs">
+                  {project.is_public
+                    ? "Qualquer pessoa vê este projeto em /galeria e pode dar estrela."
+                    : "Só você vê este projeto. Publicar rende XP na primeira vez."}
+                </p>
+              </div>
+              <Switch
+                id="gallery-visibility"
+                checked={project.is_public}
+                disabled={togglingVisibility}
+                onCheckedChange={handleToggleVisibility}
+              />
+            </div>
+            {project.thumbnail_url ? (
+              <div className="border-border overflow-hidden border">
+                {/* eslint-disable-next-line @next/next/no-img-element -- served by the API, per-project */}
+                <img
+                  src={`${API_URL}${project.thumbnail_url}`}
+                  alt={`Captura de ${project.name}`}
+                  className="block w-full object-cover object-top"
+                />
+              </div>
+            ) : (
+              project.is_public && (
+                <p className="text-text-3 text-xs">
+                  A miniatura da galeria é capturada no próximo deploy bem-sucedido.
+                </p>
+              )
+            )}
+          </section>
+
+          <section className="corners bg-card border-border flex flex-col border">
+            <h2 className="label border-border border-b px-4 py-3">Configuração</h2>
+            <dl className="flex flex-col">
+              <div className="border-border flex flex-col gap-1 border-b px-4 py-3">
+                <dt className="text-muted-foreground text-xs">Repositório</dt>
+                <dd className="font-mono text-xs break-all">{project.repository_url}</dd>
+              </div>
+              <div className="border-border flex flex-col gap-1 border-b px-4 py-3">
+                <dt className="text-muted-foreground text-xs">Build</dt>
+                <dd className="font-mono text-xs break-all">{project.build_command}</dd>
+              </div>
+              <div className="flex flex-col gap-1 px-4 py-3">
+                <dt className="text-muted-foreground text-xs">Saída</dt>
+                <dd className="font-mono text-xs">{project.output_dir}</dd>
+              </div>
+            </dl>
+          </section>
         </div>
       </div>
     </div>
