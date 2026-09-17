@@ -182,7 +182,7 @@ export default function GaleriaPage() {
             </p>
           </div>
 
-          <div className="bg-card border-border inline-flex gap-0.5 border p-[3px]" role="group" aria-label="Filtro">
+          <div className="bg-card border-border inline-flex max-w-full flex-wrap gap-0.5 border p-[3px]" role="group" aria-label="Filtro">
             {FILTERS.map((f) => {
               const on = filter === f.value;
               return (
