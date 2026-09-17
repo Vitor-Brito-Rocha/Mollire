@@ -1,7 +1,17 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
+// Rotas legíveis sem login. A galeria e as páginas de projeto público
+// existem justamente para serem vistas por quem não tem conta, então elas
+// saem antes de qualquer trabalho de sessão — um visitante anônimo não tem
+// token para renovar.
+const PUBLIC_PREFIXES = ['/galeria'];
+
 export async function proxy(request: NextRequest) {
+  if (PUBLIC_PREFIXES.some((prefix) => request.nextUrl.pathname.startsWith(prefix))) {
+    return NextResponse.next({ request });
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
