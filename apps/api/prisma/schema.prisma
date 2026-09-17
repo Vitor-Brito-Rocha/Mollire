@@ -43,6 +43,7 @@ model User {
   push_subscriptions PushSubscription[]
   admin_invites_sent AdminInvite[]
   project_stars      ProjectStar[]
+  comments           Comment[]
 
   @@map("users")
 }
@@ -80,9 +81,29 @@ model Project {
   user        User         @relation(fields: [user_id], references: [id])
   deployments Deployment[]
   stars       ProjectStar[]
+  comments    Comment[]
 
   @@index([user_id])
   @@map("projects")
+}
+
+// A comment on a published gallery project. Soft-deleted (deleted_at) by its
+// author or an admin, so moderation removes it from view without losing the
+// record.
+model Comment {
+  id         String    @id @default(cuid())
+  project_id String
+  user_id    String
+  body       String
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  deleted_at DateTime?
+
+  project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([project_id, created_at])
+  @@map("comments")
 }
 
 // A tenant's gesture of appreciation for a published gallery project. Not

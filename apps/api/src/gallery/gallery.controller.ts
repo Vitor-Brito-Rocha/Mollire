@@ -1,7 +1,8 @@
-import { Controller, Delete, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Public } from '../auth/public.decorator';
 import { AuthenticatedUser } from '../auth/types';
+import { CreateCommentDto } from './dto/create-comment.dto';
 import { ListGalleryDto } from './dto/list-gallery.dto';
 import { GalleryService } from './gallery.service';
 
@@ -17,6 +18,12 @@ export class GalleryController {
     return this.galleryService.list(query.filter, user?.id);
   }
 
+  @Public()
+  @Get(':slug')
+  detail(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser | undefined) {
+    return this.galleryService.detail(slug, user?.id);
+  }
+
   @Post(':slug/star')
   star(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
     return this.galleryService.star(slug, user.id);
@@ -25,5 +32,30 @@ export class GalleryController {
   @Delete(':slug/star')
   unstar(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
     return this.galleryService.unstar(slug, user.id);
+  }
+
+  @Public()
+  @Get(':slug/comments')
+  comments(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser | undefined) {
+    return this.galleryService.listComments(slug, user);
+  }
+
+  @Post(':slug/comments')
+  addComment(
+    @Param('slug') slug: string,
+    @Body() dto: CreateCommentDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.galleryService.addComment(slug, user, dto.body);
+  }
+
+  @Delete(':slug/comments/:id')
+  @HttpCode(204)
+  deleteComment(
+    @Param('slug') slug: string,
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.galleryService.deleteComment(slug, id, user);
   }
 }

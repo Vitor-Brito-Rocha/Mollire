@@ -82,6 +82,9 @@ npm run start:dev
   pay it again — tracked by `Project.published_at`), **+5** to a project's owner each time someone
   else stars it. `level`/`next` are never stored — `GET /users/me` derives them from `xp` on read
   (see `common/level.ts`).
+- Comments live on public projects only (`Comment`, soft-deleted via `deleted_at`). The author
+  or an admin can delete; anyone else gets 404, like every other ownership mismatch. No XP
+  is paid for commenting — it would be trivially farmable.
 - Thumbnails are real screenshots, not uploads: the first successful deploy of a project *after*
   it's public triggers a headless Playwright capture of `{slug}.{DOMAIN}` (`GalleryModule`'s
   `ThumbnailService`), saved to `THUMBNAILS_DIR` and served at `GET /thumbnails/{slug}.png`. A
@@ -108,8 +111,12 @@ See [deploy/mollire.service.example](../../deploy/mollire.service.example).
 | GET    | `/users/me`                | user  | Current user (id, email, handle, role, xp, level, next) |
 | PATCH  | `/users/me`                | user  | Set your public handle (`{ handle }`)     |
 | GET    | `/gallery`                 | public | Public projects (`?filter=recentes\|destaque\|todos`); a signed-in caller also gets `starred_by_viewer` |
+| GET    | `/gallery/:slug`           | public | One public project: author handle, stars, comment count, last deploy |
 | POST   | `/gallery/:slug/star`      | user  | Star a public project                     |
 | DELETE | `/gallery/:slug/star`      | user  | Remove your star                          |
+| GET    | `/gallery/:slug/comments`  | public | Comments on a public project (oldest first) |
+| POST   | `/gallery/:slug/comments`  | user  | Comment (`{ body }`, 1–1000 chars)         |
+| DELETE | `/gallery/:slug/comments/:id` | user | Soft-delete your own comment; admins any |
 | POST   | `/notifications/subscribe` | user  | Register a web push subscription          |
 | DELETE | `/notifications/subscribe` | user  | Remove a web push subscription            |
 | GET    | `/admin/projects`          | admin | All projects, every tenant                |
