@@ -10,14 +10,19 @@ const STAR_XP = 5;
 export class GalleryService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(filter: 'recentes' | 'destaque' | 'todos' | undefined, viewerId: string) {
+  async list(filter: 'recentes' | 'destaque' | 'todos' | undefined, viewerId?: string) {
     const projects = await this.prisma.project.findMany({
       where: { is_public: true },
       orderBy: filter === 'destaque' ? { stars: { _count: 'desc' } } : { created_at: 'desc' },
       include: {
-        user: { select: { email: true } },
+        // Only the public handle ever leaves the API — never the owner's email.
+        user: { select: { handle: true } },
         _count: { select: { stars: true } },
-        stars: { where: { user_id: viewerId }, select: { user_id: true } },
+        // Anonymous viewer: match nothing, so starred_by_viewer is false.
+        stars: {
+          where: viewerId ? { user_id: viewerId } : { user_id: { in: [] } },
+          select: { user_id: true },
+        },
       },
     });
 
@@ -25,7 +30,7 @@ export class GalleryService {
       id: project.id,
       name: project.name,
       slug: project.slug,
-      author: project.user.email,
+      author: project.user.handle ?? 'usuário',
       thumbnail_url: project.thumbnail_url,
       stars: project._count.stars,
       starred_by_viewer: project.stars.length > 0,

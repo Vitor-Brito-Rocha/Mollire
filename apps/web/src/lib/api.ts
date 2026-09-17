@@ -87,6 +87,8 @@ export type Deployment = {
 export type CurrentUser = {
   id: string;
   email: string;
+  // Identidade pública (galeria, comentários). Nunca mostrar o e-mail no lugar dela.
+  handle: string | null;
   role: 'ADMIN' | 'TENANT';
   xp: number;
   level: number;

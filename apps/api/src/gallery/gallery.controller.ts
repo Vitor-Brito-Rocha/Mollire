@@ -1,5 +1,6 @@
 import { Controller, Delete, Get, Param, Post, Query } from '@nestjs/common';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { Public } from '../auth/public.decorator';
 import { AuthenticatedUser } from '../auth/types';
 import { ListGalleryDto } from './dto/list-gallery.dto';
 import { GalleryService } from './gallery.service';
@@ -8,9 +9,12 @@ import { GalleryService } from './gallery.service';
 export class GalleryController {
   constructor(private readonly galleryService: GalleryService) {}
 
+  // The gallery is the public face of the product: anyone can browse it. A
+  // signed-in viewer additionally sees which projects they've starred.
+  @Public()
   @Get()
-  list(@Query() query: ListGalleryDto, @CurrentUser() user: AuthenticatedUser) {
-    return this.galleryService.list(query.filter, user.id);
+  list(@Query() query: ListGalleryDto, @CurrentUser() user: AuthenticatedUser | undefined) {
+    return this.galleryService.list(query.filter, user?.id);
   }
 
   @Post(':slug/star')

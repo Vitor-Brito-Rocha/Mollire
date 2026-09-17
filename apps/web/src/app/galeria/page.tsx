@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { HudHeader } from "@/components/hud-header";
@@ -102,6 +103,7 @@ function Thumb({ project }: { project: GalleryProject }) {
 }
 
 export default function GaleriaPage() {
+  const router = useRouter();
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [projects, setProjects] = useState<GalleryProject[] | null>(null);
   const [filter, setFilter] = useState<GalleryFilter>("recentes");
@@ -130,6 +132,11 @@ export default function GaleriaPage() {
   }, [filter, loadGallery]);
 
   async function toggleStar(project: GalleryProject) {
+    // Visitante anônimo pode ver a galeria, mas estrela é um gesto de quem tem conta.
+    if (!user) {
+      router.push("/login");
+      return;
+    }
     if (pending[project.slug]) return;
     setPending((prev) => ({ ...prev, [project.slug]: true }));
     try {
@@ -149,10 +156,16 @@ export default function GaleriaPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <HudHeader>
-        {user && <LevelBar level={user.level} xp={user.xp} next={user.next} className="hidden sm:flex" />}
-        <span className="hex bg-raised font-display text-muted-foreground grid size-[34px] place-items-center text-xs font-bold uppercase">
-          {user?.email.charAt(0) ?? "?"}
-        </span>
+        {user ? (
+          <>
+            <LevelBar level={user.level} xp={user.xp} next={user.next} className="hidden sm:flex" />
+            <span className="hex bg-raised font-display text-muted-foreground grid size-[34px] place-items-center text-xs font-bold uppercase">
+              {(user.handle ?? user.email).charAt(0)}
+            </span>
+          </>
+        ) : (
+          <Button size="sm" nativeButton={false} render={<Link href="/login">Entrar</Link>} />
+        )}
       </HudHeader>
 
       <main className="mx-auto flex w-full max-w-[1200px] flex-col gap-7 px-5 py-10 md:px-10">

@@ -60,6 +60,14 @@ npm run start:dev
 
 ## Gallery & XP
 
+- `GET /gallery` is the one public route (`@Public()`): the guard still recognises a bearer
+  token when present (so the viewer's own stars are marked) but never rejects an anonymous
+  call. Starring requires a session.
+- The gallery's `author` is the owner's **handle**, never the email. A handle is derived from
+  the email's local part on the user's first sync (`SupabaseAuthService.pickHandle`, id
+  suffix on collision) and can be changed via `PATCH /users/me { handle }` (3–20 chars,
+  `[a-z0-9._-]`, unique → 409 when taken).
+
 - A project is private by default. Its owner publishes it via
   `PATCH /projects/:slug/visibility { is_public: true }`; only then does it show up in
   `GET /gallery`. Unpublishing just flips it back to private — no data is deleted.
@@ -97,8 +105,9 @@ See [deploy/mollire.service.example](../../deploy/mollire.service.example).
 | PATCH  | `/projects/:slug/visibility` | user | Publish/unpublish a project to the gallery |
 | POST   | `/projects/:slug/deploy`   | user  | Trigger a deploy (runs in background)     |
 | GET    | `/deployments/:id`         | user  | Deployment status/log                     |
-| GET    | `/users/me`                | user  | Current user (id, email, role, xp, level, next) |
-| GET    | `/gallery`                 | user  | Public projects (`?filter=recentes\|destaque\|todos`) |
+| GET    | `/users/me`                | user  | Current user (id, email, handle, role, xp, level, next) |
+| PATCH  | `/users/me`                | user  | Set your public handle (`{ handle }`)     |
+| GET    | `/gallery`                 | public | Public projects (`?filter=recentes\|destaque\|todos`); a signed-in caller also gets `starred_by_viewer` |
 | POST   | `/gallery/:slug/star`      | user  | Star a public project                     |
 | DELETE | `/gallery/:slug/star`      | user  | Remove your star                          |
 | POST   | `/notifications/subscribe` | user  | Register a web push subscription          |
