@@ -1,0 +1,29 @@
+# One server block for every project — creating a project never touches Nginx config.
+# Deploys just write files to disk; this block resolves the slug from the Host header
+# and serves whatever `current` currently symlinks to.
+#
+# Install: copy to /etc/nginx/sites-available/mollire.conf, symlink into sites-enabled,
+# point PROJECTS_ROOT (in .env) at the same path as `root` below, then `nginx -s reload`
+# once. After that, no further reloads are needed per project or per deploy.
+
+server {
+    listen 80;
+    server_name *.aulvi.com.br;
+
+    set $slug "";
+    if ($host ~* "^([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)\.aulvi\.com\.br$") {
+        set $slug $1;
+    }
+
+    root /var/www/projects/$slug/current;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # unmatched/malformed subdomain
+    if ($slug = "") {
+        return 404;
+    }
+}

@@ -1,0 +1,28 @@
+# Copy to /etc/systemd/system/mollire.service, then:
+#   systemctl daemon-reload
+#   systemctl enable --now mollire
+#
+# Restart=on-failure pairs with the app's own process.on('uncaughtException'/
+# 'unhandledRejection') last-resort handlers (apps/api/src/main.ts): those log +
+# alert then exit fast, this brings the process back up within a second or two —
+# together that's what "the service never stays down" actually means, since a
+# single Node process can't safely keep serving after a truly uncaught error.
+#
+# Repo layout is a monorepo (apps/api, apps/web) — only apps/api runs on the VPS;
+# apps/web deploys to Vercel separately.
+
+[Unit]
+Description=Mollire API
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/var/www/mollire/apps/api
+ExecStart=/usr/bin/node dist/main.js
+Restart=on-failure
+RestartSec=2
+EnvironmentFile=/var/www/mollire/apps/api/.env
+User=mollire
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,105 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  TENANT
+}
+
+enum DeploymentStatus {
+  PENDING
+  CLONING
+  BUILDING
+  PUBLISHING
+  SUCCESS
+  FAILED
+}
+
+enum ErrorSource {
+  HTTP
+  DEPLOY_PIPELINE
+  UNCAUGHT
+}
+
+model User {
+  id         String   @id
+  email      String   @unique
+  role       Role     @default(TENANT)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  projects           Project[]
+  push_subscriptions PushSubscription[]
+
+  @@map("users")
+}
+
+model Project {
+  id             String   @id @default(cuid())
+  name           String
+  slug           String   @unique
+  repository_url String
+  build_command  String   @default("npm install && npm run build")
+  output_dir     String   @default("dist")
+  user_id        String
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  user        User         @relation(fields: [user_id], references: [id])
+  deployments Deployment[]
+
+  @@index([user_id])
+  @@map("projects")
+}
+
+model Deployment {
+  id           String           @id @default(cuid())
+  project_id   String
+  status       DeploymentStatus @default(PENDING)
+  commit_sha   String?
+  release_path String?
+  log          String?
+  created_at   DateTime         @default(now())
+  finished_at  DateTime?
+
+  project Project @relation(fields: [project_id], references: [id])
+
+  @@index([project_id])
+  @@map("deployments")
+}
+
+model ErrorLog {
+  id          String      @id @default(cuid())
+  message     String
+  stack       String?
+  status_code Int?
+  method      String?
+  path        String?
+  source      ErrorSource
+  user_id     String?
+  created_at  DateTime    @default(now())
+
+  @@index([created_at])
+  @@map("error_logs")
+}
+
+model PushSubscription {
+  id         String   @id @default(cuid())
+  user_id    String
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  user_agent String?
+  created_at DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@map("push_subscriptions")
+}
