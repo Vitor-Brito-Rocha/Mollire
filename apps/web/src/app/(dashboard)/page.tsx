@@ -65,7 +65,12 @@ export default function DashboardPage() {
               }
             >
               <div className="col-span-8 flex min-w-0 flex-col gap-0.5 sm:col-span-9">
-                <span className="truncate text-[15px] font-semibold">{project.name}</span>
+                <span className="flex items-center gap-2">
+                  <span className="truncate text-[15px] font-semibold">{project.name}</span>
+                  {project.my_role === "MEMBER" && (
+                    <span className="label text-text-3 shrink-0 text-[9.5px]">membro</span>
+                  )}
+                </span>
                 <span className="text-text-3 truncate font-mono text-xs">{project.slug}.aulvi.com.br</span>
               </div>
               <span className="text-muted-foreground col-span-4 text-[13px] sm:col-span-3">

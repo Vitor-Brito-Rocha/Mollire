@@ -58,6 +58,8 @@ export type Project = {
   output_dir: string;
   is_public: boolean;
   thumbnail_url: string | null;
+  // Papel de quem está logado neste projeto (só vem nas rotas de tenant).
+  my_role?: ProjectRole;
   user_id: string;
   created_at: string;
   updated_at: string;
@@ -93,6 +95,8 @@ export type CurrentUser = {
   xp: number;
   level: number;
   next: number;
+  // Convites de projeto resgatados nesta chamada (0 na maioria das vezes).
+  joined_projects?: number;
 };
 
 export type GalleryFilter = 'recentes' | 'destaque' | 'todos';
@@ -119,10 +123,38 @@ export type GalleryProjectDetail = {
   starred_by_viewer: boolean;
   is_owner: boolean;
   comments: number;
+  members: { handle: string; role: ProjectRole }[];
   published_at: string | null;
   last_deploy_at: string | null;
   created_at: string;
 };
+
+export type ProjectRole = 'OWNER' | 'MEMBER';
+
+export type ProjectMember = {
+  user_id: string;
+  handle: string;
+  role: ProjectRole;
+  since: string;
+};
+
+export type ProjectInvitation = {
+  id: string;
+  email: string;
+  role: ProjectRole;
+  created_at: string;
+  expires_at: string;
+};
+
+export type MembersList = {
+  my_role: ProjectRole;
+  members: ProjectMember[];
+  invitations: ProjectInvitation[];
+};
+
+export type InviteMemberResponse =
+  | { status: 'added'; member: ProjectMember }
+  | { status: 'invited'; invitation: ProjectInvitation };
 
 export type GalleryComment = {
   id: string;

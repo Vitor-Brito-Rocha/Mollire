@@ -68,6 +68,11 @@ export class GalleryService {
           take: 1,
           select: { created_at: true, finished_at: true },
         },
+        // Handles only — who works on it, never who they are.
+        members: {
+          orderBy: [{ role: 'asc' }, { created_at: 'asc' }],
+          select: { role: true, user: { select: { handle: true } } },
+        },
       },
     });
     if (!project) {
@@ -87,6 +92,7 @@ export class GalleryService {
       // The owner can't star their own project; the UI hides the button.
       is_owner: viewerId === project.user_id,
       comments: project._count.comments,
+      members: project.members.map((m) => ({ handle: m.user.handle ?? 'usuário', role: m.role })),
       published_at: project.published_at,
       last_deploy_at: lastDeploy?.finished_at ?? lastDeploy?.created_at ?? null,
       created_at: project.created_at,

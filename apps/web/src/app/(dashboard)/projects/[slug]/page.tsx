@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { ProjectMembers } from "@/components/project-members";
 import { DeployStatus, StatusChip } from "@/components/status-chip";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -85,6 +86,7 @@ export default function ProjectDetailPage() {
 
   const deployments = project.deployments ?? [];
   const url = `https://${project.slug}.aulvi.com.br`;
+  const isOwner = project.my_role !== "MEMBER";
 
   return (
     <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-6">
@@ -181,12 +183,16 @@ export default function ProjectDetailPage() {
                     : "Só você vê este projeto. Publicar rende XP na primeira vez."}
                 </p>
               </div>
-              <Switch
-                id="gallery-visibility"
-                checked={project.is_public}
-                disabled={togglingVisibility}
-                onCheckedChange={handleToggleVisibility}
-              />
+              {isOwner ? (
+                <Switch
+                  id="gallery-visibility"
+                  checked={project.is_public}
+                  disabled={togglingVisibility}
+                  onCheckedChange={handleToggleVisibility}
+                />
+              ) : (
+                <span className="label text-text-3 text-[9.5px]">só o dono</span>
+              )}
             </div>
             {project.thumbnail_url ? (
               <div className="border-border overflow-hidden border">
@@ -205,6 +211,8 @@ export default function ProjectDetailPage() {
               )
             )}
           </section>
+
+          <ProjectMembers slug={slug} />
 
           <section className="corners bg-card border-border flex flex-col border">
             <h2 className="label border-border border-b px-4 py-3">Configuração</h2>

@@ -44,6 +44,8 @@ model User {
   admin_invites_sent AdminInvite[]
   project_stars      ProjectStar[]
   comments           Comment[]
+  project_memberships      ProjectMember[]
+  project_invitations_sent ProjectInvitation[] @relation("ProjectInvitationInviter")
 
   @@map("users")
 }
@@ -82,9 +84,63 @@ model Project {
   deployments Deployment[]
   stars       ProjectStar[]
   comments    Comment[]
+  members     ProjectMember[]
+  invitations ProjectInvitation[]
 
   @@index([user_id])
   @@map("projects")
+}
+
+enum ProjectRole {
+  OWNER
+  MEMBER
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+}
+
+// Who can see and deploy a project. The owner keeps Project.user_id (the
+// unambiguous "whose is it"); members are additive. Every tenant-facing
+// lookup goes through ProjectsService.findForMember, so membership — not
+// ownership — is the boundary, and a mismatch is still 404.
+model ProjectMember {
+  id         String      @id @default(cuid())
+  project_id String
+  user_id    String
+  role       ProjectRole @default(MEMBER)
+  created_at DateTime    @default(now())
+
+  project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([project_id, user_id])
+  @@index([user_id])
+  @@map("project_members")
+}
+
+// Keyed by email, not user: the invitee may never have logged in (User rows
+// are provisioned on first sync). Redeemed into a ProjectMember by
+// MembersService.redeemInvitations, called from GET /users/me.
+model ProjectInvitation {
+  id          String           @id @default(cuid())
+  project_id  String
+  email       String
+  role        ProjectRole      @default(MEMBER)
+  status      InvitationStatus @default(PENDING)
+  invited_by  String
+  created_at  DateTime         @default(now())
+  expires_at  DateTime
+  accepted_at DateTime?
+
+  project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  inviter User    @relation("ProjectInvitationInviter", fields: [invited_by], references: [id])
+
+  @@unique([project_id, email])
+  @@index([email, status])
+  @@map("project_invitations")
 }
 
 // A comment on a published gallery project. Soft-deleted (deleted_at) by its

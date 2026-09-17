@@ -52,8 +52,15 @@ npm run start:dev
   yet), it's parked in `AdminInvite` and redeemed — role set to `ADMIN` — the moment that email
   first authenticates (`SupabaseAuthService.syncUser`). `GET /admin/admins` lists current admins
   plus pending invites. Only ever promotes, never demotes.
-- Every tenant-facing query is scoped by `user_id`; an ownership mismatch returns **404**, not
-  403, so a tenant can't even confirm another tenant's slug exists.
+- Every tenant-facing query is scoped by **membership** (`ProjectMember`, via
+  `ProjectsService.findForMember` / `memberFilter`); a mismatch returns **404**, not 403, so a
+  tenant can't even confirm another tenant's slug exists. `Project.user_id` still names the
+  owner (the creator gets an `OWNER` row; existing projects were backfilled). Members can view
+  and deploy; publishing, inviting and removing are owner-only.
+- Invitations (`ProjectInvitation`) are keyed by email because the invitee may not have a `User`
+  row yet. An existing user is added immediately; otherwise the invitation stays `PENDING` for
+  14 days and is redeemed by `GET /users/me` on the invitee's next call (`joined_projects` in
+  the response says how many). No email is sent yet — the owner shares the link themselves.
 - `/admin/projects*`, `/admin/deployments/*` are strictly **read-only** (view every tenant's
   projects/deployments/logs); `/admin/admins*` is the one mutating exception. All gated by
   `RolesGuard` + `@Roles('ADMIN')`, none sharing a code path with the tenant-facing services.
@@ -105,7 +112,11 @@ See [deploy/mollire.service.example](../../deploy/mollire.service.example).
 | POST   | `/projects`                | user  | Register a project                        |
 | GET    | `/projects`                | user  | List your own projects                    |
 | GET    | `/projects/:slug`          | user  | Project detail + last 10 deployments      |
-| PATCH  | `/projects/:slug/visibility` | user | Publish/unpublish a project to the gallery |
+| PATCH  | `/projects/:slug/visibility` | owner | Publish/unpublish a project to the gallery |
+| GET    | `/projects/:slug/members`  | member | Roster (handles + roles); pending invitations only for the owner |
+| POST   | `/projects/:slug/invitations` | owner | Invite by email: existing user joins now, otherwise pending until first login |
+| DELETE | `/projects/:slug/members/:userId` | owner | Remove a member (never the owner) |
+| DELETE | `/projects/:slug/invitations/:id` | owner | Revoke a pending invitation |
 | POST   | `/projects/:slug/deploy`   | user  | Trigger a deploy (runs in background)     |
 | GET    | `/deployments/:id`         | user  | Deployment status/log                     |
 | GET    | `/users/me`                | user  | Current user (id, email, handle, role, xp, level, next) |

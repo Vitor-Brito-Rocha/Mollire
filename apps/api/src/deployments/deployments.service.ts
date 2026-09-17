@@ -44,7 +44,8 @@ export class DeploymentsService {
 
   async findByIdForUser(id: string, userId: string) {
     const deployment = await this.prisma.deployment.findFirst({
-      where: { id, project: { user_id: userId } },
+      // Membership, not ownership — same boundary as ProjectsService.findForMember.
+      where: { id, project: { members: { some: { user_id: userId } } } },
     });
     if (!deployment) {
       throw new NotFoundException(`deployment "${id}" not found`);

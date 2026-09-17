@@ -1,4 +1,5 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma, ProjectRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 
@@ -6,9 +7,32 @@ import { CreateProjectDto } from './dto/create-project.dto';
 // Project.published_at, which is what makes this un-farmable by re-toggling.
 const PUBLISH_XP = 20;
 
+// Membership is the tenant boundary. Every lookup a tenant can trigger goes
+// through findForMember / memberFilter, so the rule lives in one place: a
+// project you're not a member of doesn't exist for you — 404, never 403,
+// exactly like a slug that was never registered. A tenant must never be able
+// to tell "not mine" apart from "doesn't exist".
 @Injectable()
 export class ProjectsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  memberFilter(userId: string, minRole: ProjectRole = ProjectRole.MEMBER): Prisma.ProjectWhereInput {
+    return {
+      members: {
+        some: { user_id: userId, ...(minRole === ProjectRole.OWNER ? { role: ProjectRole.OWNER } : {}) },
+      },
+    };
+  }
+
+  async findForMember(slug: string, userId: string, minRole: ProjectRole = ProjectRole.MEMBER) {
+    const project = await this.prisma.project.findFirst({
+      where: { slug, ...this.memberFilter(userId, minRole) },
+    });
+    if (!project) {
+      throw new NotFoundException(`project "${slug}" not found`);
+    }
+    return project;
+  }
 
   async create(dto: CreateProjectDto, userId: string) {
     const existing = await this.prisma.project.findUnique({ where: { slug: dto.slug } });
@@ -16,6 +40,8 @@ export class ProjectsService {
       throw new ConflictException(`slug "${dto.slug}" is already taken`);
     }
 
+    // The creator is the owner: Project.user_id says whose it is, the OWNER
+    // membership row is what every tenant-facing lookup checks.
     return this.prisma.project.create({
       data: {
         name: dto.name,
@@ -24,38 +50,42 @@ export class ProjectsService {
         build_command: dto.build_command ?? undefined,
         output_dir: dto.output_dir ?? undefined,
         user_id: userId,
+        members: { create: { user_id: userId, role: ProjectRole.OWNER } },
       },
     });
   }
 
-  findAllForUser(userId: string) {
-    return this.prisma.project.findMany({
-      where: { user_id: userId },
+  async findAllForUser(userId: string) {
+    const projects = await this.prisma.project.findMany({
+      where: this.memberFilter(userId),
       orderBy: { created_at: 'desc' },
+      include: { members: { where: { user_id: userId }, select: { role: true } } },
     });
+    return projects.map(({ members, ...project }) => ({
+      ...project,
+      my_role: members[0]?.role ?? ProjectRole.MEMBER,
+    }));
   }
 
   async findBySlugForUser(slug: string, userId: string) {
-    // findFirst on {slug, user_id}, not findUnique-then-check: a mismatch must
-    // come back as 404, same as a slug that doesn't exist at all — a tenant
-    // should never be able to tell "not mine" apart from "doesn't exist".
     const project = await this.prisma.project.findFirst({
-      where: { slug, user_id: userId },
-      include: { deployments: { orderBy: { created_at: 'desc' }, take: 10 } },
+      where: { slug, ...this.memberFilter(userId) },
+      include: {
+        deployments: { orderBy: { created_at: 'desc' }, take: 10 },
+        members: { where: { user_id: userId }, select: { role: true } },
+      },
     });
     if (!project) {
       throw new NotFoundException(`project "${slug}" not found`);
     }
-    return project;
+    const { members, ...rest } = project;
+    return { ...rest, my_role: members[0]?.role ?? ProjectRole.MEMBER };
   }
 
+  // Owner only: publishing changes what the world sees, and pays the owner's
+  // one-time XP bonus.
   async setVisibility(slug: string, userId: string, isPublic: boolean) {
-    // findFirst on {slug, user_id}, same ownership-scoping reasoning as
-    // findBySlugForUser: a mismatch must 404, not reveal the project exists.
-    const project = await this.prisma.project.findFirst({ where: { slug, user_id: userId } });
-    if (!project) {
-      throw new NotFoundException(`project "${slug}" not found`);
-    }
+    const project = await this.findForMember(slug, userId, ProjectRole.OWNER);
 
     const firstPublish = isPublic && !project.published_at;
 
@@ -69,7 +99,7 @@ export class ProjectsService {
 
     if (firstPublish) {
       await this.prisma.user.update({
-        where: { id: userId },
+        where: { id: project.user_id },
         data: { xp: { increment: PUBLISH_XP } },
       });
     }

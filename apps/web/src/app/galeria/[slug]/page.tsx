@@ -304,6 +304,29 @@ export default function GalleryProjectPage() {
                   <dd className="font-mono tabular-nums">{project.comments}</dd>
                 </div>
               </dl>
+
+              {project.members.length > 0 && (
+                <div className="flex flex-col gap-2.5">
+                  <h2 className="label flex items-center gap-2.5">
+                    <span className="bg-primary h-0.5 w-[14px]" />
+                    Quem faz
+                    <span className="text-text-3 font-mono text-xs tracking-normal normal-case">{project.members.length}</span>
+                  </h2>
+                  <ul className="flex flex-col gap-2">
+                    {project.members.map((member) => (
+                      <li key={member.handle} className="flex items-center gap-2.5">
+                        <span className="hex bg-raised font-display text-muted-foreground grid size-7 shrink-0 place-items-center text-[11px] font-bold uppercase">
+                          {member.handle.charAt(0)}
+                        </span>
+                        <span className="text-sm">{member.handle}</span>
+                        <span className="label text-text-3 ml-auto text-[9.5px]">
+                          {member.role === "OWNER" ? "dono" : "membro"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </aside>
           </div>
         )}
