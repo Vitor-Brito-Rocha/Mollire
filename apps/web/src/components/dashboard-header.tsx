@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Logo } from "@/components/logo";
 import { NotificationsToggle } from "@/components/notifications-toggle";
 import { Button } from "@/components/ui/button";
 import { api, type CurrentUser } from "@/lib/api";
@@ -31,8 +32,9 @@ export function DashboardHeader({ email }: { email: string }) {
 
   return (
     <header className="border-border flex items-center justify-between border-b px-6 py-4">
-      <Link href="/" className="text-lg font-semibold">
-        Mollire
+      <Link href="/" className="flex items-center gap-2">
+        <Logo height={28} />
+        <span className="text-lg font-semibold">Mollire</span>
       </Link>
       <div className="flex items-center gap-4">
         <NotificationsToggle />

@@ -15,9 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
 
-export default function SignupPage() {
+export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -25,7 +24,9 @@ export default function SignupPage() {
     event.preventDefault();
     setLoading(true);
     const supabase = createClient();
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
     setLoading(false);
 
     if (error) {
@@ -41,7 +42,7 @@ export default function SignupPage() {
         <CardHeader>
           <CardTitle>Confira seu email</CardTitle>
           <CardDescription>
-            Enviamos um link de confirmação para {email}. Confirme pra poder entrar.
+            Se {email} tiver uma conta, enviamos um link para redefinir a senha.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -51,8 +52,10 @@ export default function SignupPage() {
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
-        <CardTitle>Criar conta</CardTitle>
-        <CardDescription>Comece a publicar seus projetos.</CardDescription>
+        <CardTitle>Esqueceu a senha?</CardTitle>
+        <CardDescription>
+          Informe seu email e enviaremos um link para redefinir sua senha.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -67,25 +70,12 @@ export default function SignupPage() {
               required
             />
           </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="password">Senha</Label>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="new-password"
-              minLength={6}
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-            />
-          </div>
           <Button type="submit" disabled={loading}>
-            {loading ? "Criando..." : "Criar conta"}
+            {loading ? "Enviando..." : "Enviar link"}
           </Button>
           <p className="text-muted-foreground text-center text-sm">
-            Já tem conta?{" "}
             <Link href="/login" className="text-primary underline underline-offset-4">
-              Entrar
+              Voltar para o login
             </Link>
           </p>
         </form>

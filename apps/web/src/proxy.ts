@@ -31,9 +31,17 @@ export async function proxy(request: NextRequest) {
 
   const isAuthRoute =
     request.nextUrl.pathname.startsWith('/login') ||
-    request.nextUrl.pathname.startsWith('/signup');
+    request.nextUrl.pathname.startsWith('/signup') ||
+    request.nextUrl.pathname.startsWith('/forgot-password');
+  // /reset-password needs the recovery session (set by /auth/confirm) to be
+  // reachable at all, so it can't redirect unauthenticated visitors to /login
+  // like the other auth routes — but a logged-in user landing there via a
+  // stale link shouldn't get bounced back to / either, since they're there
+  // specifically to change their password.
+  const isPasswordRecoveryRoute = request.nextUrl.pathname.startsWith('/reset-password');
+  const isAuthCallbackRoute = request.nextUrl.pathname.startsWith('/auth/confirm');
 
-  if (!user && !isAuthRoute) {
+  if (!user && !isAuthRoute && !isPasswordRecoveryRoute && !isAuthCallbackRoute) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
