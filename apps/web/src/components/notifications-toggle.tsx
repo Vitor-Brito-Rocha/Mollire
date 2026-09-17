@@ -12,14 +12,23 @@ import {
 } from "@/lib/push";
 
 export function NotificationsToggle() {
+  // isPushSupported() reads `window`/`navigator`, which don't exist during
+  // SSR — starting at false keeps the server render and the client's first
+  // hydration pass identical (both render null below), then this effect
+  // flips it after mount, client-only. Setting state here isn't optional:
+  // it's what avoids a hydration mismatch, not something to hoist into the
+  // initial render.
   const [supported, setSupported] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!isPushSupported()) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional hydration-safe mount flag, see comment above
     setSupported(true);
-    getPushSubscriptionState().then((state) => setSubscribed(state === "subscribed"));
+    getPushSubscriptionState()
+      .then((state) => setSubscribed(state === "subscribed"))
+      .catch((error) => console.error("failed to read push subscription state", error));
   }, []);
 
   async function handleChange(checked: boolean) {

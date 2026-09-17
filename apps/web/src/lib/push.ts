@@ -19,8 +19,13 @@ export function isPushSupported(): boolean {
 }
 
 export async function getPushSubscriptionState(): Promise<"subscribed" | "unsubscribed"> {
-  const registration = await navigator.serviceWorker.getRegistration();
-  const subscription = await registration?.pushManager.getSubscription();
+  // register(), not getRegistration(): the latter can miss a registration
+  // that exists but hasn't been resolved for this page load yet, silently
+  // reporting "unsubscribed" even though the browser already has one.
+  // register() is idempotent — the browser hands back the existing
+  // registration for this scope+script instead of installing a new one.
+  const registration = await navigator.serviceWorker.register("/sw.js");
+  const subscription = await registration.pushManager.getSubscription();
   return subscription ? "subscribed" : "unsubscribed";
 }
 

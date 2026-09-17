@@ -150,7 +150,9 @@ export default function GaleriaPage() {
     <div className="flex min-h-screen flex-col">
       <HudHeader>
         {user && <LevelBar level={user.level} xp={user.xp} next={user.next} className="hidden sm:flex" />}
-        <span className="hex bg-raised font-display grid size-[34px] place-items-center text-xs font-bold">M</span>
+        <span className="hex bg-raised font-display text-muted-foreground grid size-[34px] place-items-center text-xs font-bold uppercase">
+          {user?.email.charAt(0) ?? "?"}
+        </span>
       </HudHeader>
 
       <main className="mx-auto flex w-full max-w-[1200px] flex-col gap-7 px-5 py-10 md:px-10">
