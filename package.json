@@ -2,17 +2,14 @@
   "name": "mollire",
   "version": "0.1.0",
   "private": true,
-  "description": "Mini-Vercel: multi-tenant deploy service for static frontend builds.",
-  "workspaces": [
-    "apps/*"
-  ],
+  "description": "Mini-Vercel: multi-tenant deploy service for static frontend builds. Each app under apps/ owns its own package.json, node_modules, and .env — this root has no dependencies of its own, just passthrough scripts.",
   "scripts": {
-    "dev:api": "npm run start:dev --workspace apps/api",
-    "dev:web": "npm run dev --workspace apps/web",
-    "build:api": "npm run build --workspace apps/api",
-    "build:web": "npm run build --workspace apps/web",
-    "prisma:generate": "npm run prisma:generate --workspace apps/api",
-    "prisma:migrate": "npm run prisma:migrate --workspace apps/api"
+    "dev:api": "npm --prefix apps/api run start:dev",
+    "dev:web": "npm --prefix apps/web run dev",
+    "build:api": "npm --prefix apps/api run build",
+    "build:web": "npm --prefix apps/web run build",
+    "prisma:generate": "npm --prefix apps/api run prisma:generate",
+    "prisma:migrate": "npm --prefix apps/api run prisma:migrate"
   },
   "engines": {
     "node": ">=22"
