@@ -2,21 +2,14 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
+import { StatusChip } from "@/components/status-chip";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { api, ApiError, type AdminsList, type InviteAdminResponse } from "@/lib/api";
+
+const dateFmt = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
 
 export default function AdminAdminsPage() {
   const [data, setData] = useState<AdminsList | null>(null);
@@ -52,78 +45,93 @@ export default function AdminAdminsPage() {
     }
   }
 
+  const total = data ? data.admins.length + data.pendingInvites.length : 0;
+
   return (
     <div className="flex flex-col gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Novo admin</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="flex items-end gap-3">
-            <div className="flex flex-1 flex-col gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="pessoa@exemplo.com"
-                required
-              />
-            </div>
-            <Button type="submit" disabled={inviting}>
-              {inviting ? "Enviando..." : "Tornar admin"}
-            </Button>
-          </form>
-          <p className="text-muted-foreground mt-2 text-xs">
-            Se a pessoa ainda não fez login, ela vira admin automaticamente no primeiro login.
+      <section className="corners bg-card border-border flex flex-col gap-4 border p-5">
+        <div className="flex flex-col gap-1.5">
+          <span className="label text-primary flex items-center gap-2.5 tracking-[0.14em]">
+            <span className="bg-primary h-0.5 w-[18px]" />
+            Conceder acesso
+          </span>
+          <p className="text-muted-foreground text-sm">
+            Quem já fez login vira admin na hora. Quem nunca entrou fica pendente e vira admin no primeiro
+            login. Só concede — nunca remove.
           </p>
-        </CardContent>
-      </Card>
+        </div>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="flex flex-1 flex-col gap-2">
+            <Label htmlFor="email">E-mail</Label>
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="pessoa@exemplo.com"
+              required
+            />
+          </div>
+          <Button type="submit" size="lg" disabled={inviting}>
+            {inviting ? "Enviando..." : "Tornar admin"}
+          </Button>
+        </form>
+      </section>
 
       {data === null ? (
-        <Skeleton className="h-40 w-full" />
+        <Skeleton className="h-48 w-full" />
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Admins</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.admins.map((admin) => (
-                  <TableRow key={admin.id}>
-                    <TableCell>{admin.email}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">admin</Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {data.pendingInvites.map((invite) => (
-                  <TableRow key={invite.email}>
-                    <TableCell>{invite.email}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">pendente (aguardando 1º login)</Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {data.admins.length === 0 && data.pendingInvites.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={2} className="text-muted-foreground">
-                      Nenhum admin ainda.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <section className="corners bg-card border-border flex flex-col border">
+          <div className="border-border flex items-center justify-between gap-3 border-b px-4 py-3">
+            <h2 className="label flex items-center gap-2">
+              Admins
+              <span className="text-text-3 font-mono text-xs tracking-normal normal-case">{data.admins.length}</span>
+            </h2>
+            {data.pendingInvites.length > 0 && (
+              <span className="text-muted-foreground text-xs">
+                {data.pendingInvites.length === 1
+                  ? "1 convite pendente"
+                  : `${data.pendingInvites.length} convites pendentes`}
+              </span>
+            )}
+          </div>
+
+          {total === 0 ? (
+            <p className="text-muted-foreground px-4 py-10 text-center">Nenhum admin ainda.</p>
+          ) : (
+            <>
+              <div className="label text-text-3 border-border grid grid-cols-12 gap-3 border-b px-4 py-2.5 text-[10px]">
+                <span className="col-span-7 sm:col-span-6">E-mail</span>
+                <span className="col-span-5 sm:col-span-3">Estado</span>
+                <span className="hidden sm:col-span-3 sm:block">Desde</span>
+              </div>
+              {data.admins.map((admin) => (
+                <div
+                  key={admin.id}
+                  className="border-border grid grid-cols-12 items-center gap-3 border-b px-4 py-3 last:border-b-0"
+                >
+                  <span className="col-span-7 truncate font-mono text-[13px] sm:col-span-6">{admin.email}</span>
+                  <StatusChip tone="good" className="col-span-5 sm:col-span-3">Admin</StatusChip>
+                  <span className="text-muted-foreground hidden text-[13px] sm:col-span-3 sm:block">
+                    {dateFmt.format(new Date(admin.created_at))}
+                  </span>
+                </div>
+              ))}
+              {data.pendingInvites.map((invite) => (
+                <div
+                  key={invite.email}
+                  className="border-border grid grid-cols-12 items-center gap-3 border-b px-4 py-3 last:border-b-0"
+                >
+                  <span className="col-span-7 truncate font-mono text-[13px] sm:col-span-6">{invite.email}</span>
+                  <StatusChip tone="busy" className="col-span-5 sm:col-span-3">Pendente · 1º login</StatusChip>
+                  <span className="text-muted-foreground hidden text-[13px] sm:col-span-3 sm:block">
+                    convidado em {dateFmt.format(new Date(invite.created_at))}
+                  </span>
+                </div>
+              ))}
+            </>
+          )}
+        </section>
       )}
     </div>
   );
