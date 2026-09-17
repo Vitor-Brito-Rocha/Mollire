@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { cn } from "cn";
+import { DashboardHeader } from "@/components/dashboard-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api, type CurrentUser } from "@/lib/api";
 
@@ -40,29 +40,43 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
+  // Mesmo shell das telas de tenant: o admin é uma seção do app, não outro app.
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6">
-      <div>
-        <Link href="/" className="text-muted-foreground text-sm underline underline-offset-4">
-          ← Dashboard
-        </Link>
-        <h1 className="mt-2 text-2xl font-semibold">Admin</h1>
-        <nav className="mt-4 flex gap-4 border-b">
-          {NAV_ITEMS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "border-b-2 border-transparent pb-2 text-sm font-medium text-muted-foreground transition-colors",
-                pathname === item.href && "border-primary text-foreground",
-              )}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-      </div>
-      {children}
+    <div className="flex min-h-screen flex-col">
+      <DashboardHeader email={user.email} />
+      <main className="mx-auto flex w-full max-w-[1120px] flex-1 flex-col gap-6 p-6">
+        <div className="flex flex-wrap items-end justify-between gap-6">
+          <div className="flex flex-col gap-2.5">
+            <span className="label text-primary flex items-center gap-2.5 tracking-[0.14em]">
+              <span className="bg-primary h-0.5 w-[18px]" />
+              Admin
+            </span>
+            <h1 className="font-display text-[34px] leading-[1.1] font-bold">Console</h1>
+            <p className="text-muted-foreground text-[15px]">
+              Todos os projetos e deploys, de todos os tenants — somente leitura, exceto quem é admin.
+            </p>
+          </div>
+          <nav className="bg-card border-border inline-flex gap-0.5 border p-[3px]" aria-label="Seções do admin">
+            {NAV_ITEMS.map((item) => {
+              const active = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={active ? "page" : undefined}
+                  className={
+                    "label inline-flex min-h-[38px] items-center px-3.5 transition-colors " +
+                    (active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")
+                  }
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+        {children}
+      </main>
     </div>
   );
 }
