@@ -1,6 +1,5 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import { hardenCookie } from '@/lib/supabase/cookies';
 
 // Rotas legíveis sem login. A galeria e as páginas de projeto público
 // existem justamente para serem vistas por quem não tem conta, então elas
@@ -27,7 +26,7 @@ export async function proxy(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           response = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, hardenCookie(options)),
+            response.cookies.set(name, value, options),
           );
         },
       },
@@ -52,12 +51,7 @@ export async function proxy(request: NextRequest) {
   const isPasswordRecoveryRoute = request.nextUrl.pathname.startsWith('/reset-password');
   const isAuthCallbackRoute = request.nextUrl.pathname.startsWith('/auth/confirm');
 
-  // /api/proxy carries public API routes too (the gallery, thumbnails), and a
-  // 401 from the API is the right answer to an anonymous call there — not a
-  // redirect to /login. It still ran the refresh above, which is what matters.
-  const isApiProxy = request.nextUrl.pathname.startsWith('/api/proxy');
-
-  if (!user && !isApiProxy && !isAuthRoute && !isPasswordRecoveryRoute && !isAuthCallbackRoute) {
+  if (!user && !isAuthRoute && !isPasswordRecoveryRoute && !isAuthCallbackRoute) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);

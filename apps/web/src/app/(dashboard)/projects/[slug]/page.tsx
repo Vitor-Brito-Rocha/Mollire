@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { api, apiUrl, ApiError, type Deployment, type Project } from "@/lib/api";
+import { api, API_URL, ApiError, type Deployment, type Project } from "@/lib/api";
 
 const IN_FLIGHT: Deployment["status"][] = ["PENDING", "CLONING", "BUILDING", "PUBLISHING"];
 
@@ -198,7 +198,7 @@ export default function ProjectDetailPage() {
               <div className="border-border overflow-hidden border">
                 {/* eslint-disable-next-line @next/next/no-img-element -- served by the API, per-project */}
                 <img
-                  src={apiUrl(project.thumbnail_url)}
+                  src={`${API_URL}${project.thumbnail_url}`}
                   alt={`Captura de ${project.name}`}
                   className="block w-full object-cover object-top"
                 />

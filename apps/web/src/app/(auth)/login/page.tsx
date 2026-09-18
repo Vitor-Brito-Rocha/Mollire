@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { signIn } from "@/lib/auth-actions";
+import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   return (
@@ -40,11 +40,12 @@ function LoginForm() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setLoading(true);
-    const { error } = await signIn(email, password);
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
 
     if (error) {
-      toast.error(error);
+      toast.error(error.message);
       return;
     }
     router.push("/");

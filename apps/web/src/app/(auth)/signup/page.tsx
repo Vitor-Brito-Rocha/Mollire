@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { signUp } from "@/lib/auth-actions";
+import { createClient } from "@/lib/supabase/client";
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");
@@ -24,11 +24,12 @@ export default function SignupPage() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setLoading(true);
-    const { error } = await signUp(email, password);
+    const supabase = createClient();
+    const { error } = await supabase.auth.signUp({ email, password });
     setLoading(false);
 
     if (error) {
-      toast.error(error);
+      toast.error(error.message);
       return;
     }
     setSubmitted(true);

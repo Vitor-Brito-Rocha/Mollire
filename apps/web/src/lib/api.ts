@@ -1,11 +1,6 @@
-// The browser only talks to this same-origin route; the token (httpOnly
-// cookie) and the API's real address are handled server-side there.
-const PROXY_BASE = '/api/proxy';
+import { createClient } from './supabase/client';
 
-// For assets the browser fetches itself (<img src>), which can't carry a header.
-export function apiUrl(path: string): string {
-  return `${PROXY_BASE}${path}`;
-}
+export const API_URL = process.env.NEXT_PUBLIC_API_URL!;
 
 export class ApiError extends Error {
   status_code: number;
@@ -16,10 +11,19 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(apiUrl(path), {
+  const supabase = createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const response = await fetch(`${API_URL}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      // ngrok's free tier answers browser requests with an HTML warning page
+      // unless this header is present (the API is tunneled through ngrok).
+      'ngrok-skip-browser-warning': '1',
+      ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
       ...options.headers,
     },
   });

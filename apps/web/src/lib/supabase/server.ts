@@ -1,6 +1,5 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { hardenCookie } from './cookies';
 
 export async function createClient() {
   const cookieStore = await cookies();
@@ -16,7 +15,7 @@ export async function createClient() {
         setAll(cookiesToSet) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, hardenCookie(options)),
+              cookieStore.set(name, value, options),
             );
           } catch {
             // Called from a Server Component render, which can't set cookies —

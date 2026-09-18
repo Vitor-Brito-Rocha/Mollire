@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { requestPasswordReset } from "@/lib/auth-actions";
+import { createClient } from "@/lib/supabase/client";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -23,11 +23,14 @@ export default function ForgotPasswordPage() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setLoading(true);
-    const { error } = await requestPasswordReset(email);
+    const supabase = createClient();
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
     setLoading(false);
 
     if (error) {
-      toast.error(error);
+      toast.error(error.message);
       return;
     }
     setSubmitted(true);
