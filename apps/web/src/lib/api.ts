@@ -1,6 +1,11 @@
-import { createClient } from './supabase/client';
+// The browser only talks to this same-origin route; the token (httpOnly
+// cookie) and the API's real address are handled server-side there.
+const PROXY_BASE = '/api/proxy';
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL!;
+// For assets the browser fetches itself (<img src>), which can't carry a header.
+export function apiUrl(path: string): string {
+  return `${PROXY_BASE}${path}`;
+}
 
 export class ApiError extends Error {
   status_code: number;
@@ -11,16 +16,10 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const supabase = createClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await fetch(apiUrl(path), {
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
       ...options.headers,
     },
   });

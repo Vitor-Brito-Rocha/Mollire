@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createClient } from "@/lib/supabase/client";
+import { hasSession as checkSession, updatePassword } from "@/lib/auth-actions";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -23,11 +23,10 @@ export default function ResetPasswordPage() {
   const [hasSession, setHasSession] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const supabase = createClient();
     // /auth/confirm already exchanged the recovery link for a session cookie
     // before redirecting here — if there's no session, the link was invalid
     // or already used.
-    supabase.auth.getUser().then(({ data }) => setHasSession(!!data.user));
+    checkSession().then(setHasSession);
   }, []);
 
   async function handleSubmit(event: FormEvent) {
@@ -37,12 +36,11 @@ export default function ResetPasswordPage() {
       return;
     }
     setLoading(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.updateUser({ password });
+    const { error } = await updatePassword(password);
     setLoading(false);
 
     if (error) {
-      toast.error(error.message);
+      toast.error(error);
       return;
     }
     toast.success("Senha atualizada.");

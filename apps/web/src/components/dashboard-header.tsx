@@ -8,7 +8,7 @@ import { LevelBar } from "@/components/level-bar";
 import { NotificationsToggle } from "@/components/notifications-toggle";
 import { Button } from "@/components/ui/button";
 import { api, type CurrentUser } from "@/lib/api";
-import { createClient } from "@/lib/supabase/client";
+import { signOut } from "@/lib/auth-actions";
 
 export function DashboardHeader({ email }: { email: string }) {
   const router = useRouter();
@@ -25,8 +25,7 @@ export function DashboardHeader({ email }: { email: string }) {
   }, []);
 
   async function handleLogout() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+    await signOut();
     router.push("/login");
     router.refresh();
   }
