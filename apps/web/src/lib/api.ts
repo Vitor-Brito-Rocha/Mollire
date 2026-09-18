@@ -1,5 +1,3 @@
-import { refreshSession } from './auth-actions';
-
 export const API_URL = process.env.NEXT_PUBLIC_API_URL!;
 
 export class ApiError extends Error {
@@ -26,12 +24,28 @@ function send(path: string, options: RequestInit): Promise<Response> {
   });
 }
 
+// The access cookie is short-lived (1h). On a 401 the API can swap the refresh
+// cookie for a new pair; calls that fail together share one refresh, since the
+// refresh token rotates.
+let refreshing: Promise<boolean> | null = null;
+
+function refreshSession(): Promise<boolean> {
+  refreshing ??= send('/auth/refresh', { method: 'POST' })
+    .then((response) => response.ok)
+    .catch(() => false)
+    .finally(() => {
+      refreshing = null;
+    });
+  return refreshing;
+}
+
+// These 401s mean "wrong credentials" / "no session", not "expired": no retry.
+const NO_REFRESH = ['/auth/login', '/auth/signup', '/auth/refresh', '/auth/logout', '/auth/forgot', '/auth/confirm'];
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   let response = await send(path, options);
 
-  // The access token in the cookie is short-lived and only the Next side can
-  // rewrite it: on a 401, refresh through it and try once more.
-  if (response.status === 401 && (await refreshSession())) {
+  if (response.status === 401 && !NO_REFRESH.includes(path) && (await refreshSession())) {
     response = await send(path, options);
   }
 
@@ -51,6 +65,8 @@ export const api = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined }),
+  put: <T>(path: string, body?: unknown) =>
+    request<T>(path, { method: 'PUT', body: body ? JSON.stringify(body) : undefined }),
   patch: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
   delete: <T>(path: string, body?: unknown) =>

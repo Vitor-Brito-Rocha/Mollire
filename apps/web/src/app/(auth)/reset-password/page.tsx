@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { hasSession as checkSession, updatePassword } from "@/lib/auth-actions";
+import { hasSession as checkSession, updatePassword } from "@/lib/auth";
 
 export default function ResetPasswordPage() {
   const router = useRouter();

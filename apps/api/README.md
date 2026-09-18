@@ -67,9 +67,11 @@ npm run start:dev
 
 ## Gallery & XP
 
-- Auth reads the Supabase session from the httpOnly `sb-*-auth-token` cookie the web app
-  sets on the shared parent domain (`Authorization: Bearer` still works for scripts).
-  Cookie-authenticated writes must carry an `Origin` listed in `FRONTEND_URL`.
+- Auth: the API itself logs users in (`POST /auth/login|signup|refresh|logout|forgot|confirm`,
+  backed by Supabase Auth) and keeps the session in httpOnly cookies (`mollire_at`,
+  `mollire_rt`) — the browser never holds a token. `Authorization: Bearer` still works for
+  scripts. `/auth/*` and cookie-authenticated writes must carry an `Origin` listed in
+  `FRONTEND_URL`. Cookie mode (`COOKIE_CROSS_SITE`) and its pending fix: `docs/pendencias.md`.
 - `GET /gallery` is the one public route (`@Public()`): the guard still recognises a bearer
   token when present (so the viewer's own stars are marked) but never rejects an anonymous
   call. Starring requires a session.

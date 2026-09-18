@@ -1,9 +1,9 @@
 <!--
   Mollire — "Confirm signup" email template.
   Paste into the Supabase Dashboard: Authentication → Emails → Confirm signup.
-  Requires the /auth/confirm route (apps/web/src/app/auth/confirm/route.ts) —
-  it verifies {{ .TokenHash }} server-side and sets the session cookie before
-  redirecting into the app.
+  Requires the /auth/confirm page (apps/web/src/app/auth/confirm/page.tsx) —
+  it sends {{ .TokenHash }} to the API (POST /auth/confirm), which sets the
+  session cookie, before redirecting into the app.
 
   Replace LOGO_URL below with the deployed app's icon URL once apps/web is on
   Vercel (e.g. https://mollire.aulvi.com.br/brand/icon-light.png). Until then,

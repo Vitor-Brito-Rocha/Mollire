@@ -7,3 +7,7 @@ export function frontendOrigins(): string[] {
     .map((url) => url.trim().replace(/\/$/, ''))
     .filter(Boolean);
 }
+
+export function isAllowedOrigin(origin: string | undefined): origin is string {
+  return !!origin && frontendOrigins().includes(origin);
+}

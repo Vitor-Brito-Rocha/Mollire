@@ -8,7 +8,7 @@ import { LevelBar } from "@/components/level-bar";
 import { NotificationsToggle } from "@/components/notifications-toggle";
 import { Button } from "@/components/ui/button";
 import { api, type CurrentUser } from "@/lib/api";
-import { signOut } from "@/lib/auth-actions";
+import { signOut } from "@/lib/auth";
 
 export function DashboardHeader({ email }: { email: string }) {
   const router = useRouter();
