@@ -3,6 +3,7 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ErrorSource } from '@prisma/client';
 import { AppModule } from './app.module';
+import { frontendOrigins } from './auth/frontend-origins';
 import { ErrorLogService } from './error-log/error-log.service';
 import { NotificationsService } from './notifications/notifications.service';
 
@@ -13,12 +14,15 @@ function withTimeout(promise: Promise<unknown>, ms: number): Promise<unknown> {
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  const frontendUrls = (process.env.FRONTEND_URL ?? '')
-    .split(',')
-    .map((url) => url.trim())
-    .filter(Boolean);
+  const frontendUrls = frontendOrigins();
+  if (frontendUrls.length === 0) {
+    new Logger('Bootstrap').warn('FRONTEND_URL is empty — browser calls will be blocked by CORS');
+  }
   app.enableCors({
-    origin: frontendUrls.length > 0 ? frontendUrls : true,
+    origin: frontendUrls,
+    // The session is an httpOnly cookie; the browser only sends it cross-origin
+    // (web and api are sibling subdomains) when the response opts in to this.
+    credentials: true,
     // ngrok's free tier shows an HTML interstitial to browser requests unless
     // this header is present — needed when the API itself is tunneled through
     // ngrok for local testing.

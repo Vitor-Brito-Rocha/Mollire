@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { hardenCookie } from '@/lib/supabase/cookies';
 
 // Rotas legíveis sem login. A galeria e as páginas de projeto público
 // existem justamente para serem vistas por quem não tem conta, então elas
@@ -26,7 +27,7 @@ export async function proxy(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           response = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options),
+            response.cookies.set(name, value, hardenCookie(options)),
           );
         },
       },

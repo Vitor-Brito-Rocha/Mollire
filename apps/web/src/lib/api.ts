@@ -1,4 +1,4 @@
-import { createClient } from './supabase/client';
+import { refreshSession } from './auth-actions';
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL!;
 
@@ -10,23 +10,30 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const supabase = createClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  const response = await fetch(`${API_URL}${path}`, {
+function send(path: string, options: RequestInit): Promise<Response> {
+  return fetch(`${API_URL}${path}`, {
     ...options,
+    // The session is an httpOnly cookie the browser attaches on its own; JS
+    // never sees the token.
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       // ngrok's free tier answers browser requests with an HTML warning page
-      // unless this header is present (the API is tunneled through ngrok).
+      // unless this header is present (harmless when the API isn't behind ngrok).
       'ngrok-skip-browser-warning': '1',
-      ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
       ...options.headers,
     },
   });
+}
+
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  let response = await send(path, options);
+
+  // The access token in the cookie is short-lived and only the Next side can
+  // rewrite it: on a 401, refresh through it and try once more.
+  if (response.status === 401 && (await refreshSession())) {
+    response = await send(path, options);
+  }
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({ message: response.statusText }));
