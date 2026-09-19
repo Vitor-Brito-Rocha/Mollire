@@ -200,10 +200,6 @@ export class DeploymentsService {
     log: (chunk: string) => void,
     installationId: bigint | null,
   ) {
-    // Always a fresh shallow clone rather than fetch+reset on a reused checkout —
-    // simpler and avoids default-branch/tracking-ref edge cases for an MVP.
-    await fs.rm(repoPath, { recursive: true, force: true });
-
     // For private repos, embed a short-lived installation token into the URL
     // instead of relying on SSH keys or persisted credentials.
     const cloneUrl =
@@ -211,9 +207,29 @@ export class DeploymentsService {
         ? await this.github.authenticatedCloneUrl(repositoryUrl, installationId)
         : repositoryUrl;
 
+    const hasRepo = await fs
+      .access(path.join(repoPath, '.git'))
+      .then(() => true)
+      .catch(() => false);
+
+    if (hasRepo) {
+      log(`fetching ${repositoryUrl}\n`);
+      try {
+        const git = simpleGit(repoPath);
+        await git.remote(['set-url', 'origin', cloneUrl]);
+        await git.fetch(['--depth', '1', 'origin']);
+        await git.reset(['--hard', 'FETCH_HEAD']);
+        await git.raw(['clean', '-fd']);
+        const sha = await git.revparse(['HEAD']);
+        return sha.trim();
+      } catch {
+        log(`fetch failed, falling back to fresh clone\n`);
+        await fs.rm(repoPath, { recursive: true, force: true });
+      }
+    }
+
     log(`cloning ${repositoryUrl}\n`);
     await simpleGit().clone(cloneUrl, repoPath, ['--depth', '1']);
-
     const sha = await simpleGit(repoPath).revparse(['HEAD']);
     return sha.trim();
   }
