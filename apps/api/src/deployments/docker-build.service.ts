@@ -16,8 +16,8 @@ export class DockerBuildService {
     this.image = config.get('BUILD_DOCKER_IMAGE', 'node:20-alpine');
     this.memory = config.get('BUILD_MEMORY_LIMIT', '512m');
     this.cpus = config.get('BUILD_CPU_LIMIT', '0.5');
-    this.pidsLimit = config.get<number>('BUILD_PIDS_LIMIT', 100);
-    this.timeoutMs = config.get<number>('BUILD_TIMEOUT_MS', 300_000);
+    this.pidsLimit = Number(config.get('BUILD_PIDS_LIMIT', '100'));
+    this.timeoutMs = Number(config.get('BUILD_TIMEOUT_MS', '300000'));
   }
 
   async run(

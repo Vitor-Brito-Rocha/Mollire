@@ -191,18 +191,23 @@ export class DeploymentsService {
     await fs.mkdir(paths.releases, { recursive: true });
     await fs.cp(builtDir, releasePath, { recursive: true });
 
-    // Atomic swap: symlink a temp name at the new release, then rename it over
-    // `current`. rename() is atomic on POSIX, so Nginx never sees a half-swapped dir.
-    const tempLink = `${paths.current}.tmp-${releaseId}`;
-    await fs.symlink(releasePath, tempLink, 'dir');
+    // Atomic swap on POSIX: symlink a temp name then rename() over `current` —
+    // rename() is atomic, so Nginx never sees a half-swapped dir.
+    // On Windows without symlink privilege (EPERM), fall back to a plain copy
+    // into `current` — non-atomic but fine for local dev.
     try {
-      await fs.rename(tempLink, paths.current);
-    } catch {
-      // Windows can't rename() over an existing directory symlink (no atomic
-      // replace there). Only reached in local Windows dev — the Linux prod
-      // target always takes the atomic path above.
+      const tempLink = `${paths.current}.tmp-${releaseId}`;
+      await fs.symlink(releasePath, tempLink, 'dir');
+      try {
+        await fs.rename(tempLink, paths.current);
+      } catch {
+        await fs.rm(paths.current, { recursive: true, force: true });
+        await fs.rename(tempLink, paths.current);
+      }
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code !== 'EPERM') throw err;
       await fs.rm(paths.current, { recursive: true, force: true });
-      await fs.rename(tempLink, paths.current);
+      await fs.cp(releasePath, paths.current, { recursive: true });
     }
 
     return releasePath;
