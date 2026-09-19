@@ -123,6 +123,17 @@ export type CurrentUser = {
   next: number;
   // Convites de projeto resgatados nesta chamada (0 na maioria das vezes).
   joined_projects?: number;
+  github_connected: boolean;
+};
+
+export type GithubRepo = {
+  id: number;
+  full_name: string;
+  name: string;
+  private: boolean;
+  html_url: string;
+  clone_url: string;
+  default_branch: string;
 };
 
 export type GalleryFilter = 'recentes' | 'destaque' | 'todos';

@@ -1,14 +1,18 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DeploymentStatus, ErrorSource, Project } from '@prisma/client';
-import { execa } from 'execa';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { EMPTY, Observable, Subject, merge, of } from 'rxjs';
 import { simpleGit } from 'simple-git';
 import { ErrorLogService } from '../error-log/error-log.service';
 import { ThumbnailService } from '../gallery/thumbnail.service';
+import { GithubService } from '../github/github.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { DockerBuildService } from './docker-build.service';
+
+export type StatusEvent = { deploymentId: string; status: DeploymentStatus };
 
 // Only the release `current` points to is kept — no rollback history for now,
 // to keep disk usage flat regardless of deploy frequency. Bump this once storage
@@ -31,6 +35,9 @@ type ProjectPaths = {
 export class DeploymentsService {
   private readonly logger = new Logger(DeploymentsService.name);
   private readonly projectsRoot: string;
+  // One Subject per in-flight project. Completed and removed when the
+  // deployment reaches a terminal state (SUCCESS or FAILED).
+  private readonly streams = new Map<string, Subject<StatusEvent>>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -38,6 +45,8 @@ export class DeploymentsService {
     private readonly errorLog: ErrorLogService,
     private readonly notifications: NotificationsService,
     private readonly thumbnails: ThumbnailService,
+    private readonly dockerBuild: DockerBuildService,
+    private readonly github: GithubService,
   ) {
     this.projectsRoot = path.resolve(this.config.get<string>('PROJECTS_ROOT', './data/projects'));
   }
@@ -62,17 +71,38 @@ export class DeploymentsService {
     return deployment;
   }
 
+  // SSE clients subscribe here. Always emits the latest deployment status from
+  // the DB first (so a late-connecting client catches up), then streams live
+  // updates until the deployment reaches a terminal state.
+  async watchProject(projectId: string): Promise<Observable<StatusEvent>> {
+    const latest = await this.prisma.deployment.findFirst({
+      where: { project_id: projectId },
+      orderBy: { created_at: 'desc' },
+      select: { id: true, status: true },
+    });
+
+    const initial$ = latest ? of({ deploymentId: latest.id, status: latest.status }) : EMPTY;
+    const live$ = this.streams.get(projectId)?.asObservable() ?? EMPTY;
+    return merge(initial$, live$);
+  }
+
   async trigger(project: Project) {
+    const subject = new Subject<StatusEvent>();
+    this.streams.set(project.id, subject);
+
     const deployment = await this.prisma.deployment.create({
       data: { project_id: project.id, status: DeploymentStatus.PENDING },
     });
+
+    const owner = await this.prisma.user.findUnique({ where: { id: project.user_id } });
+    const installationId = owner?.github_installation_id ?? null;
 
     // Fire-and-forget: return the PENDING row immediately, the pipeline updates
     // its own row as it progresses instead of holding the HTTP request open.
     // This outer .catch() is defense-in-depth for a bug in runPipeline itself
     // (which already self-guards its whole body) — an unexpected platform
     // failure, not an ordinary build failure, so it goes through ErrorLog too.
-    void this.runPipeline(project, deployment.id).catch((err) => {
+    void this.runPipeline(project, deployment.id, installationId).catch((err) => {
       const message = err instanceof Error ? err.message : String(err);
       const stack = err instanceof Error ? err.stack : undefined;
       this.logger.error(`deployment ${deployment.id} crashed outside pipeline guard`, stack);
@@ -91,8 +121,9 @@ export class DeploymentsService {
     return deployment;
   }
 
-  private async runPipeline(project: Project, deploymentId: string) {
+  private async runPipeline(project: Project, deploymentId: string, installationId: bigint | null) {
     const paths = this.projectPaths(project.slug);
+    const buildOutputPath = path.join(paths.root, 'build-output');
     let log = '';
     const appendLog = (chunk: string) => {
       log += chunk;
@@ -101,14 +132,14 @@ export class DeploymentsService {
     try {
       await fs.mkdir(paths.root, { recursive: true });
 
-      await this.setStatus(deploymentId, DeploymentStatus.CLONING);
-      const commitSha = await this.cloneRepo(project.repository_url, paths.repo, appendLog);
+      await this.setStatus(deploymentId, project.id, DeploymentStatus.CLONING);
+      const commitSha = await this.cloneRepo(project.repository_url, paths.repo, appendLog, installationId);
 
-      await this.setStatus(deploymentId, DeploymentStatus.BUILDING);
-      await this.runBuild(project.build_command, paths.repo, appendLog);
+      await this.setStatus(deploymentId, project.id, DeploymentStatus.BUILDING);
+      await this.runBuild(project.build_command, paths.repo, project.output_dir, buildOutputPath, appendLog);
 
-      await this.setStatus(deploymentId, DeploymentStatus.PUBLISHING);
-      const releasePath = await this.publish(paths, project.output_dir);
+      await this.setStatus(deploymentId, project.id, DeploymentStatus.PUBLISHING);
+      const releasePath = await this.publish(paths, buildOutputPath);
 
       // Counts prior successes before this deployment's own row flips to
       // SUCCESS below, so the first-ever-deploy bonus reads correctly.
@@ -124,6 +155,7 @@ export class DeploymentsService {
           finished_at: new Date(),
         },
       });
+      this.emitTerminal(project.id, deploymentId, DeploymentStatus.SUCCESS);
 
       await this.pruneOldReleases(paths.releases);
 
@@ -137,6 +169,7 @@ export class DeploymentsService {
         where: { id: deploymentId },
         data: { status: DeploymentStatus.FAILED, log, finished_at: new Date() },
       });
+      this.emitTerminal(project.id, deploymentId, DeploymentStatus.FAILED);
 
       // Deploy failures are the tenant's own build breaking, not a Mollire bug —
       // notify the owner, not the admin, and don't write an ErrorLog row (that's
@@ -146,6 +179,8 @@ export class DeploymentsService {
         title: `Deploy falhou: ${project.name}`,
         body: message,
       });
+    } finally {
+      await fs.rm(buildOutputPath, { recursive: true, force: true });
     }
   }
 
@@ -159,60 +194,64 @@ export class DeploymentsService {
     };
   }
 
-  private async cloneRepo(repositoryUrl: string, repoPath: string, log: (chunk: string) => void) {
+  private async cloneRepo(
+    repositoryUrl: string,
+    repoPath: string,
+    log: (chunk: string) => void,
+    installationId: bigint | null,
+  ) {
     // Always a fresh shallow clone rather than fetch+reset on a reused checkout —
     // simpler and avoids default-branch/tracking-ref edge cases for an MVP.
     await fs.rm(repoPath, { recursive: true, force: true });
+
+    // For private repos, embed a short-lived installation token into the URL
+    // instead of relying on SSH keys or persisted credentials.
+    const cloneUrl =
+      installationId !== null
+        ? await this.github.authenticatedCloneUrl(repositoryUrl, installationId)
+        : repositoryUrl;
+
     log(`cloning ${repositoryUrl}\n`);
-    await simpleGit().clone(repositoryUrl, repoPath, ['--depth', '1']);
+    await simpleGit().clone(cloneUrl, repoPath, ['--depth', '1']);
 
     const sha = await simpleGit(repoPath).revparse(['HEAD']);
     return sha.trim();
   }
 
-  private async runBuild(buildCommand: string, cwd: string, log: (chunk: string) => void) {
-    // buildCommand is operator-supplied in this MVP (not from public signups), so
-    // shell execution here is an accepted trust boundary, not an injection risk yet.
-    // What it must NOT inherit is our own process env — that's where DATABASE_URL
-    // and friends live. Give it only what npm/node/git need to run.
-    const result = await execa(buildCommand, {
-      cwd,
-      shell: true,
-      reject: false,
-      extendEnv: false,
-      env: {
-        PATH: process.env.PATH,
-        HOME: process.env.HOME,
-        USERPROFILE: process.env.USERPROFILE,
-      },
-    });
-    log(result.stdout ?? '');
-    log(result.stderr ?? '');
-    if (result.exitCode !== 0) {
-      throw new Error(`build command exited with code ${result.exitCode}`);
-    }
+  private async runBuild(
+    buildCommand: string,
+    repoPath: string,
+    outputDir: string,
+    outputHostPath: string,
+    log: (chunk: string) => void,
+  ) {
+    await this.dockerBuild.run(repoPath, buildCommand, outputDir, outputHostPath, log);
   }
 
-  private async publish(paths: ProjectPaths, outputDir: string) {
-    const builtDir = path.join(paths.repo, outputDir);
+  private async publish(paths: ProjectPaths, builtDir: string) {
     const releaseId = new Date().toISOString().replace(/[:.]/g, '-');
     const releasePath = path.join(paths.releases, releaseId);
 
     await fs.mkdir(paths.releases, { recursive: true });
     await fs.cp(builtDir, releasePath, { recursive: true });
 
-    // Atomic swap: symlink a temp name at the new release, then rename it over
-    // `current`. rename() is atomic on POSIX, so Nginx never sees a half-swapped dir.
-    const tempLink = `${paths.current}.tmp-${releaseId}`;
-    await fs.symlink(releasePath, tempLink, 'dir');
+    // Atomic swap on POSIX: symlink a temp name then rename() over `current` —
+    // rename() is atomic, so Nginx never sees a half-swapped dir.
+    // On Windows without symlink privilege (EPERM), fall back to a plain copy
+    // into `current` — non-atomic but fine for local dev.
     try {
-      await fs.rename(tempLink, paths.current);
-    } catch {
-      // Windows can't rename() over an existing directory symlink (no atomic
-      // replace there). Only reached in local Windows dev — the Linux prod
-      // target always takes the atomic path above.
+      const tempLink = `${paths.current}.tmp-${releaseId}`;
+      await fs.symlink(releasePath, tempLink, 'dir');
+      try {
+        await fs.rename(tempLink, paths.current);
+      } catch {
+        await fs.rm(paths.current, { recursive: true, force: true });
+        await fs.rename(tempLink, paths.current);
+      }
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code !== 'EPERM') throw err;
       await fs.rm(paths.current, { recursive: true, force: true });
-      await fs.rename(tempLink, paths.current);
+      await fs.cp(releasePath, paths.current, { recursive: true });
     }
 
     return releasePath;
@@ -226,8 +265,20 @@ export class DeploymentsService {
     );
   }
 
-  private setStatus(deploymentId: string, status: DeploymentStatus) {
-    return this.prisma.deployment.update({ where: { id: deploymentId }, data: { status } });
+  private async setStatus(deploymentId: string, projectId: string, status: DeploymentStatus) {
+    await this.prisma.deployment.update({ where: { id: deploymentId }, data: { status } });
+    this.streams.get(projectId)?.next({ deploymentId, status });
+  }
+
+  // Called after the DB update that writes the full terminal row (log, sha…),
+  // so SSE clients that reload on this event see the complete data.
+  private emitTerminal(projectId: string, deploymentId: string, status: DeploymentStatus) {
+    const subject = this.streams.get(projectId);
+    if (subject) {
+      subject.next({ deploymentId, status });
+      subject.complete();
+      this.streams.delete(projectId);
+    }
   }
 
   private async awardDeployXp(project: Project): Promise<void> {

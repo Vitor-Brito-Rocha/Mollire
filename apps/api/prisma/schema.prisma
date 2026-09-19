@@ -28,16 +28,19 @@ enum ErrorSource {
 }
 
 model User {
-  id         String   @id
-  email      String   @unique
+  id                      String   @id
+  email                   String   @unique
   // The only identity shown publicly (gallery author, comments later). Derived
   // from the email at first sync, changeable via PATCH /users/me. Nullable only
   // so the migration is safe on existing rows — syncUser backfills it.
-  handle     String?  @unique
-  role       Role     @default(TENANT)
-  xp         Int      @default(0)
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  handle                  String?  @unique
+  role                    Role     @default(TENANT)
+  xp                      Int      @default(0)
+  // GitHub App installation ID — set when the user installs the App on their
+  // GitHub account. Used to clone private repos and listen to push webhooks.
+  github_installation_id  BigInt?
+  created_at              DateTime @default(now())
+  updated_at              DateTime @updatedAt
 
   projects           Project[]
   push_subscriptions PushSubscription[]

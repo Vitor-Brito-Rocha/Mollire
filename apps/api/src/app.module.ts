@@ -10,11 +10,13 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { DeploymentsModule } from './deployments/deployments.module';
 import { ErrorLogModule } from './error-log/error-log.module';
 import { GalleryModule } from './gallery/gallery.module';
+import { GithubModule } from './github/github.module';
 import { MembersModule } from './members/members.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProjectsModule } from './projects/projects.module';
 import { UsersModule } from './users/users.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -37,9 +39,11 @@ import { UsersModule } from './users/users.module';
     ProjectsModule,
     DeploymentsModule,
     GalleryModule,
+    GithubModule,
     MembersModule,
     UsersModule,
     AdminModule,
+    WebhooksModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
