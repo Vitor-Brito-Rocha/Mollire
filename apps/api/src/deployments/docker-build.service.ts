@@ -43,6 +43,7 @@ export class DockerBuildService {
         '--pids-limit', String(this.pidsLimit),
         '-v', `${repoPath}:/workspace`,
         '-v', `${outputHostPath}:/output`,
+        '-v', 'mollire-npm-cache:/root/.npm',
         '--workdir', '/workspace',
         this.image,
         'sh', '-c', shellCmd,
