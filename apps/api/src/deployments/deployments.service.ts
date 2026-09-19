@@ -6,6 +6,7 @@ import * as path from 'node:path';
 import { simpleGit } from 'simple-git';
 import { ErrorLogService } from '../error-log/error-log.service';
 import { ThumbnailService } from '../gallery/thumbnail.service';
+import { GithubService } from '../github/github.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { DockerBuildService } from './docker-build.service';
@@ -39,6 +40,7 @@ export class DeploymentsService {
     private readonly notifications: NotificationsService,
     private readonly thumbnails: ThumbnailService,
     private readonly dockerBuild: DockerBuildService,
+    private readonly github: GithubService,
   ) {
     this.projectsRoot = path.resolve(this.config.get<string>('PROJECTS_ROOT', './data/projects'));
   }
@@ -68,12 +70,15 @@ export class DeploymentsService {
       data: { project_id: project.id, status: DeploymentStatus.PENDING },
     });
 
+    const owner = await this.prisma.user.findUnique({ where: { id: project.user_id } });
+    const installationId = owner?.github_installation_id ?? null;
+
     // Fire-and-forget: return the PENDING row immediately, the pipeline updates
     // its own row as it progresses instead of holding the HTTP request open.
     // This outer .catch() is defense-in-depth for a bug in runPipeline itself
     // (which already self-guards its whole body) — an unexpected platform
     // failure, not an ordinary build failure, so it goes through ErrorLog too.
-    void this.runPipeline(project, deployment.id).catch((err) => {
+    void this.runPipeline(project, deployment.id, installationId).catch((err) => {
       const message = err instanceof Error ? err.message : String(err);
       const stack = err instanceof Error ? err.stack : undefined;
       this.logger.error(`deployment ${deployment.id} crashed outside pipeline guard`, stack);
@@ -92,7 +97,7 @@ export class DeploymentsService {
     return deployment;
   }
 
-  private async runPipeline(project: Project, deploymentId: string) {
+  private async runPipeline(project: Project, deploymentId: string, installationId: bigint | null) {
     const paths = this.projectPaths(project.slug);
     const buildOutputPath = path.join(paths.root, 'build-output');
     let log = '';
@@ -104,7 +109,7 @@ export class DeploymentsService {
       await fs.mkdir(paths.root, { recursive: true });
 
       await this.setStatus(deploymentId, DeploymentStatus.CLONING);
-      const commitSha = await this.cloneRepo(project.repository_url, paths.repo, appendLog);
+      const commitSha = await this.cloneRepo(project.repository_url, paths.repo, appendLog, installationId);
 
       await this.setStatus(deploymentId, DeploymentStatus.BUILDING);
       await this.runBuild(project.build_command, paths.repo, project.output_dir, buildOutputPath, appendLog);
@@ -163,12 +168,25 @@ export class DeploymentsService {
     };
   }
 
-  private async cloneRepo(repositoryUrl: string, repoPath: string, log: (chunk: string) => void) {
+  private async cloneRepo(
+    repositoryUrl: string,
+    repoPath: string,
+    log: (chunk: string) => void,
+    installationId: bigint | null,
+  ) {
     // Always a fresh shallow clone rather than fetch+reset on a reused checkout —
     // simpler and avoids default-branch/tracking-ref edge cases for an MVP.
     await fs.rm(repoPath, { recursive: true, force: true });
+
+    // For private repos, embed a short-lived installation token into the URL
+    // instead of relying on SSH keys or persisted credentials.
+    const cloneUrl =
+      installationId !== null
+        ? await this.github.authenticatedCloneUrl(repositoryUrl, installationId)
+        : repositoryUrl;
+
     log(`cloning ${repositoryUrl}\n`);
-    await simpleGit().clone(repositoryUrl, repoPath, ['--depth', '1']);
+    await simpleGit().clone(cloneUrl, repoPath, ['--depth', '1']);
 
     const sha = await simpleGit(repoPath).revparse(['HEAD']);
     return sha.trim();

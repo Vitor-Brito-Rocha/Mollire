@@ -12,7 +12,9 @@ function withTimeout(promise: Promise<unknown>, ms: number): Promise<unknown> {
 }
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // rawBody: true stores the raw Buffer on req.rawBody before JSON parsing —
+  // needed by the GitHub webhook handler to verify the HMAC-SHA256 signature.
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
   const frontendUrls = frontendOrigins();
   if (frontendUrls.length === 0) {
