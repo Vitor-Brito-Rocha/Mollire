@@ -63,6 +63,7 @@ cd apps/api
 npm install
 cp .env.example .env   # preencha DATABASE_URL, SUPABASE_*, VAPID_*, PROJECTS_ROOT
 npx prisma migrate dev
+npx playwright install chromium   # captura dos thumbnails da galeria
 npm run start:dev
 
 # Web (outro terminal)
@@ -72,7 +73,10 @@ cp .env.local.example .env.local   # preencha NEXT_PUBLIC_SUPABASE_*, NEXT_PUBLI
 npm run dev
 ```
 
-Requisito de produção: Docker instalado na VPS para execução isolada dos builds.
+Requisitos de produção na VPS:
+
+- Docker instalado, para execução isolada dos builds.
+- Chromium do Playwright, para os thumbnails da galeria: `npx playwright install --with-deps chromium` (uma vez como root, para as libs do sistema) e depois `npx playwright install chromium` com o mesmo usuário que roda o serviço (`mollire`) — o browser é instalado por usuário.
 
 ## Multi-tenancy
 
