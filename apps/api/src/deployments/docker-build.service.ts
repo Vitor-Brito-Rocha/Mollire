@@ -53,8 +53,11 @@ export class DockerBuildService {
     if (result.stdout) log(result.stdout);
     if (result.stderr) log(result.stderr);
 
+    if (result.timedOut) {
+      throw new Error(`build timed out after ${this.timeoutMs / 1000}s`);
+    }
     if (result.exitCode !== 0) {
-      throw new Error(`build container exited with code ${result.exitCode}`);
+      throw new Error(`build container exited with code ${result.exitCode ?? 'unknown'}`);
     }
   }
 }

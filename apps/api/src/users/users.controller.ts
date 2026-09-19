@@ -3,6 +3,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser } from '../auth/types';
 import { levelForXp } from '../common/level';
 import { MembersService } from '../members/members.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { UpdateMeDto } from './dto/update-me.dto';
 import { UsersService } from './users.service';
 
@@ -11,6 +12,7 @@ export class UsersController {
   constructor(
     private readonly usersService: UsersService,
     private readonly membersService: MembersService,
+    private readonly prisma: PrismaService,
   ) {}
 
   // role isn't in the Supabase JWT (that JWT's own "role" claim is the Postgres
@@ -22,8 +24,16 @@ export class UsersController {
   // the check every time.
   @Get('me')
   async me(@CurrentUser() user: AuthenticatedUser) {
-    const joined = await this.membersService.redeemInvitations(user);
-    return { ...user, ...levelForXp(user.xp), joined_projects: joined };
+    const [joined, dbUser] = await Promise.all([
+      this.membersService.redeemInvitations(user),
+      this.prisma.user.findUnique({ where: { id: user.id }, select: { github_installation_id: true } }),
+    ]);
+    return {
+      ...user,
+      ...levelForXp(user.xp),
+      joined_projects: joined,
+      github_connected: dbUser?.github_installation_id != null,
+    };
   }
 
   // The handle is the only identity the gallery ever shows — never the email.

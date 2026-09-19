@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { SignJWT, importPKCS8 } from 'jose';
+import * as crypto from 'node:crypto';
+import { SignJWT } from 'jose';
 
 export type GithubRepo = {
   id: number;
@@ -66,13 +67,18 @@ export class GithubService {
   }
 
   private async generateAppJwt(): Promise<string> {
-    const privateKey = await importPKCS8(this.privateKeyPem, 'RS256');
+    // GitHub generates PKCS#1 keys (-----BEGIN RSA PRIVATE KEY-----).
+    // importPKCS8 only accepts PKCS#8 — use Node's createPrivateKey instead,
+    // which handles both formats and jose accepts the resulting KeyObject.
+    const privateKey = crypto.createPrivateKey(this.privateKeyPem);
     const now = Math.floor(Date.now() / 1000);
+    // iat is pushed 60 s back for clock-skew tolerance; exp is kept within
+    // GitHub's 10-minute (600 s) max measured from iat, not from now.
     return new SignJWT()
       .setProtectedHeader({ alg: 'RS256' })
       .setIssuer(this.appId)
       .setIssuedAt(now - 60)
-      .setExpirationTime(now + 600)
+      .setExpirationTime(now + 539)
       .sign(privateKey);
   }
 
