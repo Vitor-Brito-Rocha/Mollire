@@ -86,7 +86,10 @@ export class DeploymentsService {
     return merge(initial$, live$);
   }
 
-  async trigger(project: Project) {
+  async trigger(
+    project: Project,
+    webhook?: { installationId?: bigint; commitSha?: string; commitMessage?: string },
+  ) {
     const subject = new Subject<StatusEvent>();
     this.streams.set(project.id, subject);
 
@@ -94,15 +97,20 @@ export class DeploymentsService {
       data: { project_id: project.id, status: DeploymentStatus.PENDING },
     });
 
-    const owner = await this.prisma.user.findUnique({ where: { id: project.user_id } });
-    const installationId = owner?.github_installation_id ?? null;
+    // Prefer installation ID from webhook payload (no DB round-trip needed);
+    // fall back to the stored value for manual deploys.
+    const installationId =
+      webhook?.installationId ??
+      (await this.prisma.user.findUnique({ where: { id: project.user_id } }))
+        ?.github_installation_id ??
+      null;
 
     // Fire-and-forget: return the PENDING row immediately, the pipeline updates
     // its own row as it progresses instead of holding the HTTP request open.
     // This outer .catch() is defense-in-depth for a bug in runPipeline itself
     // (which already self-guards its whole body) — an unexpected platform
     // failure, not an ordinary build failure, so it goes through ErrorLog too.
-    void this.runPipeline(project, deployment.id, installationId).catch((err) => {
+    void this.runPipeline(project, deployment.id, installationId, webhook).catch((err) => {
       const message = err instanceof Error ? err.message : String(err);
       const stack = err instanceof Error ? err.stack : undefined;
       this.logger.error(`deployment ${deployment.id} crashed outside pipeline guard`, stack);
@@ -121,7 +129,12 @@ export class DeploymentsService {
     return deployment;
   }
 
-  private async runPipeline(project: Project, deploymentId: string, installationId: bigint | null) {
+  private async runPipeline(
+    project: Project,
+    deploymentId: string,
+    installationId: bigint | null,
+    webhook?: { commitSha?: string; commitMessage?: string },
+  ) {
     const paths = this.projectPaths(project.slug);
     const buildOutputPath = path.join(paths.root, 'build-output');
     let log = '';
@@ -133,10 +146,15 @@ export class DeploymentsService {
       await fs.mkdir(paths.root, { recursive: true });
 
       await this.setStatus(deploymentId, project.id, DeploymentStatus.CLONING);
-      const commitSha = await this.cloneRepo(project.repository_url, paths.repo, appendLog, installationId);
+      const cloneStart = Date.now();
+      const clonedSha = await this.cloneRepo(project.repository_url, paths.repo, appendLog, installationId);
+      const commitSha = webhook?.commitSha ?? clonedSha;
+      this.logger.log(`[${project.slug}] clone: ${((Date.now() - cloneStart) / 1000).toFixed(1)}s`);
 
       await this.setStatus(deploymentId, project.id, DeploymentStatus.BUILDING);
+      const buildStart = Date.now();
       await this.runBuild(project.build_command, paths.repo, project.output_dir, buildOutputPath, appendLog);
+      this.logger.log(`[${project.slug}] build: ${((Date.now() - buildStart) / 1000).toFixed(1)}s`);
 
       await this.setStatus(deploymentId, project.id, DeploymentStatus.PUBLISHING);
       const releasePath = await this.publish(paths, buildOutputPath);
@@ -150,6 +168,7 @@ export class DeploymentsService {
         data: {
           status: DeploymentStatus.SUCCESS,
           commit_sha: commitSha,
+          commit_message: webhook?.commitMessage ?? null,
           release_path: releasePath,
           log,
           finished_at: new Date(),
@@ -219,7 +238,7 @@ export class DeploymentsService {
         await git.remote(['set-url', 'origin', cloneUrl]);
         await git.fetch(['--depth', '1', 'origin']);
         await git.reset(['--hard', 'FETCH_HEAD']);
-        await git.raw(['clean', '-fd']);
+        await git.raw(['clean', '-fd', '-e', 'node_modules']);
         const sha = await git.revparse(['HEAD']);
         return sha.trim();
       } catch {

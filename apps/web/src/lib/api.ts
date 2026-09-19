@@ -106,6 +106,7 @@ export type Deployment = {
   project_id: string;
   status: DeploymentStatus;
   commit_sha: string | null;
+  commit_message: string | null;
   release_path: string | null;
   log: string | null;
   created_at: string;

@@ -17,12 +17,14 @@ import { PrismaService } from '../prisma/prisma.service';
 
 type PushPayload = {
   ref: string;
+  after: string;
   installation?: { id: number };
   repository: {
     full_name: string;
     clone_url: string;
     default_branch: string;
   };
+  head_commit?: { message: string };
 };
 
 @Controller('webhooks')
@@ -67,7 +69,11 @@ export class WebhooksController {
     }
 
     this.logger.log(`push on ${fullName} → triggering deploy for project ${project.slug}`);
-    await this.deployments.trigger(project);
+    await this.deployments.trigger(project, {
+      installationId: payload.installation?.id ? BigInt(payload.installation.id) : undefined,
+      commitSha: payload.after,
+      commitMessage: payload.head_commit?.message,
+    });
     return { triggered: true, project: project.slug };
   }
 

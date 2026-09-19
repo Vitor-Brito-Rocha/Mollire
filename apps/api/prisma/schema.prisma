@@ -180,14 +180,15 @@ model ProjectStar {
 }
 
 model Deployment {
-  id           String           @id @default(cuid())
-  project_id   String
-  status       DeploymentStatus @default(PENDING)
-  commit_sha   String?
-  release_path String?
-  log          String?
-  created_at   DateTime         @default(now())
-  finished_at  DateTime?
+  id             String           @id @default(cuid())
+  project_id     String
+  status         DeploymentStatus @default(PENDING)
+  commit_sha     String?
+  commit_message String?
+  release_path   String?
+  log            String?
+  created_at     DateTime         @default(now())
+  finished_at    DateTime?
 
   project Project @relation(fields: [project_id], references: [id])
 

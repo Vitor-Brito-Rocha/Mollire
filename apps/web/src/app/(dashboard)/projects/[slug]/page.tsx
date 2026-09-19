@@ -38,11 +38,19 @@ export default function ProjectDetailPage() {
     load();
   }, [load]);
 
+  // Poll slowly when idle to catch deploys triggered externally (webhook).
+  // Once inFlight becomes true the SSE below takes over and this stops.
+  const latest = project?.deployments?.[0];
+  const inFlight = !!latest && IN_FLIGHT.includes(latest.status);
+  useEffect(() => {
+    if (!project || inFlight) return;
+    const interval = setInterval(load, 5000);
+    return () => clearInterval(interval);
+  }, [inFlight, project, load]);
+
   // Stream status updates via SSE while the latest deployment is in flight.
   // The server pushes each status change; on terminal state we reload the full
   // project so the log, commit_sha and finished_at are fresh.
-  const latest = project?.deployments?.[0];
-  const inFlight = !!latest && IN_FLIGHT.includes(latest.status);
   useEffect(() => {
     if (!project || !inFlight) return;
     const source = new EventSource(`${API_URL}/projects/${slug}/status`, {
@@ -179,6 +187,11 @@ export default function ProjectDetailPage() {
                   </span>
                   <span className="text-text-3 col-span-2 font-mono text-xs sm:col-span-3">
                     {deployment.commit_sha ? deployment.commit_sha.slice(0, 7) : "—"}
+                    {deployment.commit_message && (
+                      <span className="text-text-3 ml-2 font-sans not-italic truncate hidden sm:inline">
+                        {deployment.commit_message}
+                      </span>
+                    )}
                   </span>
                   {deployment.log && (
                     <span className="text-text-3 label hidden text-[10px] group-open:text-foreground sm:col-span-2 sm:block sm:text-right">
