@@ -1,7 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DeploymentStatus, ErrorSource, Project } from '@prisma/client';
-import { execa } from 'execa';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { simpleGit } from 'simple-git';
@@ -9,6 +8,7 @@ import { ErrorLogService } from '../error-log/error-log.service';
 import { ThumbnailService } from '../gallery/thumbnail.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { DockerBuildService } from './docker-build.service';
 
 // Only the release `current` points to is kept — no rollback history for now,
 // to keep disk usage flat regardless of deploy frequency. Bump this once storage
@@ -38,6 +38,7 @@ export class DeploymentsService {
     private readonly errorLog: ErrorLogService,
     private readonly notifications: NotificationsService,
     private readonly thumbnails: ThumbnailService,
+    private readonly dockerBuild: DockerBuildService,
   ) {
     this.projectsRoot = path.resolve(this.config.get<string>('PROJECTS_ROOT', './data/projects'));
   }
@@ -93,6 +94,7 @@ export class DeploymentsService {
 
   private async runPipeline(project: Project, deploymentId: string) {
     const paths = this.projectPaths(project.slug);
+    const buildOutputPath = path.join(paths.root, 'build-output');
     let log = '';
     const appendLog = (chunk: string) => {
       log += chunk;
@@ -105,10 +107,10 @@ export class DeploymentsService {
       const commitSha = await this.cloneRepo(project.repository_url, paths.repo, appendLog);
 
       await this.setStatus(deploymentId, DeploymentStatus.BUILDING);
-      await this.runBuild(project.build_command, paths.repo, appendLog);
+      await this.runBuild(project.build_command, paths.repo, project.output_dir, buildOutputPath, appendLog);
 
       await this.setStatus(deploymentId, DeploymentStatus.PUBLISHING);
-      const releasePath = await this.publish(paths, project.output_dir);
+      const releasePath = await this.publish(paths, buildOutputPath);
 
       // Counts prior successes before this deployment's own row flips to
       // SUCCESS below, so the first-ever-deploy bonus reads correctly.
@@ -146,6 +148,8 @@ export class DeploymentsService {
         title: `Deploy falhou: ${project.name}`,
         body: message,
       });
+    } finally {
+      await fs.rm(buildOutputPath, { recursive: true, force: true });
     }
   }
 
@@ -170,31 +174,17 @@ export class DeploymentsService {
     return sha.trim();
   }
 
-  private async runBuild(buildCommand: string, cwd: string, log: (chunk: string) => void) {
-    // buildCommand is operator-supplied in this MVP (not from public signups), so
-    // shell execution here is an accepted trust boundary, not an injection risk yet.
-    // What it must NOT inherit is our own process env — that's where DATABASE_URL
-    // and friends live. Give it only what npm/node/git need to run.
-    const result = await execa(buildCommand, {
-      cwd,
-      shell: true,
-      reject: false,
-      extendEnv: false,
-      env: {
-        PATH: process.env.PATH,
-        HOME: process.env.HOME,
-        USERPROFILE: process.env.USERPROFILE,
-      },
-    });
-    log(result.stdout ?? '');
-    log(result.stderr ?? '');
-    if (result.exitCode !== 0) {
-      throw new Error(`build command exited with code ${result.exitCode}`);
-    }
+  private async runBuild(
+    buildCommand: string,
+    repoPath: string,
+    outputDir: string,
+    outputHostPath: string,
+    log: (chunk: string) => void,
+  ) {
+    await this.dockerBuild.run(repoPath, buildCommand, outputDir, outputHostPath, log);
   }
 
-  private async publish(paths: ProjectPaths, outputDir: string) {
-    const builtDir = path.join(paths.repo, outputDir);
+  private async publish(paths: ProjectPaths, builtDir: string) {
     const releaseId = new Date().toISOString().replace(/[:.]/g, '-');
     const releasePath = path.join(paths.releases, releaseId);
 
