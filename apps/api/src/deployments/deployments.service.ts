@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { DeploymentStatus, ErrorSource, Project } from '@prisma/client';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { EMPTY, Observable, Subject, merge, of } from 'rxjs';
 import { simpleGit } from 'simple-git';
 import { ErrorLogService } from '../error-log/error-log.service';
 import { ThumbnailService } from '../gallery/thumbnail.service';
@@ -10,6 +11,8 @@ import { GithubService } from '../github/github.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { DockerBuildService } from './docker-build.service';
+
+export type StatusEvent = { deploymentId: string; status: DeploymentStatus };
 
 // Only the release `current` points to is kept — no rollback history for now,
 // to keep disk usage flat regardless of deploy frequency. Bump this once storage
@@ -32,6 +35,9 @@ type ProjectPaths = {
 export class DeploymentsService {
   private readonly logger = new Logger(DeploymentsService.name);
   private readonly projectsRoot: string;
+  // One Subject per in-flight project. Completed and removed when the
+  // deployment reaches a terminal state (SUCCESS or FAILED).
+  private readonly streams = new Map<string, Subject<StatusEvent>>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -65,7 +71,25 @@ export class DeploymentsService {
     return deployment;
   }
 
+  // SSE clients subscribe here. Always emits the latest deployment status from
+  // the DB first (so a late-connecting client catches up), then streams live
+  // updates until the deployment reaches a terminal state.
+  async watchProject(projectId: string): Promise<Observable<StatusEvent>> {
+    const latest = await this.prisma.deployment.findFirst({
+      where: { project_id: projectId },
+      orderBy: { created_at: 'desc' },
+      select: { id: true, status: true },
+    });
+
+    const initial$ = latest ? of({ deploymentId: latest.id, status: latest.status }) : EMPTY;
+    const live$ = this.streams.get(projectId)?.asObservable() ?? EMPTY;
+    return merge(initial$, live$);
+  }
+
   async trigger(project: Project) {
+    const subject = new Subject<StatusEvent>();
+    this.streams.set(project.id, subject);
+
     const deployment = await this.prisma.deployment.create({
       data: { project_id: project.id, status: DeploymentStatus.PENDING },
     });
@@ -108,13 +132,13 @@ export class DeploymentsService {
     try {
       await fs.mkdir(paths.root, { recursive: true });
 
-      await this.setStatus(deploymentId, DeploymentStatus.CLONING);
+      await this.setStatus(deploymentId, project.id, DeploymentStatus.CLONING);
       const commitSha = await this.cloneRepo(project.repository_url, paths.repo, appendLog, installationId);
 
-      await this.setStatus(deploymentId, DeploymentStatus.BUILDING);
+      await this.setStatus(deploymentId, project.id, DeploymentStatus.BUILDING);
       await this.runBuild(project.build_command, paths.repo, project.output_dir, buildOutputPath, appendLog);
 
-      await this.setStatus(deploymentId, DeploymentStatus.PUBLISHING);
+      await this.setStatus(deploymentId, project.id, DeploymentStatus.PUBLISHING);
       const releasePath = await this.publish(paths, buildOutputPath);
 
       // Counts prior successes before this deployment's own row flips to
@@ -131,6 +155,7 @@ export class DeploymentsService {
           finished_at: new Date(),
         },
       });
+      this.emitTerminal(project.id, deploymentId, DeploymentStatus.SUCCESS);
 
       await this.pruneOldReleases(paths.releases);
 
@@ -144,6 +169,7 @@ export class DeploymentsService {
         where: { id: deploymentId },
         data: { status: DeploymentStatus.FAILED, log, finished_at: new Date() },
       });
+      this.emitTerminal(project.id, deploymentId, DeploymentStatus.FAILED);
 
       // Deploy failures are the tenant's own build breaking, not a Mollire bug —
       // notify the owner, not the admin, and don't write an ErrorLog row (that's
@@ -239,8 +265,20 @@ export class DeploymentsService {
     );
   }
 
-  private setStatus(deploymentId: string, status: DeploymentStatus) {
-    return this.prisma.deployment.update({ where: { id: deploymentId }, data: { status } });
+  private async setStatus(deploymentId: string, projectId: string, status: DeploymentStatus) {
+    await this.prisma.deployment.update({ where: { id: deploymentId }, data: { status } });
+    this.streams.get(projectId)?.next({ deploymentId, status });
+  }
+
+  // Called after the DB update that writes the full terminal row (log, sha…),
+  // so SSE clients that reload on this event see the complete data.
+  private emitTerminal(projectId: string, deploymentId: string, status: DeploymentStatus) {
+    const subject = this.streams.get(projectId);
+    if (subject) {
+      subject.next({ deploymentId, status });
+      subject.complete();
+      this.streams.delete(projectId);
+    }
   }
 
   private async awardDeployXp(project: Project): Promise<void> {

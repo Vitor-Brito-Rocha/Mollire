@@ -1,4 +1,5 @@
-import { Controller, Get, Param, Post } from '@nestjs/common';
+import { Controller, Get, MessageEvent, Param, Post, Sse } from '@nestjs/common';
+import { Observable, from, switchMap, map } from 'rxjs';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser } from '../auth/types';
 import { ProjectsService } from '../projects/projects.service';
@@ -23,5 +24,19 @@ export class DeploymentsController {
   @Get('deployments/:id')
   findOne(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.deploymentsService.findByIdForUser(id, user.id);
+  }
+
+  @Sse('projects/:slug/status')
+  statusStream(
+    @Param('slug') slug: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Observable<MessageEvent> {
+    return from(
+      this.projectsService.findBySlugForUser(slug, user.id)
+        .then((project) => this.deploymentsService.watchProject(project.id)),
+    ).pipe(
+      switchMap((obs$) => obs$),
+      map((event) => ({ data: event })),
+    );
   }
 }

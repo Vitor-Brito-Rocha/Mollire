@@ -38,14 +38,38 @@ export default function ProjectDetailPage() {
     load();
   }, [load]);
 
-  // Poll while the latest deployment is still in flight.
+  // Stream status updates via SSE while the latest deployment is in flight.
+  // The server pushes each status change; on terminal state we reload the full
+  // project so the log, commit_sha and finished_at are fresh.
   const latest = project?.deployments?.[0];
   const inFlight = !!latest && IN_FLIGHT.includes(latest.status);
   useEffect(() => {
-    if (!inFlight) return;
-    const interval = setInterval(load, 2000);
-    return () => clearInterval(interval);
-  }, [inFlight, load]);
+    if (!project || !inFlight) return;
+    const source = new EventSource(`${API_URL}/projects/${slug}/status`, {
+      withCredentials: true,
+    });
+    source.onmessage = (e: MessageEvent<string>) => {
+      const { deploymentId, status } = JSON.parse(e.data) as {
+        deploymentId: string;
+        status: Deployment["status"];
+      };
+      setProject((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          deployments: prev.deployments?.map((d) =>
+            d.id === deploymentId ? { ...d, status } : d,
+          ),
+        };
+      });
+      if (status === "SUCCESS" || status === "FAILED") {
+        source.close();
+        load();
+      }
+    };
+    source.onerror = () => source.close();
+    return () => source.close();
+  }, [inFlight, project?.id, slug, load]);
 
   async function handleDeploy() {
     setDeploying(true);
