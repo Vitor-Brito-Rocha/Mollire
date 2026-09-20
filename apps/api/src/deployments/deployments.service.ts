@@ -90,7 +90,7 @@ export class DeploymentsService {
 
   async trigger(
     project: Project,
-    webhook?: { installationId?: bigint; commitSha?: string; commitMessage?: string },
+    options?: { targetSha?: string; installationId?: bigint; commitSha?: string; commitMessage?: string },
   ) {
     if (this.streams.has(project.id)) {
       throw new ConflictException(`project "${project.slug}" already has a deploy in progress`);
@@ -106,7 +106,7 @@ export class DeploymentsService {
     // Prefer installation ID from webhook payload (no DB round-trip needed);
     // fall back to the stored value for manual deploys.
     const installationId =
-      webhook?.installationId ??
+      options?.installationId ??
       (await this.prisma.user.findUnique({ where: { id: project.user_id } }))
         ?.github_installation_id ??
       null;
@@ -116,7 +116,7 @@ export class DeploymentsService {
     // This outer .catch() is defense-in-depth for a bug in runPipeline itself
     // (which already self-guards its whole body) — an unexpected platform
     // failure, not an ordinary build failure, so it goes through ErrorLog too.
-    void this.runPipeline(project, deployment.id, installationId, webhook).catch((err) => {
+    void this.runPipeline(project, deployment.id, installationId, options).catch((err) => {
       const message = err instanceof Error ? err.message : String(err);
       const stack = err instanceof Error ? err.stack : undefined;
       this.logger.error(`deployment ${deployment.id} crashed outside pipeline guard`, stack);
@@ -139,7 +139,7 @@ export class DeploymentsService {
     project: Project,
     deploymentId: string,
     installationId: bigint | null,
-    webhook?: { commitSha?: string; commitMessage?: string },
+    options?: { targetSha?: string; commitSha?: string; commitMessage?: string },
   ) {
     const paths = this.projectPaths(project.slug);
     const buildOutputPath = path.join(paths.root, 'build-output');
@@ -153,8 +153,8 @@ export class DeploymentsService {
 
       await this.setStatus(deploymentId, project.id, DeploymentStatus.CLONING);
       const cloneStart = Date.now();
-      const clonedSha = await this.cloneRepo(project.repository_url, paths.repo, appendLog, installationId);
-      const commitSha = webhook?.commitSha ?? clonedSha;
+      const clonedSha = await this.cloneRepo(project.repository_url, paths.repo, appendLog, installationId, options?.targetSha);
+      const commitSha = options?.commitSha ?? clonedSha;
       this.logger.log(`[${project.slug}] clone: ${((Date.now() - cloneStart) / 1000).toFixed(1)}s`);
 
       await this.setStatus(deploymentId, project.id, DeploymentStatus.BUILDING);
@@ -175,7 +175,7 @@ export class DeploymentsService {
         data: {
           status: DeploymentStatus.SUCCESS,
           commit_sha: commitSha,
-          commit_message: webhook?.commitMessage ?? null,
+          commit_message: options?.commitMessage ?? null,
           release_path: releasePath,
           log,
           finished_at: new Date(),
@@ -225,9 +225,8 @@ export class DeploymentsService {
     repoPath: string,
     log: (chunk: string) => void,
     installationId: bigint | null,
+    targetSha?: string,
   ) {
-    // For private repos, embed a short-lived installation token into the URL
-    // instead of relying on SSH keys or persisted credentials.
     const cloneUrl =
       installationId !== null
         ? await this.github.authenticatedCloneUrl(repositoryUrl, installationId)
@@ -246,17 +245,29 @@ export class DeploymentsService {
         await git.fetch(['--depth', '1', 'origin']);
         await git.reset(['--hard', 'FETCH_HEAD']);
         await git.raw(['clean', '-fd', '-e', 'node_modules']);
-        const sha = await git.revparse(['HEAD']);
-        return sha.trim();
       } catch {
         log(`fetch failed, falling back to fresh clone\n`);
         await fs.rm(repoPath, { recursive: true, force: true });
+        await simpleGit().clone(cloneUrl, repoPath, ['--depth', '1']);
+      }
+    } else {
+      log(`cloning ${repositoryUrl}\n`);
+      await simpleGit().clone(cloneUrl, repoPath, ['--depth', '1']);
+    }
+
+    const git = simpleGit(repoPath);
+
+    if (targetSha) {
+      const currentHead = (await git.revparse(['HEAD'])).trim();
+      if (!currentHead.startsWith(targetSha) && !targetSha.startsWith(currentHead)) {
+        log(`fetching commit ${targetSha}\n`);
+        await git.fetch(['origin', targetSha, '--depth', '1']);
+        await git.checkout([targetSha]);
+        await git.raw(['clean', '-fd', '-e', 'node_modules']);
       }
     }
 
-    log(`cloning ${repositoryUrl}\n`);
-    await simpleGit().clone(cloneUrl, repoPath, ['--depth', '1']);
-    const sha = await simpleGit(repoPath).revparse(['HEAD']);
+    const sha = await git.revparse(['HEAD']);
     return sha.trim();
   }
 

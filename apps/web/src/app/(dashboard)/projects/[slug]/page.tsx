@@ -87,11 +87,11 @@ export default function ProjectDetailPage() {
     return () => source.close();
   }, [inFlight, project?.id, slug, load]);
 
-  async function handleDeploy() {
+  async function handleDeploy(commitSha?: string) {
     setDeploying(true);
     try {
-      await api.post(`/projects/${slug}/deploy`);
-      toast.success("Deploy disparado");
+      await api.post(`/projects/${slug}/deploy`, commitSha ? { commit_sha: commitSha } : undefined);
+      toast.success(commitSha ? `Re-deploy de ${commitSha.slice(0, 7)} disparado` : "Deploy disparado");
       load();
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Erro ao disparar deploy");
@@ -159,7 +159,7 @@ export default function ProjectDetailPage() {
             {inFlight && <StatusChip tone="busy">Deploy em andamento</StatusChip>}
           </div>
         </div>
-        <Button size="lg" onClick={handleDeploy} disabled={deploying || inFlight}>
+        <Button size="lg" onClick={() => handleDeploy()} disabled={deploying || inFlight}>
           {deploying ? "Disparando..." : "Deploy"}
         </Button>
       </div>
@@ -206,11 +206,23 @@ export default function ProjectDetailPage() {
                       </span>
                     )}
                   </span>
-                  {deployment.log && (
-                    <span className="text-text-3 label hidden text-[10px] group-open:text-foreground sm:col-span-2 sm:block sm:text-right">
-                      log
-                    </span>
-                  )}
+                  <span className="col-span-2 flex justify-end gap-3">
+                    {deployment.commit_sha && !inFlight && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); handleDeploy(deployment.commit_sha!); }}
+                        disabled={deploying}
+                        className="text-text-3 hover:text-foreground label hidden text-[10px] underline underline-offset-4 sm:block"
+                      >
+                        re-deploy
+                      </button>
+                    )}
+                    {deployment.log && (
+                      <span className="text-text-3 label hidden text-[10px] group-open:text-foreground sm:block">
+                        log
+                      </span>
+                    )}
+                  </span>
                 </summary>
                 {deployment.log && (
                   <pre className="bg-background border-border text-muted-foreground mx-4 mb-4 max-h-64 overflow-auto border p-3 font-mono text-xs whitespace-pre-wrap">
