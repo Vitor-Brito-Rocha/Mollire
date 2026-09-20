@@ -6,13 +6,13 @@ import { AuthenticatedUser } from '../auth/types';
 export class InternalService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async checkAccess(slug: string, user?: AuthenticatedUser): Promise<'ok' | 'unauthorized' | 'forbidden'> {
+  async checkAccess(slug: string, user?: AuthenticatedUser): Promise<'ok' | 'unauthorized' | 'forbidden' | 'not_found'> {
     const project = await this.prisma.project.findUnique({
       where: { slug },
       select: { id: true, is_public: true },
     });
 
-    if (!project) return 'forbidden';
+    if (!project) return 'not_found';
     if (project.is_public) return 'ok';
     if (!user) return 'unauthorized';
 

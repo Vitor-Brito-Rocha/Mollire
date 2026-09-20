@@ -23,8 +23,9 @@ export class InternalController {
 
     const result = await this.internalService.checkAccess(slug, user);
 
+    res.set('X-Auth-Result', result);
     if (result === 'ok') return res.status(200).end();
     if (result === 'unauthorized') return res.status(401).end();
-    return res.status(403).end();
+    return res.status(403).end(); // both 'forbidden' and 'not_found' — differentiated via X-Auth-Result header
   }
 }
