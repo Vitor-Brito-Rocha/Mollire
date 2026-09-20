@@ -13,7 +13,9 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { DockerBuildService } from './docker-build.service';
 
-export type StatusEvent = { deploymentId: string; status: DeploymentStatus };
+export type StatusEvent =
+  | { type: 'status'; deploymentId: string; status: DeploymentStatus }
+  | { type: 'log'; deploymentId: string; chunk: string };
 
 // Only the release `current` points to is kept — no rollback history for now,
 // to keep disk usage flat regardless of deploy frequency. Bump this once storage
@@ -83,7 +85,7 @@ export class DeploymentsService {
       select: { id: true, status: true },
     });
 
-    const initial$ = latest ? of({ deploymentId: latest.id, status: latest.status }) : EMPTY;
+    const initial$ = latest ? of({ type: 'status' as const, deploymentId: latest.id, status: latest.status }) : EMPTY;
     const live$ = this.streams.get(projectId)?.asObservable() ?? EMPTY;
     return merge(initial$, live$);
   }
@@ -146,6 +148,7 @@ export class DeploymentsService {
     let log = '';
     const appendLog = (chunk: string) => {
       log += chunk;
+      this.streams.get(project.id)?.next({ type: 'log', deploymentId, chunk });
     };
 
     try {
@@ -321,7 +324,7 @@ export class DeploymentsService {
 
   private async setStatus(deploymentId: string, projectId: string, status: DeploymentStatus) {
     await this.prisma.deployment.update({ where: { id: deploymentId }, data: { status } });
-    this.streams.get(projectId)?.next({ deploymentId, status });
+    this.streams.get(projectId)?.next({ type: 'status', deploymentId, status });
   }
 
   // Called after the DB update that writes the full terminal row (log, sha…),
@@ -329,7 +332,7 @@ export class DeploymentsService {
   private emitTerminal(projectId: string, deploymentId: string, status: DeploymentStatus) {
     const subject = this.streams.get(projectId);
     if (subject) {
-      subject.next({ deploymentId, status });
+      subject.next({ type: 'status', deploymentId, status });
       subject.complete();
       this.streams.delete(projectId);
     }

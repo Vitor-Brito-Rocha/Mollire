@@ -34,6 +34,7 @@ export default function ProjectDetailPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [deploying, setDeploying] = useState(false);
   const [togglingVisibility, setTogglingVisibility] = useState(false);
+  const [liveLog, setLiveLog] = useState('');
 
   const load = useCallback(() => {
     api
@@ -56,19 +57,26 @@ export default function ProjectDetailPage() {
     return () => clearInterval(interval);
   }, [inFlight, project, load]);
 
-  // Stream status updates via SSE while the latest deployment is in flight.
+  // Stream status updates and live log via SSE while the latest deployment is in flight.
   // The server pushes each status change; on terminal state we reload the full
   // project so the log, commit_sha and finished_at are fresh.
   useEffect(() => {
     if (!project || !inFlight) return;
+    setLiveLog('');
     const source = new EventSource(`${API_URL}/projects/${slug}/status`, {
       withCredentials: true,
     });
     source.onmessage = (e: MessageEvent<string>) => {
-      const { deploymentId, status } = JSON.parse(e.data) as {
-        deploymentId: string;
-        status: Deployment["status"];
-      };
+      const event = JSON.parse(e.data) as
+        | { type: 'status'; deploymentId: string; status: Deployment["status"] }
+        | { type: 'log'; deploymentId: string; chunk: string };
+
+      if (event.type === 'log') {
+        setLiveLog((prev) => prev + event.chunk);
+        return;
+      }
+
+      const { deploymentId, status } = event;
       setProject((prev) => {
         if (!prev) return prev;
         return {
@@ -179,58 +187,63 @@ export default function ProjectDetailPage() {
               </p>
             </div>
           ) : (
-            deployments.map((deployment) => (
-              <details key={deployment.id} className="group border-border border-b last:border-b-0">
-                <summary
-                  className={
-                    "grid grid-cols-12 items-center gap-3 px-4 py-3 " +
-                    (deployment.log ? "hover:bg-raised cursor-pointer" : "cursor-default [&::-webkit-details-marker]:hidden")
-                  }
-                >
-                  <span className="col-span-5 sm:col-span-3">
-                    <DeployStatus status={deployment.status} />
-                  </span>
-                  <span className="text-muted-foreground col-span-7 flex flex-wrap items-center gap-x-2 whitespace-nowrap text-[13px] sm:col-span-4">
-                    {whenFmt.format(new Date(deployment.created_at))}
-                    {deployDuration(deployment.created_at, deployment.finished_at) && (
-                      <span className="text-text-3 font-mono text-[11px]">
-                        {deployDuration(deployment.created_at, deployment.finished_at)}
-                      </span>
-                    )}
-                  </span>
-                  <span className="text-text-3 hidden font-mono text-xs sm:col-span-3 sm:block">
-                    {deployment.commit_sha ? deployment.commit_sha.slice(0, 7) : "—"}
-                    {deployment.commit_message && (
-                      <span className="text-text-3 ml-2 font-sans not-italic truncate hidden sm:inline">
-                        {deployment.commit_message}
-                      </span>
-                    )}
-                  </span>
-                  <span className="col-span-2 flex justify-end gap-3">
-                    {deployment.commit_sha && !inFlight && (
-                      <button
-                        type="button"
-                        onClick={(e) => { e.preventDefault(); handleDeploy(deployment.commit_sha!); }}
-                        disabled={deploying}
-                        className="text-text-3 hover:text-foreground label hidden text-[10px] underline underline-offset-4 sm:block"
-                      >
-                        re-deploy
-                      </button>
-                    )}
-                    {deployment.log && (
-                      <span className="text-text-3 label hidden text-[10px] group-open:text-foreground sm:block">
-                        log
-                      </span>
-                    )}
-                  </span>
-                </summary>
-                {deployment.log && (
-                  <pre className="bg-background border-border text-muted-foreground mx-4 mb-4 max-h-64 overflow-auto border p-3 font-mono text-xs whitespace-pre-wrap">
-                    {deployment.log}
-                  </pre>
-                )}
-              </details>
-            ))
+            deployments.map((deployment, i) => {
+              const isLatestInFlight = i === 0 && inFlight;
+              const displayLog = isLatestInFlight ? liveLog : deployment.log;
+              const hasLog = !!displayLog;
+              return (
+                <details key={deployment.id} className="group border-border border-b last:border-b-0" open={isLatestInFlight && !!liveLog}>
+                  <summary
+                    className={
+                      "grid grid-cols-12 items-center gap-3 px-4 py-3 " +
+                      (hasLog ? "hover:bg-raised cursor-pointer" : "cursor-default [&::-webkit-details-marker]:hidden")
+                    }
+                  >
+                    <span className="col-span-5 sm:col-span-3">
+                      <DeployStatus status={deployment.status} />
+                    </span>
+                    <span className="text-muted-foreground col-span-7 flex flex-wrap items-center gap-x-2 whitespace-nowrap text-[13px] sm:col-span-4">
+                      {whenFmt.format(new Date(deployment.created_at))}
+                      {deployDuration(deployment.created_at, deployment.finished_at) && (
+                        <span className="text-text-3 font-mono text-[11px]">
+                          {deployDuration(deployment.created_at, deployment.finished_at)}
+                        </span>
+                      )}
+                    </span>
+                    <span className="text-text-3 hidden font-mono text-xs sm:col-span-3 sm:block">
+                      {deployment.commit_sha ? deployment.commit_sha.slice(0, 7) : "—"}
+                      {deployment.commit_message && (
+                        <span className="text-text-3 ml-2 font-sans not-italic truncate hidden sm:inline">
+                          {deployment.commit_message}
+                        </span>
+                      )}
+                    </span>
+                    <span className="col-span-2 flex justify-end gap-3">
+                      {deployment.commit_sha && !inFlight && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); handleDeploy(deployment.commit_sha!); }}
+                          disabled={deploying}
+                          className="text-text-3 hover:text-foreground label hidden text-[10px] underline underline-offset-4 sm:block"
+                        >
+                          re-deploy
+                        </button>
+                      )}
+                      {hasLog && (
+                        <span className="text-text-3 label hidden text-[10px] group-open:text-foreground sm:block">
+                          log
+                        </span>
+                      )}
+                    </span>
+                  </summary>
+                  {hasLog && (
+                    <pre className="bg-background border-border text-muted-foreground mx-4 mb-4 max-h-64 overflow-auto border p-3 font-mono text-xs whitespace-pre-wrap">
+                      {displayLog}
+                    </pre>
+                  )}
+                </details>
+              );
+            })
           )}
         </section>
 

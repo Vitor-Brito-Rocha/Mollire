@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { execa } from 'execa';
 import * as fs from 'node:fs/promises';
+import * as readline from 'node:readline';
 
 @Injectable()
 export class DockerBuildService {
@@ -35,7 +36,7 @@ export class DockerBuildService {
 
     this.logger.log(`starting build container (image=${this.image})`);
 
-    const result = await execa(
+    const subprocess = execa(
       'docker',
       [
         'run', '--rm',
@@ -56,8 +57,19 @@ export class DockerBuildService {
       { reject: false, timeout: this.timeoutMs },
     );
 
-    if (result.stdout) log(result.stdout);
-    if (result.stderr) log(result.stderr);
+    const streamLines = (stream: NodeJS.ReadableStream | null): Promise<void> =>
+      new Promise((resolve) => {
+        if (!stream) { resolve(); return; }
+        const rl = readline.createInterface({ input: stream, crlfDelay: Infinity });
+        rl.on('line', (line) => log(`${new Date().toISOString()} ${line}\n`));
+        rl.on('close', resolve);
+      });
+
+    const [, , result] = await Promise.all([
+      streamLines(subprocess.stdout ?? null),
+      streamLines(subprocess.stderr ?? null),
+      subprocess,
+    ]);
 
     if (result.timedOut) {
       throw new Error(`build timed out after ${this.timeoutMs / 1000}s`);
