@@ -39,6 +39,7 @@ export class DockerBuildService {
       'docker',
       [
         'run', '--rm',
+        '--user', 'root',
         '--memory', this.memory,
         '--cpus', this.cpus,
         '--pids-limit', String(this.pidsLimit),
