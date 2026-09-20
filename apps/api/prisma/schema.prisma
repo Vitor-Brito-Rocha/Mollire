@@ -89,9 +89,28 @@ model Project {
   comments    Comment[]
   members     ProjectMember[]
   invitations ProjectInvitation[]
+  env_vars    ProjectEnvVar[]
 
   @@index([user_id])
   @@map("projects")
+}
+
+// Build-time environment variables for a project. Values are encrypted at rest
+// (AES-256-GCM via ENV_ENCRYPTION_KEY) and never returned by the API after
+// creation — only keys are exposed, matching the GitHub Secrets model.
+model ProjectEnvVar {
+  id         String   @id @default(cuid())
+  project_id String
+  key        String
+  value      String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@unique([project_id, key])
+  @@index([project_id])
+  @@map("project_env_vars")
 }
 
 enum ProjectRole {

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { ProjectEnvVars } from "@/components/project-env-vars";
 import { ProjectMembers } from "@/components/project-members";
 import { DeployStatus, StatusChip } from "@/components/status-chip";
 import { Button } from "@/components/ui/button";
@@ -262,6 +263,7 @@ export default function ProjectDetailPage() {
           </section>
 
           <ProjectMembers slug={slug} />
+          {isOwner && <ProjectEnvVars slug={slug} />}
 
           <section className="corners bg-card border-border flex flex-col border">
             <h2 className="label border-border border-b px-4 py-3">Configuração</h2>

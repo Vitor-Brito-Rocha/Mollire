@@ -5,6 +5,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { EMPTY, Observable, Subject, merge, of } from 'rxjs';
 import { simpleGit } from 'simple-git';
+import { EnvVarsService } from '../env-vars/env-vars.service';
 import { ErrorLogService } from '../error-log/error-log.service';
 import { ThumbnailService } from '../gallery/thumbnail.service';
 import { GithubService } from '../github/github.service';
@@ -47,6 +48,7 @@ export class DeploymentsService {
     private readonly thumbnails: ThumbnailService,
     private readonly dockerBuild: DockerBuildService,
     private readonly github: GithubService,
+    private readonly envVars: EnvVarsService,
   ) {
     this.projectsRoot = path.resolve(this.config.get<string>('PROJECTS_ROOT', './data/projects'));
   }
@@ -153,7 +155,8 @@ export class DeploymentsService {
 
       await this.setStatus(deploymentId, project.id, DeploymentStatus.BUILDING);
       const buildStart = Date.now();
-      await this.runBuild(project.build_command, paths.repo, project.output_dir, buildOutputPath, appendLog);
+      const projectEnvVars = await this.envVars.getDecrypted(project.id);
+      await this.runBuild(project.build_command, paths.repo, project.output_dir, buildOutputPath, appendLog, projectEnvVars);
       this.logger.log(`[${project.slug}] build: ${((Date.now() - buildStart) / 1000).toFixed(1)}s`);
 
       await this.setStatus(deploymentId, project.id, DeploymentStatus.PUBLISHING);
@@ -259,8 +262,9 @@ export class DeploymentsService {
     outputDir: string,
     outputHostPath: string,
     log: (chunk: string) => void,
+    envVars: Record<string, string> = {},
   ) {
-    await this.dockerBuild.run(repoPath, buildCommand, outputDir, outputHostPath, log);
+    await this.dockerBuild.run(repoPath, buildCommand, outputDir, outputHostPath, log, envVars);
   }
 
   private async publish(paths: ProjectPaths, builtDir: string) {

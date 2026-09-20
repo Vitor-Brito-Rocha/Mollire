@@ -26,6 +26,7 @@ export class DockerBuildService {
     outputDir: string,
     outputHostPath: string,
     log: (chunk: string) => void,
+    envVars: Record<string, string> = {},
   ): Promise<void> {
     await fs.mkdir(outputHostPath, { recursive: true });
 
@@ -43,6 +44,7 @@ export class DockerBuildService {
         '--pids-limit', String(this.pidsLimit),
         '-e', 'NPM_CONFIG_PREFER_OFFLINE=true',
         '-e', 'NODE_OPTIONS=--max-old-space-size=896',
+        ...Object.entries(envVars).flatMap(([k, v]) => ['-e', `${k}=${v}`]),
         '-v', `${repoPath}:/workspace`,
         '-v', `${outputHostPath}:/output`,
         '-v', 'mollire-npm-cache:/root/.npm',

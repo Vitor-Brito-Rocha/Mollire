@@ -229,6 +229,12 @@ export type AdminsList = {
   pendingInvites: AdminInvite[];
 };
 
+export type EnvVar = {
+  key: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type InviteAdminResponse =
   | { status: 'promoted'; user: AdminUser }
   | { status: 'already_admin'; user: AdminUser }
