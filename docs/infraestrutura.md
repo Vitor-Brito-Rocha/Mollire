@@ -78,7 +78,7 @@ model User {
   handle                 String?  @unique
   role                   Role     @default(TENANT) // ADMIN | TENANT
   xp                     Int      @default(0)
-  github_installation_id BigInt?
+  github_installation_id BigInt?  // ⚠ BigInt — nunca retornar User completo em resposta JSON
   created_at             DateTime @default(now())
   updated_at             DateTime @updatedAt
   project_memberships    ProjectMember[]
@@ -174,6 +174,10 @@ FAILED     → update Deployment, push notification para owner
 ```
 
 Variáveis de ambiente do build: `BUILD_MEMORY_LIMIT`, `BUILD_CPU_LIMIT`, `BUILD_PIDS_LIMIT`, `BUILD_DOCKER_IMAGE`, `BUILD_TIMEOUT_MS`.
+
+### Armadilhas
+
+**BigInt (`github_installation_id`)**: `JSON.stringify` não serializa `BigInt` — qualquer endpoint que retorne um `User` completo quebra com `500: Do not know how to serialize a BigInt`. Sempre usar `select` explícito ao expor `User` em respostas HTTP, omitindo `github_installation_id`. Internamente (lógica de negócio) o campo pode ser lido normalmente.
 
 ### Gamification (XP)
 
