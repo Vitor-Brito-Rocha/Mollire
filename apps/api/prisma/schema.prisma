@@ -90,6 +90,7 @@ model Project {
   members     ProjectMember[]
   invitations ProjectInvitation[]
   env_vars    ProjectEnvVar[]
+  views       ProjectView[]
 
   @@index([user_id])
   @@map("projects")
@@ -228,6 +229,21 @@ model ErrorLog {
 
   @@index([created_at])
   @@map("error_logs")
+}
+
+model ProjectView {
+  id         String   @id @default(cuid())
+  project_id String
+  visitor_id String
+  country    String?
+  path       String   @default("/")
+  date       DateTime @db.Date
+
+  project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@unique([project_id, visitor_id, path, date])
+  @@index([project_id, date])
+  @@map("project_views")
 }
 
 model PushSubscription {

@@ -5,6 +5,7 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import * as path from 'node:path';
 import { AdminModule } from './admin/admin.module';
 import { EnvVarsModule } from './env-vars/env-vars.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 import { InternalModule } from './internal/internal.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
@@ -46,6 +47,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     UsersModule,
     AdminModule,
     EnvVarsModule,
+    AnalyticsModule,
     InternalModule,
     WebhooksModule,
   ],

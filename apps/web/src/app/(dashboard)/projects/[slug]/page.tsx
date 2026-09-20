@@ -167,9 +167,17 @@ export default function ProjectDetailPage() {
             {inFlight && <StatusChip tone="busy">Deploy em andamento</StatusChip>}
           </div>
         </div>
-        <Button size="lg" onClick={() => handleDeploy()} disabled={deploying || inFlight}>
-          {deploying ? "Disparando..." : "Deploy"}
-        </Button>
+        <div className="flex items-center gap-3">
+          <Link
+            href={`/projects/${slug}/analytics`}
+            className="label text-muted-foreground hover:text-foreground transition-colors text-xs"
+          >
+            Analytics
+          </Link>
+          <Button size="lg" onClick={() => handleDeploy()} disabled={deploying || inFlight}>
+            {deploying ? "Disparando..." : "Deploy"}
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

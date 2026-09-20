@@ -46,7 +46,8 @@ Ponto de entrada: `apps/api/src/main.ts`, porta `4000` (env `PORT`).
 | `ErrorLogModule` | Persiste erros em DB + push para admins |
 | `PrismaModule` | `PrismaService` — singleton, conecta em `onModuleInit` |
 | `EnvVarsModule` | `GET/PUT/DELETE /projects/:slug/env/:key` — owner-only, valores nunca retornados após criação |
-| `InternalModule` | `GET /internal/auth?slug=` — chamado pelo Nginx via `auth_request`, responde 200/401/403 sem body |
+| `InternalModule` | `GET /internal/auth?slug=` — chamado pelo Nginx via `auth_request`, responde 200/401/403 sem body; registra views fire-and-forget |
+| `AnalyticsModule` | `GET /analytics/:slug` — retorna `total`, `byDay` (30 dias), `byCountry` (top 10), `byPath` (top 10); requer membership |
 
 ### Autenticação e Sessão
 
@@ -136,6 +137,17 @@ model Deployment {
 
 // Variáveis de ambiente injetadas no container de build. Valores criptografados
 // em repouso (AES-256-GCM, chave em ENV_ENCRYPTION_KEY). Nunca retornados pela API.
+model ProjectView {
+  id         String   @id @default(cuid())
+  project_id String
+  visitor_id String                           // UUID anônimo (_mollire_vid cookie), nunca vinculado ao user
+  country    String?                          // ISO 3166-1 alpha-2, via MaxMind GeoLite2 (null se GEOIP_DB_PATH não configurado)
+  path       String   @default("/")           // URI acessada (ex: "/login")
+  date       DateTime @db.Date                // deduplicação por dia
+  @@unique([project_id, visitor_id, path, date])
+  @@index([project_id, date])
+}
+
 model ProjectEnvVar {
   id         String   @id @default(cuid())
   project_id String
@@ -247,9 +259,16 @@ location / {
 ```
 
 **Respostas do `GET /internal/auth`**:
-- `200` — projeto público ou usuário é membro
+- `200` — projeto público ou usuário é membro; registra `ProjectView` fire-and-forget (só para requests `Accept: text/html`)
 - `401` — projeto privado, sem sessão → Nginx redireciona para `/login?next=<url>`
 - `403` — projeto privado, sessão válida mas não é membro
+
+**Analytics (visitor tracking)**:
+- Identificador anônimo `_mollire_vid` (UUID) gerado na API e setado via cookie pelo Nginx (`Max-Age=31536000`, `SameSite=Lax`)
+- Cookie setado condicionalmente via `map $visitor_id $mollire_set_cookie` (arquivo `nginx/map.conf`, montado como `00-map.conf` no contexto `http` antes do server block)
+- Só requests com `Accept: text/html` geram UUID e registram view — assets (`.js`, `.css`, etc.) não rastreados
+- Deduplicação: `@@unique([project_id, visitor_id, path, date])` — uma view por visitante por página por dia
+- GeoIP opcional: `GEOIP_DB_PATH` aponta para `GeoLite2-Country.mmdb` (MaxMind); sem ele `country` é sempre `null`; IP real só disponível em produção (`$remote_addr` em dev é o IP da bridge Docker)
 
 **Diferenças dev vs prod**:
 - Dev (`*.localtest.me`): `proxy_pass` aponta para `host.docker.internal:4000` + `resolver 127.0.0.11`; redirect login → `localhost:3000`
@@ -273,7 +292,10 @@ services:
       - ./data/projects:/var/www/projects:ro
       - ./public:/var/www/mollire-public:ro
       - ./nginx/mollire.dev.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/map.conf:/etc/nginx/conf.d/00-map.conf:ro   # map para cookie condicional
 ```
+
+`map.conf` precisa ser carregado antes de `default.conf` (prefixo `00-`) pois declara `$mollire_set_cookie` no contexto `http`, que é referenciada dentro do `server` block.
 
 A API roda fora do compose (systemd no VPS, `node dist/main.js` direto em dev).
 

@@ -239,3 +239,10 @@ export type InviteAdminResponse =
   | { status: 'promoted'; user: AdminUser }
   | { status: 'already_admin'; user: AdminUser }
   | { status: 'invited'; invite: AdminInvite };
+
+export type ProjectAnalytics = {
+  total: number;
+  byDay: { date: string; views: number }[];
+  byCountry: { country: string | null; views: number }[];
+  byPath: { path: string; views: number }[];
+};
