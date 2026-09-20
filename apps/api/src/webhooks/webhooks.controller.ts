@@ -18,6 +18,7 @@ import { PrismaService } from '../prisma/prisma.service';
 type PushPayload = {
   ref: string;
   after: string;
+  pusher: { name: string };
   installation?: { id: number };
   repository: {
     full_name: string;
@@ -87,10 +88,15 @@ export class WebhooksController {
     }
 
     this.logger.log(`push on ${fullName} → triggering deploy for project ${project.slug}`);
+    const pusherAccount = await this.prisma.githubAccount.findFirst({
+      where: { account_login: payload.pusher.name },
+      select: { user_id: true },
+    });
     await this.deployments.trigger(project, {
       installationId: payload.installation?.id ? BigInt(payload.installation.id) : undefined,
       commitSha: payload.after,
       commitMessage: payload.head_commit?.message,
+      triggeredBy: pusherAccount?.user_id ?? project.user_id,
     });
     return { triggered: true, project: project.slug };
   }

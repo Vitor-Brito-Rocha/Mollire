@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch } from '@nestjs/common';
+import { Public } from '../auth/public.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser } from '../auth/types';
 import { levelForXp } from '../common/level';
@@ -34,6 +35,12 @@ export class UsersController {
       joined_projects: joined,
       github_connected: githubCount > 0,
     };
+  }
+
+  @Public()
+  @Get(':handle')
+  async publicProfile(@Param('handle') handle: string) {
+    return this.usersService.getPublicProfile(handle);
   }
 
   // The handle is the only identity the gallery ever shows — never the email.

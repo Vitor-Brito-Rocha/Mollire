@@ -134,7 +134,14 @@ export default function GaleriaPage() {
                           {project.name}
                         </Link>
                         <span className="text-muted-foreground text-[12.5px]">
-                          {project.author} ·{" "}
+                          <Link
+                            href={`/u/${project.author}`}
+                            className="hover:text-foreground transition-colors"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {project.author}
+                          </Link>
+                          {" ·"}{" "}
                           <span className="text-text-3 font-mono text-[11.5px]">
                             {project.slug}.aulvi.com.br
                           </span>
