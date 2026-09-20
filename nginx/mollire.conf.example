@@ -15,15 +15,36 @@ server {
         set $slug $1;
     }
 
+    if ($slug = "") {
+        return 404;
+    }
+
     root /var/www/projects/$slug/current;
     index index.html;
 
+    # Sub-requisição interna de auth_request — inacessível diretamente pelo browser.
+    location = /_internal_auth {
+        internal;
+        proxy_pass http://127.0.0.1:4000/internal/auth?slug=$slug;
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length "";
+        proxy_set_header Cookie $http_cookie;
+        proxy_set_header X-Original-URI $request_uri;
+    }
+
     location / {
+        auth_request /_internal_auth;
+        error_page 401 = @login;
+        error_page 403 = @forbidden;
         try_files $uri $uri/ /index.html;
     }
 
-    # unmatched/malformed subdomain
-    if ($slug = "") {
-        return 404;
+    location @login {
+        return 302 https://app.aulvi.com.br/login?next=$scheme://$host$request_uri;
+    }
+
+    location @forbidden {
+        root /var/www/mollire-public;
+        try_files /forbidden.html =403;
     }
 }

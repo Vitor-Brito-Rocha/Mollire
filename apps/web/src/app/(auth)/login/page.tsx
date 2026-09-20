@@ -47,8 +47,13 @@ function LoginForm() {
       toast.error(error);
       return;
     }
-    router.push("/");
-    router.refresh();
+    const next = searchParams.get("next");
+    if (next) {
+      window.location.href = next;
+    } else {
+      router.push("/");
+      router.refresh();
+    }
   }
 
   return (
