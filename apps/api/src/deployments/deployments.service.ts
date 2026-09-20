@@ -223,7 +223,8 @@ export class DeploymentsService {
         await this.thumbnails.capture(project, deploymentId, releasePath);
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const raw = err instanceof Error ? err.message : String(err);
+      const message = raw.replace(/x-access-token:[^@]+@/g, 'x-access-token:[REDACTED]@');
       appendLog(`\nFAILED: ${message}`);
       await this.prisma.deployment.update({
         where: { id: deploymentId },
@@ -300,11 +301,16 @@ export class DeploymentsService {
 
     const git = simpleGit(repoPath);
 
+    // Remove the token from .git/config before the build container mounts this directory.
+    await git.remote(['set-url', 'origin', repositoryUrl]);
+
     if (targetSha) {
       const currentHead = (await git.revparse(['HEAD'])).trim();
       if (!currentHead.startsWith(targetSha) && !targetSha.startsWith(currentHead)) {
         log(`fetching commit ${targetSha}\n`);
+        await git.remote(['set-url', 'origin', cloneUrl]);
         await git.fetch(['origin', targetSha, '--depth', '1']);
+        await git.remote(['set-url', 'origin', repositoryUrl]);
         await git.checkout([targetSha]);
         await git.raw(['clean', '-fd', '-e', 'node_modules']);
       }
