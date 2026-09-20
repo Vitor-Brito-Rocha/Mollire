@@ -179,7 +179,7 @@ export class DeploymentsService {
       await this.pruneOldReleases(paths.releases);
 
       if (project.is_public) {
-        await this.thumbnails.capture(project.id, project.slug);
+        await this.thumbnails.capture(project, deploymentId, releasePath);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

@@ -34,7 +34,8 @@ cd apps/api
 npm install
 cp .env.example .env   # DATABASE_URL, SUPABASE_PROJECT_URL, VAPID_* keys
 npx prisma migrate dev
-npx playwright install chromium   # needed for gallery thumbnail capture
+npx playwright install chromium   # needed for gallery thumbnail capture (Linux VPS: add --with-deps, run as root once,
+                                  # then run this command again as the service user so it finds the browser)
 npm run start:dev
 ```
 
@@ -98,9 +99,14 @@ npm run start:dev
   or an admin can delete; anyone else gets 404, like every other ownership mismatch. No XP
   is paid for commenting — it would be trivially farmable.
 - Thumbnails are real screenshots, not uploads: the first successful deploy of a project *after*
-  it's public triggers a headless Playwright capture of `{slug}.{DOMAIN}` (`GalleryModule`'s
-  `ThumbnailService`), saved to `THUMBNAILS_DIR` and served at `GET /thumbnails/{slug}.png`. A
-  failed capture never fails the deploy — the gallery just shows no thumbnail until the next one.
+  it's public triggers a headless Playwright capture (`GalleryModule`'s `ThumbnailService`). The
+  just-published release is served from disk on a throwaway `127.0.0.1` port (with the same SPA
+  fallback as Nginx), so capture doesn't depend on DNS, TLS or the API host reaching its own public
+  domain. Requests from the page to loopback/private hosts are blocked. The JPEG is saved to
+  `THUMBNAILS_DIR` as `{slug}-{deploymentId}.jpg` (new name per deploy = no stale cache; the previous
+  file is deleted) and served at `GET /thumbnails/*`. A failed capture never fails the deploy — it
+  is written to `ErrorLog` (e.g. Chromium not installed) and the gallery shows no thumbnail until
+  the next deploy.
 
 ## Resilience
 
