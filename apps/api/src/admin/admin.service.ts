@@ -11,8 +11,9 @@ export class AdminService {
   // by SupabaseAuthService.syncUser the moment that email first authenticates.
   async inviteAdmin(email: string, invitedBy: string) {
     const normalizedEmail = email.trim().toLowerCase();
+    const select = { id: true, email: true, role: true, created_at: true, updated_at: true } as const;
 
-    const existing = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
+    const existing = await this.prisma.user.findUnique({ where: { email: normalizedEmail }, select });
     if (existing) {
       if (existing.role === Role.ADMIN) {
         return { status: 'already_admin' as const, user: existing };
@@ -20,6 +21,7 @@ export class AdminService {
       const user = await this.prisma.user.update({
         where: { id: existing.id },
         data: { role: Role.ADMIN },
+        select,
       });
       return { status: 'promoted' as const, user };
     }
@@ -33,8 +35,9 @@ export class AdminService {
   }
 
   async listAdmins() {
+    const select = { id: true, email: true, role: true, created_at: true, updated_at: true } as const;
     const [admins, pendingInvites] = await Promise.all([
-      this.prisma.user.findMany({ where: { role: Role.ADMIN }, orderBy: { email: 'asc' } }),
+      this.prisma.user.findMany({ where: { role: Role.ADMIN }, orderBy: { email: 'asc' }, select }),
       this.prisma.adminInvite.findMany({ orderBy: { created_at: 'desc' } }),
     ]);
     return { admins, pendingInvites };
