@@ -35,6 +35,13 @@ type ProjectPaths = {
   current: string;
 };
 
+type QueuedDeploy = {
+  project: Project;
+  deploymentId: string;
+  installationId: bigint | null;
+  options?: { targetSha?: string; commitSha?: string; commitMessage?: string; triggeredBy?: string };
+};
+
 @Injectable()
 export class DeploymentsService {
   private readonly logger = new Logger(DeploymentsService.name);
@@ -42,6 +49,8 @@ export class DeploymentsService {
   // One Subject per in-flight project. Completed and removed when the
   // deployment reaches a terminal state (SUCCESS or FAILED).
   private readonly streams = new Map<string, Subject<StatusEvent>>();
+  // Deploys waiting for a free slot. Bounded by BUILD_QUEUE_DEPTH.
+  private readonly buildQueue: QueuedDeploy[] = [];
 
   constructor(
     private readonly prisma: PrismaService,
@@ -96,16 +105,9 @@ export class DeploymentsService {
     project: Project,
     options?: { targetSha?: string; installationId?: bigint; commitSha?: string; commitMessage?: string; triggeredBy?: string },
   ) {
-    if (this.streams.has(project.id)) {
+    if (this.streams.has(project.id) || this.buildQueue.some((q) => q.project.id === project.id)) {
       throw new ConflictException(`project "${project.slug}" already has a deploy in progress`);
     }
-
-    const subject = new Subject<StatusEvent>();
-    this.streams.set(project.id, subject);
-
-    const deployment = await this.prisma.deployment.create({
-      data: { project_id: project.id, status: DeploymentStatus.PENDING },
-    });
 
     // Prefer installation ID from webhook payload (no DB round-trip needed);
     // fall back to the user's first connected GitHub account for manual deploys.
@@ -115,17 +117,57 @@ export class DeploymentsService {
         ?.installation_id ??
       null;
 
+    const maxConcurrent = this.config.get<number>('BUILD_MAX_CONCURRENT', 3);
+    const queued = this.streams.size >= maxConcurrent;
+
+    if (queued) {
+      const maxQueueDepth = this.config.get<number>('BUILD_QUEUE_DEPTH', 10);
+      if (this.buildQueue.length >= maxQueueDepth) {
+        throw new ConflictException('build queue is full, try again later');
+      }
+    }
+
+    const deployment = await this.prisma.deployment.create({
+      data: { project_id: project.id, status: queued ? DeploymentStatus.QUEUED : DeploymentStatus.PENDING },
+    });
+
     this.activity.record({ project_id: project.id, type: 'DEPLOY_TRIGGERED', actor_id: options?.triggeredBy, payload: { deployment_id: deployment.id } });
+
+    // Subject is created here for both paths so that watchProject() always finds
+    // a live$ for in-flight deployments — including ones waiting in the queue.
+    // Without this, a QUEUED deployment has no subject in streams, watchProject
+    // returns EMPTY as live$, and the SSE connection closes before the pipeline
+    // even starts.
+    this.streams.set(project.id, new Subject<StatusEvent>());
+
+    if (queued) {
+      this.buildQueue.push({ project, deploymentId: deployment.id, installationId, options });
+      this.logger.log(`[${project.slug}] queued (position ${this.buildQueue.length})`);
+    } else {
+      this.startPipeline(project, deployment.id, installationId, options);
+    }
+
+    return deployment;
+  }
+
+  private startPipeline(
+    project: Project,
+    deploymentId: string,
+    installationId: bigint | null,
+    options?: { targetSha?: string; commitSha?: string; commitMessage?: string; triggeredBy?: string },
+  ) {
+    // Subject already created in trigger() — reuse it so SSE clients that
+    // connected while the deploy was QUEUED keep receiving events.
 
     // Fire-and-forget: return the PENDING row immediately, the pipeline updates
     // its own row as it progresses instead of holding the HTTP request open.
     // This outer .catch() is defense-in-depth for a bug in runPipeline itself
     // (which already self-guards its whole body) — an unexpected platform
     // failure, not an ordinary build failure, so it goes through ErrorLog too.
-    void this.runPipeline(project, deployment.id, installationId, { ...options, triggeredBy: options?.triggeredBy }).catch((err) => {
+    void this.runPipeline(project, deploymentId, installationId, options).catch((err) => {
       const message = err instanceof Error ? err.message : String(err);
       const stack = err instanceof Error ? err.stack : undefined;
-      this.logger.error(`deployment ${deployment.id} crashed outside pipeline guard`, stack);
+      this.logger.error(`deployment ${deploymentId} crashed outside pipeline guard`, stack);
       void this.errorLog.record({
         message,
         stack,
@@ -137,8 +179,6 @@ export class DeploymentsService {
         body: `${project.slug}: ${message}`,
       });
     });
-
-    return deployment;
   }
 
   private async runPipeline(
@@ -276,6 +316,11 @@ export class DeploymentsService {
         ? await this.github.authenticatedCloneUrl(repositoryUrl, installationId)
         : repositoryUrl;
 
+    // Block timeout per git operation — prevents a slow/stalled remote from
+    // holding a build slot indefinitely. BUILD_TIMEOUT_MS covers Docker only.
+    const cloneTimeoutMs = this.config.get<number>('CLONE_TIMEOUT_MS', 120_000);
+    const gitOpts = { timeout: { block: cloneTimeoutMs } };
+
     const hasRepo = await fs
       .access(path.join(repoPath, '.git'))
       .then(() => true)
@@ -284,7 +329,7 @@ export class DeploymentsService {
     if (hasRepo) {
       log(`fetching ${repositoryUrl}\n`);
       try {
-        const git = simpleGit(repoPath);
+        const git = simpleGit(repoPath, gitOpts);
         await git.remote(['set-url', 'origin', cloneUrl]);
         await git.fetch(['--depth', '1', 'origin']);
         await git.reset(['--hard', 'FETCH_HEAD']);
@@ -292,14 +337,14 @@ export class DeploymentsService {
       } catch {
         log(`fetch failed, falling back to fresh clone\n`);
         await fs.rm(repoPath, { recursive: true, force: true });
-        await simpleGit().clone(cloneUrl, repoPath, ['--depth', '1']);
+        await simpleGit(gitOpts).clone(cloneUrl, repoPath, ['--depth', '1']);
       }
     } else {
       log(`cloning ${repositoryUrl}\n`);
-      await simpleGit().clone(cloneUrl, repoPath, ['--depth', '1']);
+      await simpleGit(gitOpts).clone(cloneUrl, repoPath, ['--depth', '1']);
     }
 
-    const git = simpleGit(repoPath);
+    const git = simpleGit(repoPath, gitOpts);
 
     // Remove the token from .git/config before the build container mounts this directory.
     await git.remote(['set-url', 'origin', repositoryUrl]);
@@ -342,12 +387,23 @@ export class DeploymentsService {
     // rename() is atomic, so Nginx never sees a half-swapped dir.
     // On Windows without symlink privilege (EPERM), fall back to a plain copy
     // into `current` — non-atomic but fine for local dev.
+    // EXDEV means tempLink and current are on different filesystems — that should
+    // never happen because both live under the same PROJECTS_ROOT, but if it does
+    // (misconfigured mount), surface a clear error rather than silently falling
+    // back to a copy that would also fail.
     try {
       const tempLink = `${paths.current}.tmp-${releaseId}`;
       await fs.symlink(releasePath, tempLink, 'dir');
       try {
         await fs.rename(tempLink, paths.current);
-      } catch {
+      } catch (renameErr: unknown) {
+        const code = (renameErr as NodeJS.ErrnoException).code;
+        if (code === 'EXDEV') {
+          await fs.rm(tempLink, { force: true });
+          throw new Error(
+            `EXDEV: cannot rename symlink across filesystems — ensure PROJECTS_ROOT (${this.projectsRoot}) is on a single mount point`,
+          );
+        }
         await fs.rm(paths.current, { recursive: true, force: true });
         await fs.rename(tempLink, paths.current);
       }
@@ -381,6 +437,12 @@ export class DeploymentsService {
       subject.next({ type: 'status', deploymentId, status });
       subject.complete();
       this.streams.delete(projectId);
+    }
+
+    const next = this.buildQueue.shift();
+    if (next) {
+      this.logger.log(`[${next.project.slug}] dequeued (${this.buildQueue.length} remaining)`);
+      this.startPipeline(next.project, next.deploymentId, next.installationId, next.options);
     }
   }
 
