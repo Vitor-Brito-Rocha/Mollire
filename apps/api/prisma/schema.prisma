@@ -108,6 +108,7 @@ model Project {
   invitations ProjectInvitation[]
   env_vars    ProjectEnvVar[]
   views       ProjectView[]
+  activities  ProjectActivity[]
 
   @@index([user_id])
   @@map("projects")
@@ -261,6 +262,31 @@ model ProjectView {
   @@unique([project_id, visitor_id, path, date])
   @@index([project_id, date])
   @@map("project_views")
+}
+
+enum ActivityType {
+  DEPLOY_TRIGGERED
+  DEPLOY_SUCCESS
+  DEPLOY_FAILED
+  MEMBER_ADDED
+  MEMBER_REMOVED
+  STAR_RECEIVED
+  COMMENT_ADDED
+  VISIBILITY_CHANGED
+}
+
+model ProjectActivity {
+  id         String       @id @default(cuid())
+  project_id String
+  type       ActivityType
+  actor_id   String?
+  payload    Json?
+  created_at DateTime     @default(now())
+
+  project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@index([project_id, created_at])
+  @@map("project_activities")
 }
 
 model PushSubscription {

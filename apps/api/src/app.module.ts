@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import * as path from 'node:path';
+import { ActivityModule } from './activity/activity.module';
 import { AdminModule } from './admin/admin.module';
 import { EnvVarsModule } from './env-vars/env-vars.module';
 import { AnalyticsModule } from './analytics/analytics.module';
@@ -36,6 +37,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
       inject: [ConfigService],
     }),
     PrismaModule,
+    ActivityModule,
     ErrorLogModule,
     NotificationsModule,
     AuthModule,

@@ -23,7 +23,7 @@ export class DeploymentsController {
     // authenticated tenant could deploy any other tenant's project by guessing
     // its slug — this is the concrete bug ownership-scoping exists to close.
     const project = await this.projectsService.findBySlugForUser(slug, user.id);
-    return this.deploymentsService.trigger(project, { targetSha: dto.commit_sha });
+    return this.deploymentsService.trigger(project, { targetSha: dto.commit_sha, triggeredBy: user.id });
   }
 
   @Get('deployments/:id')

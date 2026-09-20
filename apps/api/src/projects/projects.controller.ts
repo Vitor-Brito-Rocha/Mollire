@@ -24,6 +24,11 @@ export class ProjectsController {
     return this.projectsService.findBySlugForUser(slug, user.id);
   }
 
+  @Get(':slug/activity')
+  getActivity(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.projectsService.getActivity(slug, user.id);
+  }
+
   @Patch(':slug/visibility')
   setVisibility(
     @Param('slug') slug: string,

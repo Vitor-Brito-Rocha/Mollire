@@ -240,6 +240,25 @@ export type InviteAdminResponse =
   | { status: 'already_admin'; user: AdminUser }
   | { status: 'invited'; invite: AdminInvite };
 
+export type ActivityType =
+  | 'DEPLOY_TRIGGERED'
+  | 'DEPLOY_SUCCESS'
+  | 'DEPLOY_FAILED'
+  | 'MEMBER_ADDED'
+  | 'MEMBER_REMOVED'
+  | 'STAR_RECEIVED'
+  | 'COMMENT_ADDED'
+  | 'VISIBILITY_CHANGED';
+
+export type ProjectActivity = {
+  id: string;
+  type: ActivityType;
+  actor_id: string | null;
+  actor_handle: string | null;
+  payload: Record<string, unknown> | null;
+  created_at: string;
+};
+
 export type ProjectAnalytics = {
   total: number;
   byDay: { date: string; views: number }[];

@@ -5,6 +5,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { EMPTY, Observable, Subject, merge, of } from 'rxjs';
 import { simpleGit } from 'simple-git';
+import { ActivityService } from '../activity/activity.service';
 import { EnvVarsService } from '../env-vars/env-vars.service';
 import { ErrorLogService } from '../error-log/error-log.service';
 import { ThumbnailService } from '../gallery/thumbnail.service';
@@ -51,6 +52,7 @@ export class DeploymentsService {
     private readonly dockerBuild: DockerBuildService,
     private readonly github: GithubService,
     private readonly envVars: EnvVarsService,
+    private readonly activity: ActivityService,
   ) {
     this.projectsRoot = path.resolve(this.config.get<string>('PROJECTS_ROOT', './data/projects'));
   }
@@ -92,7 +94,7 @@ export class DeploymentsService {
 
   async trigger(
     project: Project,
-    options?: { targetSha?: string; installationId?: bigint; commitSha?: string; commitMessage?: string },
+    options?: { targetSha?: string; installationId?: bigint; commitSha?: string; commitMessage?: string; triggeredBy?: string },
   ) {
     if (this.streams.has(project.id)) {
       throw new ConflictException(`project "${project.slug}" already has a deploy in progress`);
@@ -113,12 +115,14 @@ export class DeploymentsService {
         ?.installation_id ??
       null;
 
+    this.activity.record({ project_id: project.id, type: 'DEPLOY_TRIGGERED', actor_id: options?.triggeredBy, payload: { deployment_id: deployment.id } });
+
     // Fire-and-forget: return the PENDING row immediately, the pipeline updates
     // its own row as it progresses instead of holding the HTTP request open.
     // This outer .catch() is defense-in-depth for a bug in runPipeline itself
     // (which already self-guards its whole body) — an unexpected platform
     // failure, not an ordinary build failure, so it goes through ErrorLog too.
-    void this.runPipeline(project, deployment.id, installationId, options).catch((err) => {
+    void this.runPipeline(project, deployment.id, installationId, { ...options, triggeredBy: options?.triggeredBy }).catch((err) => {
       const message = err instanceof Error ? err.message : String(err);
       const stack = err instanceof Error ? err.stack : undefined;
       this.logger.error(`deployment ${deployment.id} crashed outside pipeline guard`, stack);
@@ -141,7 +145,7 @@ export class DeploymentsService {
     project: Project,
     deploymentId: string,
     installationId: bigint | null,
-    options?: { targetSha?: string; commitSha?: string; commitMessage?: string },
+    options?: { targetSha?: string; commitSha?: string; commitMessage?: string; triggeredBy?: string },
   ) {
     const paths = this.projectPaths(project.slug);
     const buildOutputPath = path.join(paths.root, 'build-output');
@@ -195,6 +199,12 @@ export class DeploymentsService {
           finished_at: new Date(),
         },
       });
+      this.activity.record({
+        project_id: project.id,
+        type: 'DEPLOY_SUCCESS',
+        actor_id: options?.triggeredBy,
+        payload: { deployment_id: deploymentId, commit_sha: commitSha ?? null, commit_message: options?.commitMessage ?? null },
+      });
       this.emitTerminal(project.id, deploymentId, DeploymentStatus.SUCCESS);
 
       if (installationId && githubDeploymentId !== null) {
@@ -219,6 +229,7 @@ export class DeploymentsService {
         where: { id: deploymentId },
         data: { status: DeploymentStatus.FAILED, log, finished_at: new Date() },
       });
+      this.activity.record({ project_id: project.id, type: 'DEPLOY_FAILED', actor_id: options?.triggeredBy, payload: { deployment_id: deploymentId } });
       this.emitTerminal(project.id, deploymentId, DeploymentStatus.FAILED);
 
       if (installationId && githubDeploymentId !== null) {
