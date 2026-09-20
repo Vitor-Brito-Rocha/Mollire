@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { Suspense, useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { api, ApiError, type CurrentUser } from "@/lib/api";
 
 const GITHUB_INSTALL_URL = `https://github.com/apps/${process.env.NEXT_PUBLIC_GITHUB_APP_SLUG}/installations/new`;
+
+type GithubAccount = {
+  installation_id: string;
+  account_login: string;
+  account_avatar_url: string;
+  account_type: string;
+  repository_selection: string;
+};
 
 // O handle é a única identidade que aparece em público (galeria, e depois
 // comentários). O e-mail fica aqui, só para o próprio dono ver.
@@ -29,7 +38,8 @@ function Profile() {
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [handle, setHandle] = useState("");
   const [saving, setSaving] = useState(false);
-  const [disconnecting, setDisconnecting] = useState(false);
+  const [githubAccounts, setGithubAccounts] = useState<GithubAccount[]>([]);
+  const [disconnecting, setDisconnecting] = useState<string | null>(null);
 
   useEffect(() => {
     api
@@ -37,6 +47,9 @@ function Profile() {
       .then((me) => {
         setUser(me);
         setHandle(me.handle ?? "");
+        if (me.github_connected) {
+          api.get<GithubAccount[]>("/github/accounts").then(setGithubAccounts).catch(() => {});
+        }
       })
       .catch(() => toast.error("Não foi possível carregar seu perfil"));
   }, []);
@@ -46,6 +59,7 @@ function Profile() {
     if (github === "conectado") {
       toast.success("GitHub conectado com sucesso");
       setUser((prev) => (prev ? { ...prev, github_connected: true } : prev));
+      api.get<GithubAccount[]>("/github/accounts").then(setGithubAccounts).catch(() => {});
       router.replace("/perfil");
     } else if (github === "erro") {
       toast.error(searchParams.get("msg") ?? "Erro ao conectar GitHub");
@@ -53,16 +67,20 @@ function Profile() {
     }
   }, [searchParams, router]);
 
-  async function handleDisconnect() {
-    setDisconnecting(true);
+  async function handleDisconnect(installationId: string) {
+    setDisconnecting(installationId);
     try {
-      await api.delete("/github/install");
-      setUser((prev) => (prev ? { ...prev, github_connected: false } : prev));
-      toast.success("GitHub desconectado");
+      await api.delete(`/github/install/${installationId}`);
+      const remaining = githubAccounts.filter((a) => a.installation_id !== installationId);
+      setGithubAccounts(remaining);
+      if (remaining.length === 0) {
+        setUser((prev) => (prev ? { ...prev, github_connected: false } : prev));
+      }
+      toast.success("Conta GitHub desconectada");
     } catch {
       toast.error("Erro ao desconectar GitHub");
     } finally {
-      setDisconnecting(false);
+      setDisconnecting(null);
     }
   }
 
@@ -143,28 +161,46 @@ function Profile() {
           </form>
 
           <div className="corners bg-card border-border flex flex-col gap-4 border p-5">
-            <div className="flex flex-col gap-1">
-              <span className="text-sm font-medium">GitHub</span>
-              <p className="text-text-3 text-xs">
-                Conecte sua conta para acessar repositórios privados e receber deploys automáticos no push.
-              </p>
-            </div>
-            {user.github_connected ? (
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-sm text-green-500">Conectado</span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={disconnecting}
-                  onClick={handleDisconnect}
-                >
-                  {disconnecting ? "Desconectando..." : "Desconectar"}
-                </Button>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium">GitHub</span>
+                <p className="text-text-3 text-xs">
+                  Conecte sua conta para acessar repositórios privados e receber deploys automáticos no push.
+                </p>
               </div>
-            ) : (
               <a href={GITHUB_INSTALL_URL}>
-                <Button variant="outline" size="sm" type="button">Conectar GitHub</Button>
+                <Button variant="outline" size="sm" type="button">
+                  {user.github_connected ? "Adicionar conta" : "Conectar GitHub"}
+                </Button>
               </a>
+            </div>
+            {githubAccounts.length > 0 && (
+              <ul className="flex flex-col gap-2">
+                {githubAccounts.map((account) => (
+                  <li key={account.installation_id} className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <Image
+                        src={account.account_avatar_url}
+                        alt={account.account_login}
+                        width={24}
+                        height={24}
+                        className="rounded-full"
+                      />
+                      <span className="text-sm font-mono">{account.account_login}</span>
+                      <span className="text-text-3 text-xs">{account.account_type === "Organization" ? "Organização" : "Pessoal"}</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      disabled={disconnecting === account.installation_id}
+                      onClick={() => handleDisconnect(account.installation_id)}
+                    >
+                      {disconnecting === account.installation_id ? "Removendo..." : "Remover"}
+                    </Button>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         </>

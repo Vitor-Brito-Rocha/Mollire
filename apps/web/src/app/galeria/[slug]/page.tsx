@@ -253,7 +253,12 @@ export default function GalleryProjectPage() {
                   </span>
                 )}
                 <h1 className="font-display text-[30px] leading-[1.1] font-bold">{project.name}</h1>
-                <span className="text-muted-foreground text-sm">por {project.author}</span>
+                <span className="text-muted-foreground text-sm">
+                  por{" "}
+                  <Link href={`/u/${project.author}`} className="hover:text-foreground transition-colors">
+                    {project.author}
+                  </Link>
+                </span>
               </div>
 
               <div className="flex flex-wrap items-center gap-3">
@@ -318,7 +323,9 @@ export default function GalleryProjectPage() {
                         <span className="hex bg-raised font-display text-muted-foreground grid size-7 shrink-0 place-items-center text-[11px] font-bold uppercase">
                           {member.handle.charAt(0)}
                         </span>
-                        <span className="text-sm">{member.handle}</span>
+                        <Link href={`/u/${member.handle}`} className="text-sm hover:underline underline-offset-4">
+                          {member.handle}
+                        </Link>
                         <span className="label text-text-3 ml-auto text-[9.5px]">
                           {member.role === "OWNER" ? "dono" : "membro"}
                         </span>

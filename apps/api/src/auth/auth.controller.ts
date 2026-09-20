@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   ForbiddenException,
+  Get,
   HttpCode,
   Post,
   Put,
@@ -11,7 +12,7 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ConfirmDto, CredentialsDto, EmailDto, PasswordDto } from './dto/auth.dto';
-import { isAllowedOrigin } from './frontend-origins';
+import { frontendOrigins, isAllowedOrigin } from './frontend-origins';
 import { Public } from './public.decorator';
 import {
   ACCESS_COOKIE,
@@ -105,6 +106,28 @@ export class AuthController {
   ) {
     allowedOrigin(req);
     setSessionCookies(res, await this.gotrue.verify(dto.type, dto.token_hash));
+  }
+
+  @Public()
+  @Get('github')
+  async githubOAuth(@Res() res: Response) {
+    const frontendUrl = frontendOrigins()[0] ?? '/';
+    const callbackUrl = `${frontendUrl}/auth/github/callback`;
+    const oauthUrl = this.gotrue.getOAuthUrl('github', callbackUrl);
+    res.redirect(oauthUrl);
+  }
+
+  @Public()
+  @Post('session')
+  @HttpCode(204)
+  async setSession(
+    @Body() body: { access_token: string; refresh_token: string; expires_in: number },
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    allowedOrigin(req);
+    if (!body.access_token || !body.refresh_token) throw new UnauthorizedException('missing tokens');
+    setSessionCookies(res, body);
   }
 
   // Not @Public: the global guard authenticates the caller (cookie or Bearer),

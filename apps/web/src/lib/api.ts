@@ -106,6 +106,7 @@ export type Deployment = {
   project_id: string;
   status: DeploymentStatus;
   commit_sha: string | null;
+  commit_message: string | null;
   release_path: string | null;
   log: string | null;
   created_at: string;
@@ -207,6 +208,22 @@ export type StarState = {
   starred_by_viewer: boolean;
 };
 
+export type UserProfile = {
+  handle: string;
+  xp: number;
+  level: number;
+  next: number;
+  joined_at: string;
+  projects: {
+    slug: string;
+    name: string;
+    thumbnail_url: string | null;
+    stars: number;
+    published_at: string | null;
+  }[];
+  heatmap: { date: string; count: number }[];
+};
+
 export type AdminUser = {
   id: string;
   email: string;
@@ -228,7 +245,39 @@ export type AdminsList = {
   pendingInvites: AdminInvite[];
 };
 
+export type EnvVar = {
+  key: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type InviteAdminResponse =
   | { status: 'promoted'; user: AdminUser }
   | { status: 'already_admin'; user: AdminUser }
   | { status: 'invited'; invite: AdminInvite };
+
+export type ActivityType =
+  | 'DEPLOY_TRIGGERED'
+  | 'DEPLOY_SUCCESS'
+  | 'DEPLOY_FAILED'
+  | 'MEMBER_ADDED'
+  | 'MEMBER_REMOVED'
+  | 'STAR_RECEIVED'
+  | 'COMMENT_ADDED'
+  | 'VISIBILITY_CHANGED';
+
+export type ProjectActivity = {
+  id: string;
+  type: ActivityType;
+  actor_id: string | null;
+  actor_handle: string | null;
+  payload: Record<string, unknown> | null;
+  created_at: string;
+};
+
+export type ProjectAnalytics = {
+  total: number;
+  byDay: { date: string; views: number }[];
+  byCountry: { country: string | null; views: number }[];
+  byPath: { path: string; views: number }[];
+};

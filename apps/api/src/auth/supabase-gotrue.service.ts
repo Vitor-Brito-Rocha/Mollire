@@ -46,6 +46,13 @@ export class SupabaseGoTrueService {
     await this.call('/logout', undefined, { accessToken }).catch(() => undefined);
   }
 
+  getOAuthUrl(provider: string, redirectTo: string): string {
+    const url = new URL(`${this.baseUrl}/authorize`);
+    url.searchParams.set('provider', provider);
+    url.searchParams.set('redirect_to', redirectTo);
+    return url.toString();
+  }
+
   private async call<T = Session>(
     path: string,
     body?: unknown,

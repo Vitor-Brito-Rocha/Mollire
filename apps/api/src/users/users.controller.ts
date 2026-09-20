@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch } from '@nestjs/common';
+import { Public } from '../auth/public.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser } from '../auth/types';
 import { levelForXp } from '../common/level';
@@ -24,16 +25,22 @@ export class UsersController {
   // the check every time.
   @Get('me')
   async me(@CurrentUser() user: AuthenticatedUser) {
-    const [joined, dbUser] = await Promise.all([
+    const [joined, githubCount] = await Promise.all([
       this.membersService.redeemInvitations(user),
-      this.prisma.user.findUnique({ where: { id: user.id }, select: { github_installation_id: true } }),
+      this.prisma.githubAccount.count({ where: { user_id: user.id } }),
     ]);
     return {
       ...user,
       ...levelForXp(user.xp),
       joined_projects: joined,
-      github_connected: dbUser?.github_installation_id != null,
+      github_connected: githubCount > 0,
     };
+  }
+
+  @Public()
+  @Get(':handle')
+  async publicProfile(@Param('handle') handle: string) {
+    return this.usersService.getPublicProfile(handle);
   }
 
   // The handle is the only identity the gallery ever shows — never the email.

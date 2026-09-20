@@ -12,10 +12,12 @@ export class CreateProjectDto {
   })
   slug!: string;
 
-  // Not restricted to http(s) URLs: SSH remotes (git@host:org/repo.git) are a
-  // normal, expected form here too, and IsUrl() would reject that syntax.
+  // Only https:// GitHub/GitLab URLs accepted — prevents SSRF via file://, git://, ssh://.
   @IsString()
   @IsNotEmpty()
+  @Matches(/^https:\/\/(github\.com|gitlab\.com)\/[^/]+\/[^/]/, {
+    message: 'repository_url must be a https://github.com or https://gitlab.com URL',
+  })
   @MaxLength(500)
   repository_url!: string;
 
@@ -24,8 +26,14 @@ export class CreateProjectDto {
   @MaxLength(500)
   build_command?: string;
 
+  // Must be a relative path — no leading slash, no .. segments — so the shell
+  // interpolation in DockerBuildService can't escape the workspace directory.
   @IsOptional()
   @IsString()
+  @Matches(/^(?!\.\.)((?!\.\.[/\\]).)*$/, {
+    message: 'output_dir must be a relative path without .. segments',
+  })
+  @Matches(/^[^/]/, { message: 'output_dir must not start with /' })
   @MaxLength(100)
   output_dir?: string;
 }

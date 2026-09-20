@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DeploymentStatus, Prisma, Role } from '@prisma/client';
+import { ActivityService } from '../activity/activity.service';
 import { AuthenticatedUser } from '../auth/types';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -24,6 +25,7 @@ export class GalleryService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly activity: ActivityService,
     config: ConfigService,
   ) {
     this.domain = config.getOrThrow<string>('DOMAIN');
@@ -106,13 +108,12 @@ export class GalleryService {
     }
 
     try {
-      await this.prisma.projectStar.create({
-        data: { project_id: project.id, user_id: userId },
-      });
-      await this.prisma.user.update({
-        where: { id: project.user_id },
-        data: { xp: { increment: STAR_XP } },
-      });
+      const [starrer] = await Promise.all([
+        this.prisma.user.findUnique({ where: { id: userId }, select: { handle: true } }),
+        this.prisma.projectStar.create({ data: { project_id: project.id, user_id: userId } }),
+        this.prisma.user.update({ where: { id: project.user_id }, data: { xp: { increment: STAR_XP } } }),
+      ]);
+      this.activity.record({ project_id: project.id, type: 'STAR_RECEIVED', actor_id: userId, payload: { from_handle: starrer?.handle ?? 'usuário' } });
     } catch (err) {
       // Already starred — idempotent no-op, not an error.
       if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002')) {
@@ -149,6 +150,7 @@ export class GalleryService {
       data: { project_id: project.id, user_id: user.id, body: body.trim() },
       include: { user: { select: { id: true, handle: true } } },
     });
+    this.activity.record({ project_id: project.id, type: 'COMMENT_ADDED', actor_id: user.id, payload: { handle: user.handle ?? 'usuário', body_preview: body.trim().slice(0, 80) } });
     return this.toComment(comment, project.user_id, user);
   }
 

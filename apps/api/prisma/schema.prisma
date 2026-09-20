@@ -28,19 +28,16 @@ enum ErrorSource {
 }
 
 model User {
-  id                      String   @id
-  email                   String   @unique
+  id         String   @id
+  email      String   @unique
   // The only identity shown publicly (gallery author, comments later). Derived
   // from the email at first sync, changeable via PATCH /users/me. Nullable only
   // so the migration is safe on existing rows — syncUser backfills it.
-  handle                  String?  @unique
-  role                    Role     @default(TENANT)
-  xp                      Int      @default(0)
-  // GitHub App installation ID — set when the user installs the App on their
-  // GitHub account. Used to clone private repos and listen to push webhooks.
-  github_installation_id  BigInt?
-  created_at              DateTime @default(now())
-  updated_at              DateTime @updatedAt
+  handle     String?  @unique
+  role       Role     @default(TENANT)
+  xp         Int      @default(0)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   projects           Project[]
   push_subscriptions PushSubscription[]
@@ -49,8 +46,28 @@ model User {
   comments           Comment[]
   project_memberships      ProjectMember[]
   project_invitations_sent ProjectInvitation[] @relation("ProjectInvitationInviter")
+  github_accounts          GithubAccount[]
 
   @@map("users")
+}
+
+// A GitHub account (personal or organization) connected via the GitHub App.
+// One Mollire user can have multiple GitHub accounts installed.
+model GithubAccount {
+  id                   String   @id @default(cuid())
+  installation_id      BigInt   @unique
+  account_login        String
+  account_id           BigInt
+  account_avatar_url   String
+  account_type         String   // "User" | "Organization"
+  repository_selection String   // "all" | "selected"
+  user_id              String
+  created_at           DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@map("github_accounts")
 }
 
 // A pending grant of ADMIN role to an email that hasn't authenticated yet.
@@ -89,9 +106,30 @@ model Project {
   comments    Comment[]
   members     ProjectMember[]
   invitations ProjectInvitation[]
+  env_vars    ProjectEnvVar[]
+  views       ProjectView[]
+  activities  ProjectActivity[]
 
   @@index([user_id])
   @@map("projects")
+}
+
+// Build-time environment variables for a project. Values are encrypted at rest
+// (AES-256-GCM via ENV_ENCRYPTION_KEY) and never returned by the API after
+// creation — only keys are exposed, matching the GitHub Secrets model.
+model ProjectEnvVar {
+  id         String   @id @default(cuid())
+  project_id String
+  key        String
+  value      String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@unique([project_id, key])
+  @@index([project_id])
+  @@map("project_env_vars")
 }
 
 enum ProjectRole {
@@ -180,16 +218,17 @@ model ProjectStar {
 }
 
 model Deployment {
-  id           String           @id @default(cuid())
-  project_id   String
-  status       DeploymentStatus @default(PENDING)
-  commit_sha   String?
-  release_path String?
-  log          String?
-  created_at   DateTime         @default(now())
-  finished_at  DateTime?
+  id             String           @id @default(cuid())
+  project_id     String
+  status         DeploymentStatus @default(PENDING)
+  commit_sha     String?
+  commit_message String?
+  release_path   String?
+  log            String?
+  created_at     DateTime         @default(now())
+  finished_at    DateTime?
 
-  project Project @relation(fields: [project_id], references: [id])
+  project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
 
   @@index([project_id])
   @@map("deployments")
@@ -208,6 +247,46 @@ model ErrorLog {
 
   @@index([created_at])
   @@map("error_logs")
+}
+
+model ProjectView {
+  id         String   @id @default(cuid())
+  project_id String
+  visitor_id String
+  country    String?
+  path       String   @default("/")
+  date       DateTime @db.Date
+
+  project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@unique([project_id, visitor_id, path, date])
+  @@index([project_id, date])
+  @@map("project_views")
+}
+
+enum ActivityType {
+  DEPLOY_TRIGGERED
+  DEPLOY_SUCCESS
+  DEPLOY_FAILED
+  MEMBER_ADDED
+  MEMBER_REMOVED
+  STAR_RECEIVED
+  COMMENT_ADDED
+  VISIBILITY_CHANGED
+}
+
+model ProjectActivity {
+  id         String       @id @default(cuid())
+  project_id String
+  type       ActivityType
+  actor_id   String?
+  payload    Json?
+  created_at DateTime     @default(now())
+
+  project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@index([project_id, created_at])
+  @@map("project_activities")
 }
 
 model PushSubscription {

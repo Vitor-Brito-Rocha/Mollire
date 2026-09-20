@@ -1,5 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, ProjectRole } from '@prisma/client';
+import { ActivityService } from '../activity/activity.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 
@@ -14,7 +15,10 @@ const PUBLISH_XP = 20;
 // to tell "not mine" apart from "doesn't exist".
 @Injectable()
 export class ProjectsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly activity: ActivityService,
+  ) {}
 
   memberFilter(userId: string, minRole: ProjectRole = ProjectRole.MEMBER): Prisma.ProjectWhereInput {
     return {
@@ -104,7 +108,13 @@ export class ProjectsService {
       });
     }
 
+    this.activity.record({ project_id: project.id, type: 'VISIBILITY_CHANGED', actor_id: userId, payload: { is_public: isPublic } });
     return updated;
+  }
+
+  async getActivity(slug: string, userId: string) {
+    const project = await this.findForMember(slug, userId);
+    return this.activity.list(project.id);
   }
 
   // Unscoped by design — only AdminController may call these.

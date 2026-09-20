@@ -17,10 +17,27 @@ function GithubCallback() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
+    const code = searchParams.get("code");
     const installationId = searchParams.get("installation_id");
     const setupAction = searchParams.get("setup_action");
 
-    // GitHub also redirects here on "request" (org needs approval) — nothing to save.
+    // OAuth login flow — tokens arrive in the URL hash (implicit flow)
+    const hash = new URLSearchParams(window.location.hash.slice(1));
+    const access_token = hash.get("access_token");
+    const refresh_token = hash.get("refresh_token");
+    const expires_in = Number(hash.get("expires_in") ?? 3600);
+    if (access_token && refresh_token) {
+      api
+        .post("/auth/session", { access_token, refresh_token, expires_in })
+        .then(() => {
+          router.replace("/");
+          router.refresh();
+        })
+        .catch(() => router.replace("/login?error=github"));
+      return;
+    }
+
+    // GitHub App installation flow
     if (setupAction === "request" || !installationId) {
       router.replace("/");
       return;

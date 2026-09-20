@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { execa } from 'execa';
 import * as fs from 'node:fs/promises';
+import * as readline from 'node:readline';
 
 @Injectable()
 export class DockerBuildService {
@@ -26,6 +27,7 @@ export class DockerBuildService {
     outputDir: string,
     outputHostPath: string,
     log: (chunk: string) => void,
+    envVars: Record<string, string> = {},
   ): Promise<void> {
     await fs.mkdir(outputHostPath, { recursive: true });
 
@@ -34,13 +36,17 @@ export class DockerBuildService {
 
     this.logger.log(`starting build container (image=${this.image})`);
 
-    const result = await execa(
+    const subprocess = execa(
       'docker',
       [
         'run', '--rm',
+        '--security-opt', 'no-new-privileges',
         '--memory', this.memory,
         '--cpus', this.cpus,
         '--pids-limit', String(this.pidsLimit),
+        '-e', 'NPM_CONFIG_PREFER_OFFLINE=true',
+        '-e', 'NODE_OPTIONS=--max-old-space-size=896',
+        ...Object.entries(envVars).flatMap(([k, v]) => ['-e', `${k}=${v}`]),
         '-v', `${repoPath}:/workspace`,
         '-v', `${outputHostPath}:/output`,
         '-v', 'mollire-npm-cache:/root/.npm',
@@ -51,8 +57,19 @@ export class DockerBuildService {
       { reject: false, timeout: this.timeoutMs },
     );
 
-    if (result.stdout) log(result.stdout);
-    if (result.stderr) log(result.stderr);
+    const streamLines = (stream: NodeJS.ReadableStream | null): Promise<void> =>
+      new Promise((resolve) => {
+        if (!stream) { resolve(); return; }
+        const rl = readline.createInterface({ input: stream, crlfDelay: Infinity });
+        rl.on('line', (line) => log(`${new Date().toISOString()} ${line}\n`));
+        rl.on('close', resolve);
+      });
+
+    const [, , result] = await Promise.all([
+      streamLines(subprocess.stdout ?? null),
+      streamLines(subprocess.stderr ?? null),
+      subprocess,
+    ]);
 
     if (result.timedOut) {
       throw new Error(`build timed out after ${this.timeoutMs / 1000}s`);

@@ -1,10 +1,12 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DeploymentStatus, ErrorSource, Project } from '@prisma/client';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { EMPTY, Observable, Subject, merge, of } from 'rxjs';
 import { simpleGit } from 'simple-git';
+import { ActivityService } from '../activity/activity.service';
+import { EnvVarsService } from '../env-vars/env-vars.service';
 import { ErrorLogService } from '../error-log/error-log.service';
 import { ThumbnailService } from '../gallery/thumbnail.service';
 import { GithubService } from '../github/github.service';
@@ -12,7 +14,9 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { DockerBuildService } from './docker-build.service';
 
-export type StatusEvent = { deploymentId: string; status: DeploymentStatus };
+export type StatusEvent =
+  | { type: 'status'; deploymentId: string; status: DeploymentStatus }
+  | { type: 'log'; deploymentId: string; chunk: string };
 
 // Only the release `current` points to is kept — no rollback history for now,
 // to keep disk usage flat regardless of deploy frequency. Bump this once storage
@@ -47,6 +51,8 @@ export class DeploymentsService {
     private readonly thumbnails: ThumbnailService,
     private readonly dockerBuild: DockerBuildService,
     private readonly github: GithubService,
+    private readonly envVars: EnvVarsService,
+    private readonly activity: ActivityService,
   ) {
     this.projectsRoot = path.resolve(this.config.get<string>('PROJECTS_ROOT', './data/projects'));
   }
@@ -81,12 +87,19 @@ export class DeploymentsService {
       select: { id: true, status: true },
     });
 
-    const initial$ = latest ? of({ deploymentId: latest.id, status: latest.status }) : EMPTY;
+    const initial$ = latest ? of({ type: 'status' as const, deploymentId: latest.id, status: latest.status }) : EMPTY;
     const live$ = this.streams.get(projectId)?.asObservable() ?? EMPTY;
     return merge(initial$, live$);
   }
 
-  async trigger(project: Project) {
+  async trigger(
+    project: Project,
+    options?: { targetSha?: string; installationId?: bigint; commitSha?: string; commitMessage?: string; triggeredBy?: string },
+  ) {
+    if (this.streams.has(project.id)) {
+      throw new ConflictException(`project "${project.slug}" already has a deploy in progress`);
+    }
+
     const subject = new Subject<StatusEvent>();
     this.streams.set(project.id, subject);
 
@@ -94,15 +107,22 @@ export class DeploymentsService {
       data: { project_id: project.id, status: DeploymentStatus.PENDING },
     });
 
-    const owner = await this.prisma.user.findUnique({ where: { id: project.user_id } });
-    const installationId = owner?.github_installation_id ?? null;
+    // Prefer installation ID from webhook payload (no DB round-trip needed);
+    // fall back to the user's first connected GitHub account for manual deploys.
+    const installationId =
+      options?.installationId ??
+      (await this.prisma.githubAccount.findFirst({ where: { user_id: project.user_id } }))
+        ?.installation_id ??
+      null;
+
+    this.activity.record({ project_id: project.id, type: 'DEPLOY_TRIGGERED', actor_id: options?.triggeredBy, payload: { deployment_id: deployment.id } });
 
     // Fire-and-forget: return the PENDING row immediately, the pipeline updates
     // its own row as it progresses instead of holding the HTTP request open.
     // This outer .catch() is defense-in-depth for a bug in runPipeline itself
     // (which already self-guards its whole body) — an unexpected platform
     // failure, not an ordinary build failure, so it goes through ErrorLog too.
-    void this.runPipeline(project, deployment.id, installationId).catch((err) => {
+    void this.runPipeline(project, deployment.id, installationId, { ...options, triggeredBy: options?.triggeredBy }).catch((err) => {
       const message = err instanceof Error ? err.message : String(err);
       const stack = err instanceof Error ? err.stack : undefined;
       this.logger.error(`deployment ${deployment.id} crashed outside pipeline guard`, stack);
@@ -121,22 +141,45 @@ export class DeploymentsService {
     return deployment;
   }
 
-  private async runPipeline(project: Project, deploymentId: string, installationId: bigint | null) {
+  private async runPipeline(
+    project: Project,
+    deploymentId: string,
+    installationId: bigint | null,
+    options?: { targetSha?: string; commitSha?: string; commitMessage?: string; triggeredBy?: string },
+  ) {
     const paths = this.projectPaths(project.slug);
     const buildOutputPath = path.join(paths.root, 'build-output');
     let log = '';
     const appendLog = (chunk: string) => {
       log += chunk;
+      this.streams.get(project.id)?.next({ type: 'log', deploymentId, chunk });
     };
+
+    let githubDeploymentId: number | null = null;
 
     try {
       await fs.mkdir(paths.root, { recursive: true });
 
       await this.setStatus(deploymentId, project.id, DeploymentStatus.CLONING);
-      const commitSha = await this.cloneRepo(project.repository_url, paths.repo, appendLog, installationId);
+      const cloneStart = Date.now();
+      const clonedSha = await this.cloneRepo(project.repository_url, paths.repo, appendLog, installationId, options?.targetSha);
+      const commitSha = options?.commitSha ?? clonedSha;
+      this.logger.log(`[${project.slug}] clone: ${((Date.now() - cloneStart) / 1000).toFixed(1)}s`);
+
+      if (installationId) {
+        try {
+          githubDeploymentId = await this.github.createDeployment(installationId, project.repository_url, commitSha);
+          await this.github.setDeploymentStatus(installationId, project.repository_url, githubDeploymentId, 'in_progress');
+        } catch (err) {
+          this.logger.warn(`[${project.slug}] failed to create GitHub deployment: ${err instanceof Error ? err.message : err}`);
+        }
+      }
 
       await this.setStatus(deploymentId, project.id, DeploymentStatus.BUILDING);
-      await this.runBuild(project.build_command, paths.repo, project.output_dir, buildOutputPath, appendLog);
+      const buildStart = Date.now();
+      const projectEnvVars = await this.envVars.getDecrypted(project.id);
+      await this.runBuild(project.build_command, paths.repo, project.output_dir, buildOutputPath, appendLog, projectEnvVars);
+      this.logger.log(`[${project.slug}] build: ${((Date.now() - buildStart) / 1000).toFixed(1)}s`);
 
       await this.setStatus(deploymentId, project.id, DeploymentStatus.PUBLISHING);
       const releasePath = await this.publish(paths, buildOutputPath);
@@ -150,12 +193,29 @@ export class DeploymentsService {
         data: {
           status: DeploymentStatus.SUCCESS,
           commit_sha: commitSha,
+          commit_message: options?.commitMessage ?? null,
           release_path: releasePath,
           log,
           finished_at: new Date(),
         },
       });
+      this.activity.record({
+        project_id: project.id,
+        type: 'DEPLOY_SUCCESS',
+        actor_id: options?.triggeredBy,
+        payload: { deployment_id: deploymentId, commit_sha: commitSha ?? null, commit_message: options?.commitMessage ?? null },
+      });
       this.emitTerminal(project.id, deploymentId, DeploymentStatus.SUCCESS);
+
+      if (installationId && githubDeploymentId !== null) {
+        const appUrl = this.config.get<string>('APP_URL', '');
+        const environmentUrl = appUrl ? `${appUrl}/${project.slug}` : undefined;
+        try {
+          await this.github.setDeploymentStatus(installationId, project.repository_url, githubDeploymentId, 'success', environmentUrl);
+        } catch (err) {
+          this.logger.warn(`[${project.slug}] failed to update GitHub deployment status: ${err instanceof Error ? err.message : err}`);
+        }
+      }
 
       await this.pruneOldReleases(paths.releases);
 
@@ -169,7 +229,16 @@ export class DeploymentsService {
         where: { id: deploymentId },
         data: { status: DeploymentStatus.FAILED, log, finished_at: new Date() },
       });
+      this.activity.record({ project_id: project.id, type: 'DEPLOY_FAILED', actor_id: options?.triggeredBy, payload: { deployment_id: deploymentId } });
       this.emitTerminal(project.id, deploymentId, DeploymentStatus.FAILED);
+
+      if (installationId && githubDeploymentId !== null) {
+        try {
+          await this.github.setDeploymentStatus(installationId, project.repository_url, githubDeploymentId, 'failure');
+        } catch (ghErr) {
+          this.logger.warn(`[${project.slug}] failed to update GitHub deployment status: ${ghErr instanceof Error ? ghErr.message : ghErr}`);
+        }
+      }
 
       // Deploy failures are the tenant's own build breaking, not a Mollire bug —
       // notify the owner, not the admin, and don't write an ErrorLog row (that's
@@ -199,22 +268,49 @@ export class DeploymentsService {
     repoPath: string,
     log: (chunk: string) => void,
     installationId: bigint | null,
+    targetSha?: string,
   ) {
-    // Always a fresh shallow clone rather than fetch+reset on a reused checkout —
-    // simpler and avoids default-branch/tracking-ref edge cases for an MVP.
-    await fs.rm(repoPath, { recursive: true, force: true });
-
-    // For private repos, embed a short-lived installation token into the URL
-    // instead of relying on SSH keys or persisted credentials.
     const cloneUrl =
       installationId !== null
         ? await this.github.authenticatedCloneUrl(repositoryUrl, installationId)
         : repositoryUrl;
 
-    log(`cloning ${repositoryUrl}\n`);
-    await simpleGit().clone(cloneUrl, repoPath, ['--depth', '1']);
+    const hasRepo = await fs
+      .access(path.join(repoPath, '.git'))
+      .then(() => true)
+      .catch(() => false);
 
-    const sha = await simpleGit(repoPath).revparse(['HEAD']);
+    if (hasRepo) {
+      log(`fetching ${repositoryUrl}\n`);
+      try {
+        const git = simpleGit(repoPath);
+        await git.remote(['set-url', 'origin', cloneUrl]);
+        await git.fetch(['--depth', '1', 'origin']);
+        await git.reset(['--hard', 'FETCH_HEAD']);
+        await git.raw(['clean', '-fd', '-e', 'node_modules']);
+      } catch {
+        log(`fetch failed, falling back to fresh clone\n`);
+        await fs.rm(repoPath, { recursive: true, force: true });
+        await simpleGit().clone(cloneUrl, repoPath, ['--depth', '1']);
+      }
+    } else {
+      log(`cloning ${repositoryUrl}\n`);
+      await simpleGit().clone(cloneUrl, repoPath, ['--depth', '1']);
+    }
+
+    const git = simpleGit(repoPath);
+
+    if (targetSha) {
+      const currentHead = (await git.revparse(['HEAD'])).trim();
+      if (!currentHead.startsWith(targetSha) && !targetSha.startsWith(currentHead)) {
+        log(`fetching commit ${targetSha}\n`);
+        await git.fetch(['origin', targetSha, '--depth', '1']);
+        await git.checkout([targetSha]);
+        await git.raw(['clean', '-fd', '-e', 'node_modules']);
+      }
+    }
+
+    const sha = await git.revparse(['HEAD']);
     return sha.trim();
   }
 
@@ -224,8 +320,9 @@ export class DeploymentsService {
     outputDir: string,
     outputHostPath: string,
     log: (chunk: string) => void,
+    envVars: Record<string, string> = {},
   ) {
-    await this.dockerBuild.run(repoPath, buildCommand, outputDir, outputHostPath, log);
+    await this.dockerBuild.run(repoPath, buildCommand, outputDir, outputHostPath, log, envVars);
   }
 
   private async publish(paths: ProjectPaths, builtDir: string) {
@@ -267,7 +364,7 @@ export class DeploymentsService {
 
   private async setStatus(deploymentId: string, projectId: string, status: DeploymentStatus) {
     await this.prisma.deployment.update({ where: { id: deploymentId }, data: { status } });
-    this.streams.get(projectId)?.next({ deploymentId, status });
+    this.streams.get(projectId)?.next({ type: 'status', deploymentId, status });
   }
 
   // Called after the DB update that writes the full terminal row (log, sha…),
@@ -275,7 +372,7 @@ export class DeploymentsService {
   private emitTerminal(projectId: string, deploymentId: string, status: DeploymentStatus) {
     const subject = this.streams.get(projectId);
     if (subject) {
-      subject.next({ deploymentId, status });
+      subject.next({ type: 'status', deploymentId, status });
       subject.complete();
       this.streams.delete(projectId);
     }

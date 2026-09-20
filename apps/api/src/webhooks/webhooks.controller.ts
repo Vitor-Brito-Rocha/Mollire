@@ -17,12 +17,20 @@ import { PrismaService } from '../prisma/prisma.service';
 
 type PushPayload = {
   ref: string;
+  after: string;
+  pusher: { name: string };
   installation?: { id: number };
   repository: {
     full_name: string;
     clone_url: string;
     default_branch: string;
   };
+  head_commit?: { message: string };
+};
+
+type InstallationPayload = {
+  action: string;
+  installation: { id: number };
 };
 
 @Controller('webhooks')
@@ -51,9 +59,22 @@ export class WebhooksController {
 
     this.verifySignature(rawBody, signature);
 
+    const body = rawBody.toString('utf-8');
+
+    if (event === 'installation') {
+      const payload = JSON.parse(body) as InstallationPayload;
+      if (payload.action === 'deleted') {
+        await this.prisma.githubAccount.deleteMany({
+          where: { installation_id: BigInt(payload.installation.id) },
+        });
+        this.logger.log(`GitHub App uninstalled (installation ${payload.installation.id}) — removed GithubAccount`);
+      }
+      return { ignored: false };
+    }
+
     if (event !== 'push') return { ignored: true };
 
-    const payload = JSON.parse(rawBody.toString('utf-8')) as PushPayload;
+    const payload = JSON.parse(body) as PushPayload;
 
     // Only deploy on pushes to the default branch.
     const branch = payload.ref.replace('refs/heads/', '');
@@ -67,7 +88,16 @@ export class WebhooksController {
     }
 
     this.logger.log(`push on ${fullName} → triggering deploy for project ${project.slug}`);
-    await this.deployments.trigger(project);
+    const pusherAccount = await this.prisma.githubAccount.findFirst({
+      where: { account_login: payload.pusher.name },
+      select: { user_id: true },
+    });
+    await this.deployments.trigger(project, {
+      installationId: payload.installation?.id ? BigInt(payload.installation.id) : undefined,
+      commitSha: payload.after,
+      commitMessage: payload.head_commit?.message,
+      triggeredBy: pusherAccount?.user_id ?? project.user_id,
+    });
     return { triggered: true, project: project.slug };
   }
 

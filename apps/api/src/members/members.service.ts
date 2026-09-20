@@ -1,5 +1,6 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { InvitationStatus, ProjectRole } from '@prisma/client';
+import { ActivityService } from '../activity/activity.service';
 import { AuthenticatedUser } from '../auth/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProjectsService } from '../projects/projects.service';
@@ -13,6 +14,7 @@ export class MembersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly projects: ProjectsService,
+    private readonly activity: ActivityService,
   ) {}
 
   async list(slug: string, user: AuthenticatedUser) {
@@ -67,6 +69,7 @@ export class MembersService {
         create: { project_id: project.id, user_id: existing.id, role: ProjectRole.MEMBER },
         update: {},
       });
+      this.activity.record({ project_id: project.id, type: 'MEMBER_ADDED', actor_id: owner.id, payload: { handle: existing.handle ?? 'usuário' } });
       return {
         status: 'added' as const,
         member: { user_id: member.user_id, handle: existing.handle ?? 'usuário', role: member.role, since: member.created_at },
@@ -91,9 +94,16 @@ export class MembersService {
       throw new ConflictException("the owner can't be removed from their own project");
     }
     // deleteMany: removing someone who isn't a member is a no-op, not a 404.
+    const removed = await this.prisma.projectMember.findFirst({
+      where: { project_id: project.id, user_id: userId },
+      include: { user: { select: { handle: true } } },
+    });
     await this.prisma.projectMember.deleteMany({
       where: { project_id: project.id, user_id: userId, role: ProjectRole.MEMBER },
     });
+    if (removed) {
+      this.activity.record({ project_id: project.id, type: 'MEMBER_REMOVED', actor_id: owner.id, payload: { handle: removed.user.handle ?? 'usuário' } });
+    }
   }
 
   async revokeInvitation(slug: string, owner: AuthenticatedUser, invitationId: string) {
