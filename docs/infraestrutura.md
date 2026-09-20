@@ -149,7 +149,7 @@ model ProjectInvitation {
 model Deployment {
   id             String           @id @default(cuid())
   project_id     String
-  status         DeploymentStatus // PENDING | CLONING | BUILDING | PUBLISHING | SUCCESS | FAILED
+  status         DeploymentStatus // QUEUED | PENDING | CLONING | BUILDING | PUBLISHING | SUCCESS | FAILED
   commit_sha     String?
   commit_message String?
   release_path   String?
@@ -186,10 +186,16 @@ model ProjectEnvVar {
 
 ```
 POST /projects/:slug/deploy
-  → Cria Deployment { status: PENDING }
-  → runPipeline() [fire-and-forget]
+  → Se slots livres (< BUILD_MAX_CONCURRENT): Cria Deployment { status: PENDING } → startPipeline()
+  → Se fila não cheia (< BUILD_QUEUE_DEPTH):  Cria Deployment { status: QUEUED }  → buildQueue.push()
+  → Se fila cheia: 409 Conflict
+
+  buildQueue é FIFO em memória. Quando um pipeline termina (SUCCESS ou FAILED),
+  emitTerminal() faz shift() e inicia o próximo automaticamente.
+  Deploys QUEUED já têm Subject em streams → SSE do frontend permanece aberto.
 
 CLONING   → simple-git clone --depth=1 (ou fetch+reset se repo existe)
+            timeout por operação: CLONE_TIMEOUT_MS (padrão 120s)
 BUILDING  → getDecrypted(project.id) — busca + decripta env vars em memória
           → docker run --rm
               --memory 512m --cpus 0.5 --pids-limit 100
@@ -201,14 +207,14 @@ BUILDING  → getDecrypted(project.id) — busca + decripta env vars em memória
               -v mollire-npm-cache:/root/.npm
               node:20-alpine sh -c "{buildCommand}"
 PUBLISHING → cp output → /var/www/projects/{slug}/releases/{timestamp}/
-             ln -s (atômico via rename)
+             ln -s (atômico via rename); EXDEV lança erro claro em vez de fallback silencioso
              prune releases antigas
 SUCCESS    → update Deployment, XP +10 (+50 bonus 1º ever)
            → se is_public: Playwright thumbnail
 FAILED     → update Deployment, push notification para owner
 ```
 
-Variáveis de ambiente do build: `BUILD_MEMORY_LIMIT`, `BUILD_CPU_LIMIT`, `BUILD_PIDS_LIMIT`, `BUILD_DOCKER_IMAGE`, `BUILD_TIMEOUT_MS`.
+Variáveis de ambiente do build: `BUILD_MEMORY_LIMIT`, `BUILD_CPU_LIMIT`, `BUILD_PIDS_LIMIT`, `BUILD_DOCKER_IMAGE`, `BUILD_TIMEOUT_MS`, `BUILD_MAX_CONCURRENT` (padrão `3`), `BUILD_QUEUE_DEPTH` (padrão `10`), `CLONE_TIMEOUT_MS` (padrão `120000`).
 
 ### Armadilhas
 
