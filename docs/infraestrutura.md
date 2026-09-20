@@ -39,8 +39,8 @@ Ponto de entrada: `apps/api/src/main.ts`, porta `4000` (env `PORT`).
 | `DeploymentsModule` | `POST /projects/:slug/deploy`, `GET /deployments/:id`, `GET /projects/:slug/status` (SSE) |
 | `GalleryModule` | `GET /gallery`, `GET /gallery/:slug`, `POST /gallery/:slug/star`, `GET /gallery/:slug/comments`, `POST /gallery/:slug/comments` |
 | `GithubModule` | `POST /github/install` (associa instalação do App), `DELETE /github/install/:id`, `GET /github/accounts`, `GET /github/repos[?available=true]` — lista repos frontend com `has_project`, cache em memória 5 min |
-| `WebhooksModule` | `POST /webhooks/github` — HMAC-SHA256, dispara deploy automático |
-| `UsersModule` | `GET /users/me`, `PATCH /users/me` |
+| `WebhooksModule` | `POST /webhooks/github` — HMAC-SHA256, dispara deploy automático; resolve `pusher.name` → `GithubAccount.account_login` → `user_id` para atribuir o deploy ao utilizador correto |
+| `UsersModule` | `GET /users/me`, `PATCH /users/me`, `GET /users/:handle` (público — perfil com projetos e heatmap) |
 | `AdminModule` | `GET /admin/projects`, `GET /admin/admins`, `POST /admin/admins` — gated por `@Roles(Role.ADMIN)` |
 | `NotificationsModule` | `POST /notifications/subscribe`, `DELETE /notifications/subscribe` |
 | `ErrorLogModule` | Persiste erros em DB + push para admins |
@@ -225,6 +225,19 @@ Level calculado em read-time via `levelForXp(xp)` (quadrático: `50 * n * (n-1)`
 | Publicar projeto (1x) | +20 |
 | Receber star | +5 |
 
+### Perfis públicos
+
+`GET /users/:handle` — `@Public()`, sem auth.
+
+Retorna:
+- `handle`, `xp`, `level`, `next`, `joined_at`
+- `projects` — projetos públicos onde o utilizador é OWNER (`is_public = true`), com `stars` count
+- `heatmap` — array `{ date, count }` dos últimos 365 dias, contando apenas `DEPLOY_TRIGGERED` e `COMMENT_ADDED` onde `actor_id = user.id` (ações do próprio utilizador, não eventos passivos como receber star)
+
+Página frontend em `u/[handle]`: avatar hex, nível/XP, data de entrada, grid de calor estilo GitHub (52 semanas × 7 dias, intensidade proporcional ao `count`), grid de projetos públicos.
+
+Os autores e membros na galeria linkam para `/u/[handle]`.
+
 ---
 
 ## Web (`apps/web`)
@@ -240,6 +253,7 @@ Level calculado em read-time via `levelForXp(xp)` (quadrático: `50 * n * (n-1)`
 (auth)/login          (auth)/signup          auth/confirm
 (dashboard)/          (dashboard)/projects/[slug]
 galeria/              galeria/[slug]
+u/[handle]            (perfil público — projetos e heatmap de atividade)
 admin/                admin/projects/[slug]  admin/admins
 ```
 
