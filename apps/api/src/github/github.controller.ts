@@ -34,6 +34,10 @@ export class GithubController {
   @Delete('install')
   @HttpCode(204)
   async uninstall(@CurrentUser() user: AuthenticatedUser) {
+    const dbUser = await this.prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    if (dbUser.github_installation_id) {
+      await this.github.uninstall(dbUser.github_installation_id);
+    }
     await this.prisma.user.update({
       where: { id: user.id },
       data: { github_installation_id: null },
@@ -46,7 +50,7 @@ export class GithubController {
     if (!dbUser.github_installation_id) {
       throw new NotFoundException('GitHub not connected — install the GitHub App first');
     }
-    const repos = await this.github.listRepos(dbUser.github_installation_id);
+    const repos = await this.github.listFrontendRepos(dbUser.github_installation_id);
     return repos.map(({ id, full_name, name, private: isPrivate, html_url, clone_url, default_branch }) => ({
       id,
       full_name,

@@ -151,6 +151,8 @@ export class DeploymentsService {
       this.streams.get(project.id)?.next({ type: 'log', deploymentId, chunk });
     };
 
+    let githubDeploymentId: number | null = null;
+
     try {
       await fs.mkdir(paths.root, { recursive: true });
 
@@ -159,6 +161,15 @@ export class DeploymentsService {
       const clonedSha = await this.cloneRepo(project.repository_url, paths.repo, appendLog, installationId, options?.targetSha);
       const commitSha = options?.commitSha ?? clonedSha;
       this.logger.log(`[${project.slug}] clone: ${((Date.now() - cloneStart) / 1000).toFixed(1)}s`);
+
+      if (installationId) {
+        try {
+          githubDeploymentId = await this.github.createDeployment(installationId, project.repository_url, commitSha);
+          await this.github.setDeploymentStatus(installationId, project.repository_url, githubDeploymentId, 'in_progress');
+        } catch (err) {
+          this.logger.warn(`[${project.slug}] failed to create GitHub deployment: ${err instanceof Error ? err.message : err}`);
+        }
+      }
 
       await this.setStatus(deploymentId, project.id, DeploymentStatus.BUILDING);
       const buildStart = Date.now();
@@ -186,6 +197,16 @@ export class DeploymentsService {
       });
       this.emitTerminal(project.id, deploymentId, DeploymentStatus.SUCCESS);
 
+      if (installationId && githubDeploymentId !== null) {
+        const appUrl = this.config.get<string>('APP_URL', '');
+        const environmentUrl = appUrl ? `${appUrl}/${project.slug}` : undefined;
+        try {
+          await this.github.setDeploymentStatus(installationId, project.repository_url, githubDeploymentId, 'success', environmentUrl);
+        } catch (err) {
+          this.logger.warn(`[${project.slug}] failed to update GitHub deployment status: ${err instanceof Error ? err.message : err}`);
+        }
+      }
+
       await this.pruneOldReleases(paths.releases);
 
       if (project.is_public) {
@@ -199,6 +220,14 @@ export class DeploymentsService {
         data: { status: DeploymentStatus.FAILED, log, finished_at: new Date() },
       });
       this.emitTerminal(project.id, deploymentId, DeploymentStatus.FAILED);
+
+      if (installationId && githubDeploymentId !== null) {
+        try {
+          await this.github.setDeploymentStatus(installationId, project.repository_url, githubDeploymentId, 'failure');
+        } catch (ghErr) {
+          this.logger.warn(`[${project.slug}] failed to update GitHub deployment status: ${ghErr instanceof Error ? ghErr.message : ghErr}`);
+        }
+      }
 
       // Deploy failures are the tenant's own build breaking, not a Mollire bug —
       // notify the owner, not the admin, and don't write an ErrorLog row (that's

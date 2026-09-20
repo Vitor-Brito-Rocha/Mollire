@@ -27,6 +27,11 @@ type PushPayload = {
   head_commit?: { message: string };
 };
 
+type InstallationPayload = {
+  action: string;
+  installation: { id: number };
+};
+
 @Controller('webhooks')
 export class WebhooksController {
   private readonly logger = new Logger(WebhooksController.name);
@@ -53,9 +58,23 @@ export class WebhooksController {
 
     this.verifySignature(rawBody, signature);
 
+    const body = rawBody.toString('utf-8');
+
+    if (event === 'installation') {
+      const payload = JSON.parse(body) as InstallationPayload;
+      if (payload.action === 'deleted') {
+        await this.prisma.user.updateMany({
+          where: { github_installation_id: BigInt(payload.installation.id) },
+          data: { github_installation_id: null },
+        });
+        this.logger.log(`GitHub App uninstalled (installation ${payload.installation.id}) — cleared from user`);
+      }
+      return { ignored: false };
+    }
+
     if (event !== 'push') return { ignored: true };
 
-    const payload = JSON.parse(rawBody.toString('utf-8')) as PushPayload;
+    const payload = JSON.parse(body) as PushPayload;
 
     // Only deploy on pushes to the default branch.
     const branch = payload.ref.replace('refs/heads/', '');
