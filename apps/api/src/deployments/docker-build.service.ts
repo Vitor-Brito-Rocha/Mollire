@@ -41,6 +41,8 @@ export class DockerBuildService {
         '--memory', this.memory,
         '--cpus', this.cpus,
         '--pids-limit', String(this.pidsLimit),
+        '-e', 'NPM_CONFIG_PREFER_OFFLINE=true',
+        '-e', 'NODE_OPTIONS=--max-old-space-size=896',
         '-v', `${repoPath}:/workspace`,
         '-v', `${outputHostPath}:/output`,
         '-v', 'mollire-npm-cache:/root/.npm',

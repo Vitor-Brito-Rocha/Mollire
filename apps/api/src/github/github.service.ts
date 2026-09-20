@@ -52,7 +52,39 @@ export class GithubService {
       throw new Error(`GitHub API ${resp.status}: ${body}`);
     }
     const data = (await resp.json()) as { repositories: GithubRepo[] };
-    return data.repositories;
+
+    const filtered = await Promise.all(
+      data.repositories.map(async (repo) => {
+        const isFrontend = await this.isFrontendRepo(repo.full_name, token);
+        return isFrontend ? repo : null;
+      }),
+    );
+
+    return filtered.filter((r): r is GithubRepo => r !== null);
+  }
+
+  private async isFrontendRepo(fullName: string, token: string): Promise<boolean> {
+    const FRONTEND_CONFIG_FILES = new Set([
+      'vite.config.ts', 'vite.config.js',
+      'next.config.js', 'next.config.ts', 'next.config.mjs',
+      'nuxt.config.ts', 'nuxt.config.js',
+      'astro.config.mjs', 'astro.config.ts',
+      'svelte.config.js', 'svelte.config.ts',
+      'remix.config.js', 'remix.config.ts',
+      'angular.json',
+    ]);
+
+    try {
+      const resp = await fetch(
+        `https://api.github.com/repos/${fullName}/contents/`,
+        { headers: this.githubHeaders(`Bearer ${token}`) },
+      );
+      if (!resp.ok) return false;
+      const entries = (await resp.json()) as Array<{ name: string; type: string }>;
+      return entries.some((e) => e.type === 'file' && FRONTEND_CONFIG_FILES.has(e.name));
+    } catch {
+      return false;
+    }
   }
 
   // Builds a clone URL with an embedded installation token so git can fetch

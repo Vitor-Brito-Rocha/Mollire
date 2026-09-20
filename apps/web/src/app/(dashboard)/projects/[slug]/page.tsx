@@ -21,6 +21,13 @@ const whenFmt = new Intl.DateTimeFormat("pt-BR", {
   minute: "2-digit",
 });
 
+function deployDuration(start: string, end: string | null): string {
+  if (!end) return "";
+  const s = Math.round((new Date(end).getTime() - new Date(start).getTime()) / 1000);
+  if (s < 60) return `${s}s`;
+  return `${Math.floor(s / 60)}m ${s % 60}s`;
+}
+
 export default function ProjectDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const [project, setProject] = useState<Project | null>(null);
@@ -182,10 +189,15 @@ export default function ProjectDetailPage() {
                   <span className="col-span-5 sm:col-span-3">
                     <DeployStatus status={deployment.status} />
                   </span>
-                  <span className="text-muted-foreground col-span-5 text-[13px] sm:col-span-4">
+                  <span className="text-muted-foreground col-span-7 flex flex-wrap items-center gap-x-2 whitespace-nowrap text-[13px] sm:col-span-4">
                     {whenFmt.format(new Date(deployment.created_at))}
+                    {deployDuration(deployment.created_at, deployment.finished_at) && (
+                      <span className="text-text-3 font-mono text-[11px]">
+                        {deployDuration(deployment.created_at, deployment.finished_at)}
+                      </span>
+                    )}
                   </span>
-                  <span className="text-text-3 col-span-2 font-mono text-xs sm:col-span-3">
+                  <span className="text-text-3 hidden font-mono text-xs sm:col-span-3 sm:block">
                     {deployment.commit_sha ? deployment.commit_sha.slice(0, 7) : "—"}
                     {deployment.commit_message && (
                       <span className="text-text-3 ml-2 font-sans not-italic truncate hidden sm:inline">
