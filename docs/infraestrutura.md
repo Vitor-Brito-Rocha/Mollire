@@ -45,6 +45,8 @@ Ponto de entrada: `apps/api/src/main.ts`, porta `4000` (env `PORT`).
 | `NotificationsModule` | `POST /notifications/subscribe`, `DELETE /notifications/subscribe` |
 | `ErrorLogModule` | Persiste erros em DB + push para admins |
 | `PrismaModule` | `PrismaService` — singleton, conecta em `onModuleInit` |
+| `EnvVarsModule` | `GET/PUT/DELETE /projects/:slug/env/:key` — owner-only, valores nunca retornados após criação |
+| `InternalModule` | `GET /internal/auth?slug=` — chamado pelo Nginx via `auth_request`, responde 200/401/403 sem body |
 
 ### Autenticação e Sessão
 
@@ -131,6 +133,18 @@ model Deployment {
   created_at     DateTime         @default(now())
   finished_at    DateTime?
 }
+
+// Variáveis de ambiente injetadas no container de build. Valores criptografados
+// em repouso (AES-256-GCM, chave em ENV_ENCRYPTION_KEY). Nunca retornados pela API.
+model ProjectEnvVar {
+  id         String   @id @default(cuid())
+  project_id String
+  key        String                           // ^[A-Z_][A-Z0-9_]*$, max 256
+  value      String                           // "iv:authTag:ciphertext" em hex
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  @@unique([project_id, key])
+}
 ```
 
 ### Pipeline de Deploy
@@ -141,10 +155,12 @@ POST /projects/:slug/deploy
   → runPipeline() [fire-and-forget]
 
 CLONING   → simple-git clone --depth=1 (ou fetch+reset se repo existe)
-BUILDING  → docker run --rm
+BUILDING  → getDecrypted(project.id) — busca + decripta env vars em memória
+          → docker run --rm
               --memory 512m --cpus 0.5 --pids-limit 100
               -e NPM_CONFIG_PREFER_OFFLINE=true
               -e NODE_OPTIONS=--max-old-space-size=896
+              -e KEY=value  ← env vars do projeto (nunca logadas)
               -v {repoPath}:/workspace
               -v {outputPath}:/output
               -v mollire-npm-cache:/root/.npm
@@ -208,11 +224,37 @@ if ($host ~* "^([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)\.aulvi\.com\.br$") {
 }
 
 root /var/www/projects/$slug/current;
+
+# Controle de acesso: auth_request chama a API antes de servir qualquer arquivo
+location = /_internal_auth {
+    internal;                        # inacessível pelo browser
+    proxy_pass http://127.0.0.1:4000/internal/auth?slug=$slug;
+    proxy_pass_request_body off;
+    proxy_set_header Content-Length "";
+    proxy_set_header Cookie $http_cookie;  # repassa sessão do browser
+}
+
+location / {
+    auth_request /_internal_auth;
+    error_page 401 = @login;         # sem sessão → redirect login
+    error_page 403 = @forbidden;     # não é membro → 403
+    try_files $uri $uri/ /index.html;
+}
 ```
+
+**Respostas do `GET /internal/auth`**:
+- `200` — projeto público ou usuário é membro
+- `401` — projeto privado, sem sessão → Nginx redireciona para `/login?next=<url>`
+- `403` — projeto privado, sessão válida mas não é membro
+
+**Diferenças dev vs prod**:
+- Dev (`*.localtest.me`): `proxy_pass` aponta para `host.docker.internal:4000` + `resolver 127.0.0.11`; redirect login → `localhost:3000`
+- Prod (`*.aulvi.com.br`): `proxy_pass` aponta para `127.0.0.1:4000`; redirect login → `https://app.aulvi.com.br`
 
 Arquivos:
 - `nginx/mollire.conf.example` — prod (`*.aulvi.com.br`)
 - `nginx/mollire.dev.conf` — dev local (`*.localtest.me`), inclui `@not_found` fallback
+- `public/forbidden.html` — página 403 servida pelo Nginx
 
 ---
 
@@ -253,3 +295,6 @@ A API roda fora do compose (systemd no VPS, `node dist/main.js` direto em dev).
 | Docker isolation | `DockerBuildService` (memory/CPU/PID limits, sem rede) |
 | Membership boundary | `ProjectsService.findForMember()` (mismatch → 404) |
 | `@Public()` | Rotas abertas explícitas (galeria, webhook) |
+| Nginx `auth_request` | `InternalModule` — projetos privados bloqueados antes de servir arquivos |
+| Criptografia em repouso | `EnvCryptoService` — AES-256-GCM, IV aleatório por escrita, chave em `ENV_ENCRYPTION_KEY` |
+| Env vars write-only | `EnvVarsService` — valores nunca retornados pela API após criação |
