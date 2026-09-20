@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DeploymentStatus, ErrorSource, Project } from '@prisma/client';
 import * as fs from 'node:fs/promises';
@@ -92,6 +92,10 @@ export class DeploymentsService {
     project: Project,
     webhook?: { installationId?: bigint; commitSha?: string; commitMessage?: string },
   ) {
+    if (this.streams.has(project.id)) {
+      throw new ConflictException(`project "${project.slug}" already has a deploy in progress`);
+    }
+
     const subject = new Subject<StatusEvent>();
     this.streams.set(project.id, subject);
 
