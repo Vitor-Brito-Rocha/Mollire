@@ -13,15 +13,50 @@ export type GithubRepo = {
   default_branch: string;
 };
 
+const REPO_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
 @Injectable()
 export class GithubService {
   private readonly logger = new Logger(GithubService.name);
   private readonly appId: string;
   private readonly privateKeyPem: string;
+  private readonly repoCache = new Map<string, { repos: GithubRepo[]; expiresAt: number }>();
 
   constructor(private readonly config: ConfigService) {
     this.appId = config.getOrThrow('GITHUB_APP_ID');
     this.privateKeyPem = config.getOrThrow('GITHUB_PRIVATE_KEY').replace(/\\n/g, '\n');
+  }
+
+  invalidateRepoCache(installationId: bigint) {
+    this.repoCache.delete(String(installationId));
+  }
+
+  async fetchInstallation(installationId: number): Promise<{
+    account_login: string;
+    account_id: bigint;
+    account_avatar_url: string;
+    account_type: string;
+    repository_selection: string;
+  }> {
+    const jwt = await this.generateAppJwt();
+    const resp = await fetch(`https://api.github.com/app/installations/${installationId}`, {
+      headers: this.githubHeaders(`Bearer ${jwt}`),
+    });
+    if (!resp.ok) {
+      const body = await resp.text();
+      throw new Error(`GitHub API ${resp.status}: ${body}`);
+    }
+    const data = (await resp.json()) as {
+      account: { login: string; id: number; avatar_url: string; type: string };
+      repository_selection: string;
+    };
+    return {
+      account_login: data.account.login,
+      account_id: BigInt(data.account.id),
+      account_avatar_url: data.account.avatar_url,
+      account_type: data.account.type,
+      repository_selection: data.repository_selection,
+    };
   }
 
   async getInstallationToken(installationId: bigint): Promise<string> {
@@ -47,6 +82,10 @@ export class GithubService {
   }
 
   async listFrontendRepos(installationId: bigint): Promise<GithubRepo[]> {
+    const key = String(installationId);
+    const cached = this.repoCache.get(key);
+    if (cached && cached.expiresAt > Date.now()) return cached.repos;
+
     const token = await this.getInstallationToken(installationId);
     const repos = await this.fetchRepos(token);
     const results = await Promise.all(
@@ -55,7 +94,9 @@ export class GithubService {
         return isFrontend ? repo : null;
       }),
     );
-    return results.filter((r): r is GithubRepo => r !== null);
+    const filtered = results.filter((r): r is GithubRepo => r !== null);
+    this.repoCache.set(key, { repos: filtered, expiresAt: Date.now() + REPO_CACHE_TTL_MS });
+    return filtered;
   }
 
   private async fetchRepos(token: string): Promise<GithubRepo[]> {

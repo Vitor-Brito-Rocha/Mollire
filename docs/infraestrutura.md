@@ -33,12 +33,12 @@ Ponto de entrada: `apps/api/src/main.ts`, porta `4000` (env `PORT`).
 
 | Módulo | Endpoints principais |
 |---|---|
-| `AuthModule` | `POST /auth/login`, `/signup`, `/refresh`, `/logout`, `/forgot`, `/confirm`, `PUT /auth/password` |
+| `AuthModule` | `POST /auth/login`, `/signup`, `/refresh`, `/logout`, `/forgot`, `/confirm`, `PUT /auth/password`, `GET /auth/github` (OAuth redirect), `POST /auth/session` (seta cookies a partir de tokens OAuth) |
 | `ProjectsModule` | `POST /projects`, `GET /projects`, `GET /projects/:slug`, `PATCH /projects/:slug/visibility` |
 | `MembersModule` | `GET /projects/:slug/members`, `POST /projects/:slug/invitations`, `DELETE /projects/:slug/members/:userId` |
 | `DeploymentsModule` | `POST /projects/:slug/deploy`, `GET /deployments/:id`, `GET /projects/:slug/status` (SSE) |
 | `GalleryModule` | `GET /gallery`, `GET /gallery/:slug`, `POST /gallery/:slug/star`, `GET /gallery/:slug/comments`, `POST /gallery/:slug/comments` |
-| `GithubModule` | Lista repos, filtra por config de frontend, gera clone URL autenticado |
+| `GithubModule` | `POST /github/install` (associa instalação do App), `DELETE /github/install/:id`, `GET /github/accounts`, `GET /github/repos[?available=true]` — lista repos frontend com `has_project`, cache em memória 5 min |
 | `WebhooksModule` | `POST /webhooks/github` — HMAC-SHA256, dispara deploy automático |
 | `UsersModule` | `GET /users/me`, `PATCH /users/me` |
 | `AdminModule` | `GET /admin/projects`, `GET /admin/admins`, `POST /admin/admins` — gated por `@Roles(Role.ADMIN)` |
@@ -66,6 +66,14 @@ Ponto de entrada: `apps/api/src/main.ts`, porta `4000` (env `PORT`).
 - `@CurrentUser()` — injeta `request.user` como parâmetro
 - `@Roles(Role.ADMIN)` — exige role, precisa de `RolesGuard` explícito
 
+**Login com GitHub (OAuth)**:
+1. `GET /auth/github` — redireciona para `<supabase>/auth/v1/authorize?provider=github&redirect_to=<frontend>/auth/github/callback` (implicit flow, sem PKCE)
+2. GitHub → Supabase → frontend recebe `#access_token=...&refresh_token=...` no hash da URL
+3. `POST /auth/session { access_token, refresh_token, expires_in }` — valida origin, seta cookies httpOnly
+4. Frontend redireciona para `/`
+
+O fluxo de **instalação do GitHub App** (para repos/deploys) é independente do login e feito na página de perfil.
+
 **CSRF**: Mutations (writes) validam `Origin` contra `FRONTEND_URL`.
 
 **Proteção multi-tenant**: Todos lookups de tenant passam por `ProjectsService.findForMember()` — mismatch retorna 404, nunca 403 (tenant não descobre existência alheia).
@@ -74,15 +82,30 @@ Ponto de entrada: `apps/api/src/main.ts`, porta `4000` (env `PORT`).
 
 ```prisma
 model User {
-  id                     String   @id            // sub do JWT Supabase
-  email                  String   @unique
-  handle                 String?  @unique
-  role                   Role     @default(TENANT) // ADMIN | TENANT
-  xp                     Int      @default(0)
-  github_installation_id BigInt?  // ⚠ BigInt — nunca retornar User completo em resposta JSON
-  created_at             DateTime @default(now())
-  updated_at             DateTime @updatedAt
-  project_memberships    ProjectMember[]
+  id              String   @id            // sub do JWT Supabase
+  email           String   @unique
+  handle          String?  @unique
+  role            Role     @default(TENANT) // ADMIN | TENANT
+  xp              Int      @default(0)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+  project_memberships ProjectMember[]
+  github_accounts GithubAccount[]
+}
+
+// Um utilizador pode ter N contas GitHub conectadas (pessoal + orgs).
+// Criada via POST /github/install após o utilizador instalar o GitHub App.
+model GithubAccount {
+  id                   String   @id @default(cuid())
+  installation_id      BigInt   @unique  // ⚠ BigInt — nunca serializar diretamente em JSON
+  account_login        String            // ex: "jpselas05"
+  account_id           BigInt
+  account_avatar_url   String
+  account_type         String            // "User" | "Organization"
+  repository_selection String            // "all" | "selected"
+  user_id              String
+  created_at           DateTime @default(now())
+  user User @relation(...)
 }
 
 model Project {
@@ -189,7 +212,7 @@ Variáveis de ambiente do build: `BUILD_MEMORY_LIMIT`, `BUILD_CPU_LIMIT`, `BUILD
 
 ### Armadilhas
 
-**BigInt (`github_installation_id`)**: `JSON.stringify` não serializa `BigInt` — qualquer endpoint que retorne um `User` completo quebra com `500: Do not know how to serialize a BigInt`. Sempre usar `select` explícito ao expor `User` em respostas HTTP, omitindo `github_installation_id`. Internamente (lógica de negócio) o campo pode ser lido normalmente.
+**BigInt (`GithubAccount.installation_id`)**: `JSON.stringify` não serializa `BigInt` — qualquer endpoint que retorne um `GithubAccount` completo quebra com `500: Do not know how to serialize a BigInt`. Sempre converter para `String` ao expor em respostas HTTP (ex: `installation_id.toString()`). Internamente o campo pode ser lido normalmente.
 
 ### Gamification (XP)
 

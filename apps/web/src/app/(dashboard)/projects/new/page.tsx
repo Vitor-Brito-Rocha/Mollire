@@ -28,7 +28,7 @@ export default function NewProjectPage() {
       setGithubConnected(true);
       setLoadingRepos(true);
       api
-        .get<GithubRepo[]>("/github/repos")
+        .get<GithubRepo[]>("/github/repos?available=true")
         .then(setRepos)
         .catch(() => toast.error("Não foi possível carregar os repositórios"))
         .finally(() => setLoadingRepos(false));

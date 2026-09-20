@@ -63,11 +63,10 @@ export class WebhooksController {
     if (event === 'installation') {
       const payload = JSON.parse(body) as InstallationPayload;
       if (payload.action === 'deleted') {
-        await this.prisma.user.updateMany({
-          where: { github_installation_id: BigInt(payload.installation.id) },
-          data: { github_installation_id: null },
+        await this.prisma.githubAccount.deleteMany({
+          where: { installation_id: BigInt(payload.installation.id) },
         });
-        this.logger.log(`GitHub App uninstalled (installation ${payload.installation.id}) — cleared from user`);
+        this.logger.log(`GitHub App uninstalled (installation ${payload.installation.id}) — removed GithubAccount`);
       }
       return { ignored: false };
     }

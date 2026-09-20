@@ -106,11 +106,11 @@ export class DeploymentsService {
     });
 
     // Prefer installation ID from webhook payload (no DB round-trip needed);
-    // fall back to the stored value for manual deploys.
+    // fall back to the user's first connected GitHub account for manual deploys.
     const installationId =
       options?.installationId ??
-      (await this.prisma.user.findUnique({ where: { id: project.user_id } }))
-        ?.github_installation_id ??
+      (await this.prisma.githubAccount.findFirst({ where: { user_id: project.user_id } }))
+        ?.installation_id ??
       null;
 
     // Fire-and-forget: return the PENDING row immediately, the pipeline updates

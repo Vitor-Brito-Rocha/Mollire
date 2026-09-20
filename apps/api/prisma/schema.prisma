@@ -28,19 +28,16 @@ enum ErrorSource {
 }
 
 model User {
-  id                      String   @id
-  email                   String   @unique
+  id         String   @id
+  email      String   @unique
   // The only identity shown publicly (gallery author, comments later). Derived
   // from the email at first sync, changeable via PATCH /users/me. Nullable only
   // so the migration is safe on existing rows — syncUser backfills it.
-  handle                  String?  @unique
-  role                    Role     @default(TENANT)
-  xp                      Int      @default(0)
-  // GitHub App installation ID — set when the user installs the App on their
-  // GitHub account. Used to clone private repos and listen to push webhooks.
-  github_installation_id  BigInt?
-  created_at              DateTime @default(now())
-  updated_at              DateTime @updatedAt
+  handle     String?  @unique
+  role       Role     @default(TENANT)
+  xp         Int      @default(0)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   projects           Project[]
   push_subscriptions PushSubscription[]
@@ -49,8 +46,28 @@ model User {
   comments           Comment[]
   project_memberships      ProjectMember[]
   project_invitations_sent ProjectInvitation[] @relation("ProjectInvitationInviter")
+  github_accounts          GithubAccount[]
 
   @@map("users")
+}
+
+// A GitHub account (personal or organization) connected via the GitHub App.
+// One Mollire user can have multiple GitHub accounts installed.
+model GithubAccount {
+  id                   String   @id @default(cuid())
+  installation_id      BigInt   @unique
+  account_login        String
+  account_id           BigInt
+  account_avatar_url   String
+  account_type         String   // "User" | "Organization"
+  repository_selection String   // "all" | "selected"
+  user_id              String
+  created_at           DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@map("github_accounts")
 }
 
 // A pending grant of ADMIN role to an email that hasn't authenticated yet.
