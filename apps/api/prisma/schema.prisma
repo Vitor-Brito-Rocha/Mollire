@@ -228,7 +228,7 @@ model Deployment {
   created_at     DateTime         @default(now())
   finished_at    DateTime?
 
-  project Project @relation(fields: [project_id], references: [id])
+  project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
 
   @@index([project_id])
   @@map("deployments")
