@@ -21,7 +21,8 @@ export class UptimeService implements OnModuleInit, OnModuleDestroy {
   private readonly domain: string;
   private readonly intervalMs: number;
   private readonly timeoutMs: number;
-  private readonly enabled: boolean;
+  // Also read by the uptime_30 push job: no pings, nothing to unlock.
+  readonly enabled: boolean;
   private timer?: NodeJS.Timeout;
   private running = false;
   private lastPruneAt = 0;
