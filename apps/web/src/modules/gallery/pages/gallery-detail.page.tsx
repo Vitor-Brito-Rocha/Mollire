@@ -65,7 +65,7 @@ export default function GalleryDetailPage() {
       <div className="grid gap-8 xl:grid-cols-3">
         <div className="flex flex-col gap-6 xl:col-span-2">
           <SitePreview project={project} />
-          <CommentsSection slug={slug} count={project.comments} />
+          <CommentsSection slug={slug} count={project.comments} isOwner={project.is_owner} />
         </div>
 
         <aside className="flex flex-col gap-5">

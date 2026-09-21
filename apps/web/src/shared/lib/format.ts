@@ -45,3 +45,10 @@ export function formatTimeAgo(value: DateInput): string {
   if (days < 30) return `há ${days} ${days === 1 ? "dia" : "dias"}`;
   return formatDayMonthTime(value);
 }
+
+// "no ar há 12 dias" / "no ar desde hoje": a sequência atual sem cair.
+export function formatUptime(since: DateInput): string {
+  const days = Math.floor((Date.now() - at(since).getTime()) / 86_400_000);
+  if (days < 1) return "no ar desde hoje";
+  return days === 1 ? "no ar há 1 dia" : `no ar há ${days} dias`;
+}

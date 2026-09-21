@@ -4,6 +4,7 @@ export type UserProfile = {
   level: number;
   next: number;
   joined_at: string;
+  frame?: string | null;
   projects: {
     slug: string;
     name: string;

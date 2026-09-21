@@ -34,3 +34,13 @@ export function useXpHistory(enabled: boolean) {
     meta: { silent: true },
   });
 }
+
+// As regras valem por um dia; sem o endpoint, quem chama usa o espelho do catálogo.
+export function useXpRules() {
+  return useQuery({
+    queryKey: progressKeys.rules(),
+    queryFn: progressApi.rules,
+    staleTime: 24 * 60 * 60 * 1000,
+    meta: { silent: true },
+  });
+}

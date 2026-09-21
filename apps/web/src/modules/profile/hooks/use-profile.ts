@@ -22,3 +22,11 @@ export function useUpdateHandle() {
     },
   });
 }
+
+export function useUpdateFrame() {
+  return useMutation({
+    mutationFn: (frame: string) => profileApi.updateFrame(frame),
+    onSuccess: setSessionUser,
+    meta: { successMessage: "Moldura trocada", errorMessage: "Erro ao salvar" },
+  });
+}

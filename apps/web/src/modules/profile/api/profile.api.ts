@@ -6,4 +6,5 @@ export const profileApi = {
   // Public: anyone can open /u/<handle>.
   publicProfile: (handle: string) => http.get<UserProfile>(`/users/${handle}`),
   updateHandle: (handle: string) => http.patch<CurrentUser>("/users/me", { handle }),
+  updateFrame: (frame: string) => http.patch<CurrentUser>("/users/me", { frame }),
 };

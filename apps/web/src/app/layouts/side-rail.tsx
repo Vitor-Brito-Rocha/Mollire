@@ -1,6 +1,7 @@
 import { ChevronsUpDown, LayoutGrid, Plus, Star } from "lucide-react";
 import { Link, useLocation } from "react-router";
 import { useCurrentUser } from "@/modules/auth";
+import { frameColor } from "@/modules/progress";
 import { LevelBar } from "@/shared/components/level-bar";
 import { LevelInsignia } from "@/shared/components/level-insignia";
 import { Logo } from "@/shared/components/logo";
@@ -85,7 +86,7 @@ function PlayerCard() {
           className="surface hover:border-line-2 focus-visible:border-primary mx-3 mt-4 flex flex-col gap-3 p-3 text-left transition-colors outline-none"
         >
           <span className="flex w-full items-center gap-3">
-            <LevelInsignia level={user.level} size="md" />
+            <LevelInsignia level={user.level} size="md" color={frameColor(user.frame, user.level)} />
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
               <span className="truncate text-body-lg font-semibold">{user.handle ?? "Sem apelido"}</span>
               <span className="label text-text-3 text-mini">{levelTitle(user.level)}</span>
@@ -198,7 +199,7 @@ export function MobileBar() {
             className="min-w-[224px]"
             trigger={
               <button type="button" aria-label="Menu da conta" className="focus-ring ml-1 grid size-10 place-items-center">
-                <LevelInsignia level={user.level} size="sm" solid />
+                <LevelInsignia level={user.level} size="sm" solid color={frameColor(user.frame, user.level)} />
               </button>
             }
           />

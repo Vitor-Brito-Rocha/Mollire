@@ -1,3 +1,4 @@
+import { formatUptime } from "@/shared/lib/format";
 import { ArrowUpRight, BarChart3 } from "lucide-react";
 import { Link } from "react-router";
 import { CoverBanner } from "@/shared/components/cover-banner";
@@ -45,6 +46,7 @@ export function ProjectHeader({ project, inFlight, deploying, deployLocked, onDe
             </a>
             {project.is_public ? <StatusChip tone="good">Na galeria</StatusChip> : <StatusChip tone="idle">Privado</StatusChip>}
             {inFlight && <StatusChip tone="busy">Deploy em andamento</StatusChip>}
+              {project.uptime_since && <StatusChip tone="good">{formatUptime(project.uptime_since)}</StatusChip>}
           </div>
         </div>
 

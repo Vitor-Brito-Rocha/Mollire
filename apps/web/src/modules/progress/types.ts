@@ -54,3 +54,10 @@ export type XpEvent = {
   ref: { project?: { slug: string; name: string }; handle?: string } | null;
   created_at: string;
 };
+
+// GET /xp/rules (público): quanto vale cada motivo. O texto fica no catálogo.
+export type XpRule = { code: XpReason; xp: number };
+
+// Moldura da insígnia do nível: escolha do usuário entre as que o nível dele
+// libera (PATCH /users/me { frame }). Ids conhecidos em lib/catalog.ts.
+export type FrameId = "default" | "bronze" | "silver" | "gold" | "violet";
