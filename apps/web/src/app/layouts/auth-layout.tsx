@@ -1,6 +1,7 @@
 import { ArrowUpRight } from "lucide-react";
 import { Link, Outlet } from "react-router";
 import { Logo } from "@/shared/components/logo";
+import { ThemeToggle } from "@/shared/components/theme-toggle";
 import { AuthShowcase } from "./auth-showcase";
 
 // Telas de entrada em duas metades, como o cliente de um jogo: a vitrine à
@@ -13,18 +14,21 @@ export default function AuthLayout() {
         <header className="flex h-16 items-center justify-between px-6 md:px-12">
           <Link
             to="/galeria"
-            className="font-display flex items-center gap-2.5 text-body-lg font-bold tracking-label uppercase"
+            className="font-display focus-ring flex items-center gap-2.5 text-body-lg font-bold tracking-label uppercase"
           >
             <Logo height={24} />
             Mollire
           </Link>
-          <Link
-            to="/galeria"
-            className="label text-muted-foreground hover:text-foreground flex items-center gap-1.5 text-micro transition-colors"
-          >
-            Ver a galeria
-            <ArrowUpRight className="size-3.5" />
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/galeria"
+              className="label focus-ring text-muted-foreground hover:text-foreground text-micro flex items-center gap-1.5 px-2 transition-colors"
+            >
+              Ver a galeria
+              <ArrowUpRight className="size-3.5" />
+            </Link>
+            <ThemeToggle variant="icon" />
+          </div>
         </header>
         <div className="flex flex-1 items-center justify-center px-6 py-10 md:px-12">
           <div className="w-full max-w-[400px]">

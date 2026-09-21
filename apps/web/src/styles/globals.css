@@ -58,54 +58,62 @@
 }
 
 /*
- * Tema único, escuro — a linguagem é a de um launcher de jogo (Steam, Epic,
- * Riot), e um launcher é escuro. :root já é o tema final; .dark existe só
- * para as variantes dark: do shadcn engatarem, e repete os mesmos valores.
+ * Dois temas. O escuro é a identidade — a linguagem é a de um launcher de
+ * jogo (Steam, Epic, Riot) — e é o padrão; o claro existe porque muita gente
+ * prefere, e cada um escolhe (useTheme, salvo no navegador). :root é o claro,
+ * .dark o escuro, como o shadcn espera para as variantes dark:.
  */
 :root {
-  --background: #0c0f16;
-  --foreground: #eef1f7;
-  --card: #131824;
-  --card-foreground: #eef1f7;
-  --popover: #131824;
-  --popover-foreground: #eef1f7;
-  --primary: #5ee2ff;
-  --primary-foreground: #08131a;
-  --secondary: #1a2131;
-  --secondary-foreground: #eef1f7;
-  --muted: #1a2131;
-  --muted-foreground: #a3adc2;
-  --accent: #1a2131;
-  --accent-foreground: #eef1f7;
-  --destructive: #ff6b70;
-  --border: #2a3346;
-  --input: #38425a;
-  --ring: #5ee2ff;
-  --chart-1: #5ee2ff;
-  --chart-2: #f2c14e;
-  --chart-3: #9b7bff;
-  --chart-4: #4de38a;
-  --chart-5: #ff6b70;
+  --background: #f2f4f8;
+  --foreground: #101523;
+  --card: #ffffff;
+  --card-foreground: #101523;
+  --popover: #ffffff;
+  --popover-foreground: #101523;
+  --primary: #0b86ab;
+  --primary-foreground: #ffffff;
+  --secondary: #e6ebf3;
+  --secondary-foreground: #101523;
+  --muted: #e6ebf3;
+  --muted-foreground: #4c5870;
+  --accent: #e6ebf3;
+  --accent-foreground: #101523;
+  --destructive: #d1353c;
+  --border: #d3d9e4;
+  --input: #c4cddc;
+  --ring: #0b86ab;
+  --chart-1: #0b86ab;
+  --chart-2: #9a6d05;
+  --chart-3: #6d4fd6;
+  --chart-4: #15834b;
+  --chart-5: #d1353c;
   /* Cantos retos: chanfro e marcas de canto fazem o papel do arredondamento. */
   --radius: 0px;
-  --sidebar: #131824;
-  --sidebar-foreground: #eef1f7;
-  --sidebar-primary: #5ee2ff;
-  --sidebar-primary-foreground: #08131a;
-  --sidebar-accent: #1a2131;
-  --sidebar-accent-foreground: #eef1f7;
-  --sidebar-border: #2a3346;
-  --sidebar-ring: #5ee2ff;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #101523;
+  --sidebar-primary: #0b86ab;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e6ebf3;
+  --sidebar-accent-foreground: #101523;
+  --sidebar-border: #d3d9e4;
+  --sidebar-ring: #0b86ab;
 
-  --raised: #1a2131;
-  --line-2: #38425a;
-  --text-3: #7f8aa3;
-  --gold: #f2c14e;
-  --silver: #c3cbd9;
-  --bronze: #d08a4f;
-  --good: #4de38a;
-  --glow: rgba(94, 226, 255, 0.35);
-  --halo: rgba(94, 226, 255, 0.1);
+  --raised: #e9edf4;
+  --line-2: #b8c1d2;
+  --text-3: #66718b;
+  --gold: #9a6d05;
+  --silver: #6f7a8c;
+  --bronze: #99592d;
+  --good: #15834b;
+  --glow: rgb(11 134 171 / 0.25);
+  --halo: rgb(11 134 171 / 0.1);
+  --halo-2: rgb(109 79 214 / 0.08);
+  --glow-gold: rgb(154 109 5 / 0.3);
+  --ring-good: rgb(21 131 75 / 0.35);
+  --ring-bad: rgb(209 53 60 / 0.35);
+  --grid-line: color-mix(in srgb, var(--primary) 9%, transparent);
+  --surface-edge: rgb(255 255 255 / 0.9);
+  --shadow-surface: 0 10px 28px -18px rgb(16 21 35 / 0.25);
 }
 
 .dark {
@@ -140,6 +148,23 @@
   --sidebar-accent-foreground: #eef1f7;
   --sidebar-border: #2a3346;
   --sidebar-ring: #5ee2ff;
+
+  --raised: #1a2131;
+  --line-2: #38425a;
+  --text-3: #7f8aa3;
+  --gold: #f2c14e;
+  --silver: #c3cbd9;
+  --bronze: #d08a4f;
+  --good: #4de38a;
+  --glow: rgb(94 226 255 / 0.35);
+  --halo: rgb(94 226 255 / 0.1);
+  --halo-2: rgb(155 123 255 / 0.09);
+  --glow-gold: rgb(242 193 78 / 0.35);
+  --ring-good: rgb(77 227 138 / 0.35);
+  --ring-bad: rgb(255 107 112 / 0.35);
+  --grid-line: color-mix(in srgb, var(--primary) 4%, transparent);
+  --surface-edge: rgb(255 255 255 / 0.045);
+  --shadow-surface: 0 14px 34px -22px rgb(0 0 0 / 0.9);
 }
 
 @layer base {
@@ -148,7 +173,10 @@
   }
   html {
     @apply font-sans;
-    color-scheme: dark;
+    color-scheme: light;
+    &.dark {
+      color-scheme: dark;
+    }
   }
   body {
     @apply bg-background text-foreground antialiased;
@@ -306,8 +334,8 @@
     z-index: -1;
     pointer-events: none;
     background-image:
-      linear-gradient(90deg, color-mix(in srgb, var(--primary) 4%, transparent) 1px, transparent 1px),
-      linear-gradient(color-mix(in srgb, var(--primary) 4%, transparent) 1px, transparent 1px);
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
+      linear-gradient(var(--grid-line) 1px, transparent 1px);
     background-size: 32px 32px, 32px 32px;
     mask-image: radial-gradient(ellipse 80% 70% at 50% 0%, #000 30%, transparent 100%);
   }
@@ -327,15 +355,15 @@
   background: color-mix(in srgb, var(--card) 88%, transparent);
   border: 1px solid var(--border);
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.045),
-    0 14px 34px -22px rgb(0 0 0 / 0.9);
+    inset 0 1px 0 var(--surface-edge),
+    var(--shadow-surface);
 }
 
 @layer base {
   body {
     background-image:
       radial-gradient(ellipse 60% 40% at 50% -10%, var(--halo), transparent 60%),
-      radial-gradient(ellipse 45% 35% at 100% 100%, rgb(155 123 255 / 0.09), transparent 65%);
+      radial-gradient(ellipse 45% 35% at 100% 100%, var(--halo-2), transparent 65%);
     background-attachment: fixed;
   }
 }
@@ -401,9 +429,6 @@
   --dur: 300ms;
   --dur-slow: 700ms;
   --ease-reward: cubic-bezier(0.2, 0.9, 0.3, 1.3);
-  --ring-good: rgb(77 227 138 / 0.35);
-  --ring-bad: rgb(255 107 112 / 0.35);
-  --glow-gold: rgb(242 193 78 / 0.35);
 }
 
 /* ---- Sensação de uso -------------------------------------------------------

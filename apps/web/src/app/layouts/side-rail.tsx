@@ -3,13 +3,14 @@ import { Link, useLocation, useNavigate } from "react-router";
 import { useCurrentUser, useSignOut } from "@/modules/auth";
 import { NotificationsToggle } from "@/modules/notifications";
 import { LevelBar } from "@/shared/components/level-bar";
+import { LevelInsignia } from "@/shared/components/level-insignia";
 import { Logo } from "@/shared/components/logo";
+import { ThemeToggle } from "@/shared/components/theme-toggle";
 import { levelTitle } from "@/shared/lib/level";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { Spinner } from "@/shared/ui/spinner";
-import { LevelInsignia } from "@/shared/components/level-insignia";
 
 type Item = {
   to: string;
@@ -106,7 +107,7 @@ function NewProjectCta() {
       to="/projects/new"
       aria-current={active ? "page" : undefined}
       className={cn(
-        "chamfer bg-primary text-primary-foreground font-display glow mx-3 mt-3 flex h-11 items-center justify-center gap-2 text-xs font-bold tracking-label uppercase transition-colors",
+        "chamfer bg-primary text-primary-foreground font-display glow focus-ring mx-3 mt-3 flex h-11 items-center justify-center gap-2 text-xs font-bold tracking-label uppercase transition-colors",
         active ? "bg-primary/85" : "hover:bg-primary/85",
       )}
     >
@@ -116,12 +117,12 @@ function NewProjectCta() {
   );
 }
 
+// O rodapé da barra: tema para todo mundo; notificações, perfil, admin e
+// sair para quem está logado. Tudo no mesmo peso — nada aqui é a ação principal.
 function RailFooter({ pathname }: { pathname: string }) {
   const navigate = useNavigate();
   const { user } = useCurrentUser();
   const signOut = useSignOut();
-
-  if (!user) return null;
 
   // The session cache flips to "signed out" inside the mutation; guards on
   // protected screens redirect on their own, this covers the public ones.
@@ -129,21 +130,24 @@ function RailFooter({ pathname }: { pathname: string }) {
 
   return (
     <div className="border-border mt-auto flex flex-col gap-0.5 border-t px-3 py-4">
-      <div className="px-3 pb-2">
-        <NotificationsToggle />
-      </div>
-      <RailLink item={PROFILE} pathname={pathname} />
-      {/* UX only: the backend's RolesGuard is the real boundary. */}
-      {user.role === "ADMIN" && <RailLink item={ADMIN} pathname={pathname} />}
-      <button
-        type="button"
-        onClick={handleLogout}
-        disabled={signOut.isPending}
-        className="label focus-ring text-muted-foreground hover:text-foreground hover:bg-raised/70 flex h-10 items-center gap-3 px-3 text-mini transition-colors disabled:opacity-50"
-      >
-        {signOut.isPending ? <Spinner /> : <LogOut className="size-4" />}
-        Sair
-      </button>
+      <ThemeToggle variant="row" />
+      {user && (
+        <>
+          <NotificationsToggle />
+          <RailLink item={PROFILE} pathname={pathname} />
+          {/* UX only: the backend's RolesGuard is the real boundary. */}
+          {user.role === "ADMIN" && <RailLink item={ADMIN} pathname={pathname} />}
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={signOut.isPending}
+            className="label focus-ring text-muted-foreground hover:text-foreground hover:bg-raised/70 flex h-10 items-center gap-3 px-3 text-mini transition-colors disabled:opacity-50"
+          >
+            {signOut.isPending ? <Spinner /> : <LogOut className="size-4" />}
+            Sair
+          </button>
+        </>
+      )}
     </div>
   );
 }
@@ -159,7 +163,7 @@ export function SideRail() {
     <aside className="bg-card/70 border-border sticky top-0 hidden h-screen w-[232px] shrink-0 flex-col border-r backdrop-blur-md md:flex">
       <Link
         to={user ? "/" : "/galeria"}
-        className="font-display border-border flex h-16 shrink-0 items-center gap-2.5 border-b px-5 text-body-lg font-bold tracking-label uppercase"
+        className="font-display border-border focus-ring flex h-16 shrink-0 items-center gap-2.5 border-b px-5 text-body-lg font-bold tracking-label uppercase"
       >
         <Logo height={24} />
         Mollire
@@ -176,8 +180,8 @@ export function SideRail() {
   );
 }
 
-// Em telas estreitas a coluna vira uma barra no topo: marca, dois atalhos e
-// o avatar (ou "Entrar").
+// Em telas estreitas a coluna vira uma barra no topo: marca, dois atalhos,
+// tema, "+" e o avatar (ou "Entrar").
 export function MobileBar() {
   const { pathname } = useLocation();
   const { user } = useCurrentUser();
@@ -185,7 +189,7 @@ export function MobileBar() {
 
   return (
     <header className="bg-card/85 border-border sticky top-0 z-40 flex h-14 items-center justify-between border-b px-4 backdrop-blur-md md:hidden">
-      <Link to={user ? "/" : "/galeria"} aria-label="Mollire" className="flex items-center">
+      <Link to={user ? "/" : "/galeria"} aria-label="Mollire" className="focus-ring flex items-center">
         <Logo height={22} />
       </Link>
       <nav className="flex items-center gap-1" aria-label="Principal">
@@ -197,7 +201,7 @@ export function MobileBar() {
               to={item.to}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "label px-2.5 py-2 text-micro transition-colors",
+                "label focus-ring text-micro px-2.5 py-2 transition-colors",
                 active ? "text-primary" : "text-muted-foreground",
               )}
             >
@@ -205,17 +209,18 @@ export function MobileBar() {
             </Link>
           );
         })}
+        <ThemeToggle variant="icon" className="size-8" />
         {user && (
           <Link
             to="/projects/new"
             aria-label="Novo projeto"
-            className="chamfer-sm bg-primary text-primary-foreground ml-1 grid size-8 place-items-center"
+            className="chamfer-sm bg-primary text-primary-foreground focus-ring ml-1 grid size-8 place-items-center"
           >
             <Plus className="size-4" strokeWidth={2.5} />
           </Link>
         )}
         {user ? (
-          <Link to="/perfil" aria-label="Seu perfil" className="ml-1">
+          <Link to="/perfil" aria-label="Seu perfil" className="focus-ring ml-1">
             <LevelInsignia level={user.level} size="sm" solid />
           </Link>
         ) : (

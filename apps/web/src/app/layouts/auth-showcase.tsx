@@ -2,6 +2,7 @@ import { Star } from "lucide-react";
 import { Link } from "react-router";
 import { useGalleryProjects } from "@/modules/gallery";
 import { GridBeams } from "@/shared/components/grid-beams";
+import { useTheme } from "@/shared/hooks/use-theme";
 import { SiteThumb } from "@/shared/components/site-thumb";
 import { formatNumber } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/utils";
@@ -19,6 +20,7 @@ const STEPS = [
 export function AuthShowcase({ className }: { className?: string }) {
   const { data: projects } = useGalleryProjects("recentes", { silent: true });
   const recent = projects?.slice(0, 3) ?? [];
+  const { theme } = useTheme();
 
   return (
     <section
@@ -27,7 +29,7 @@ export function AuthShowcase({ className }: { className?: string }) {
         className,
       )}
     >
-      <GridBeams density={10} />
+      <GridBeams key={theme} density={10} />
 
       <Eyebrow>Deploy de sites estáticos, com XP</Eyebrow>
 

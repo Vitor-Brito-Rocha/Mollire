@@ -1,22 +1,23 @@
 # Design system do Mollire (web)
 
-A interface é um **launcher de jogo** (Steam, Epic, Riot): escura, com um acento ciano, cantos chanfrados e ferragens em L, tipografia de display em caixa alta. Não é um dashboard de SaaS nem pixel art. Tudo que está aqui vive em `apps/web/src/styles/globals.css` (tokens e utilitários) e em `apps/web/src/shared/` (componentes).
+A interface é um **launcher de jogo** (Steam, Epic, Riot): escura por padrão, com um acento ciano, cantos chanfrados e ferragens em L, tipografia de display em caixa alta. Não é um dashboard de SaaS nem pixel art. Existe um **tema claro** opcional (`useTheme`, botão na barra lateral, na barra do celular e no login; a escolha fica no navegador em `mollire:theme`). Tudo que está aqui vive em `apps/web/src/styles/globals.css` (tokens e utilitários) e em `apps/web/src/shared/` (componentes).
 
 ## Tokens
 
-### Cor (`:root` em `globals.css`)
-| Token | Valor | Uso |
-|---|---|---|
-| `--background` / `--card` / `--raised` | `#0c0f16` / `#131824` / `#1a2131` | fundo, superfície, superfície elevada |
-| `--foreground` / `--muted-foreground` / `--text-3` | `#eef1f7` / `#a3adc2` / `#7f8aa3` | texto principal, secundário, terciário |
-| `--border` / `--line-2` | `#2a3346` / `#38425a` | linhas; a segunda para hover e destaque |
-| `--primary` | `#5ee2ff` | o acento: ações, foco, nível, XP |
-| `--gold` / `--silver` / `--bronze` | `#f2c14e` / `#c3cbd9` / `#d08a4f` | estrelas e selos. Dourado **só** para estrela e Ouro |
-| `--good` / `--destructive` | `#4de38a` / `#ff6b70` | publicado / falhou |
-| `--glow` / `--halo` / `--glow-gold` | ciano a 35% / 10%, dourado a 35% | brilhos |
-| `--ring-good` / `--ring-bad` | verde / vermelho a 35% | anel interno dos chips de estado |
+### Cor (`globals.css`: `.dark` é o escuro, padrão; `:root` é o claro)
+| Token | Escuro | Claro | Uso |
+|---|---|---|---|
+| `--background` / `--card` / `--raised` | `#0c0f16` / `#131824` / `#1a2131` | `#f2f4f8` / `#ffffff` / `#e9edf4` | fundo, superfície, superfície elevada |
+| `--foreground` / `--muted-foreground` / `--text-3` | `#eef1f7` / `#a3adc2` / `#7f8aa3` | `#101523` / `#4c5870` / `#66718b` | texto principal, secundário, terciário |
+| `--border` / `--line-2` | `#2a3346` / `#38425a` | `#d3d9e4` / `#b8c1d2` | linhas; a segunda para hover e destaque |
+| `--primary` | `#5ee2ff` | `#0b86ab` | o acento: ações, foco, nível, XP |
+| `--gold` / `--silver` / `--bronze` | `#f2c14e` / `#c3cbd9` / `#d08a4f` | `#9a6d05` / `#6f7a8c` / `#99592d` | estrelas e selos. Dourado **só** para estrela e Ouro |
+| `--good` / `--destructive` | `#4de38a` / `#ff6b70` | `#15834b` / `#d1353c` | publicado / falhou |
+| `--glow` / `--halo` / `--halo-2` / `--glow-gold` | acento a 35% / 10%, violeta 9%, dourado 35% | idem, mais fracos | brilhos e luz ambiente |
+| `--ring-good` / `--ring-bad` | verde / vermelho a 35% | idem | anel interno dos chips de estado |
+| `--grid-line` / `--surface-edge` / `--shadow-surface` | malha 4%, fio de luz, sombra pesada | malha 9%, fio branco, sombra leve | fundo e superfícies |
 
-Tema único. `.dark` repete `:root` só para as variantes `dark:` do shadcn funcionarem. Não use `white`, `black`, `slate`, `zinc`, `gray`: se precisar de uma cor, ela vira token.
+Toda cor nova entra nos dois blocos. Não use `white`, `black`, `slate`, `zinc`, `gray`: se precisar de uma cor, ela vira token.
 
 ### Tipografia
 Três famílias: **Chakra Petch** (`font-display`: títulos, rótulos, números grandes), **IBM Plex Sans** (texto), **Geist Mono** (URLs, hashes, XP, estrelas — sempre `tabular-nums`).
