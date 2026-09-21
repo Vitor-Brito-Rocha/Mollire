@@ -82,7 +82,7 @@ function PlayerCard() {
       trigger={
         <button
           type="button"
-          className="surface focus-ring hover:border-line-2 mx-3 mt-4 flex flex-col gap-3 p-3 text-left transition-colors"
+          className="surface hover:border-line-2 focus-visible:border-primary mx-3 mt-4 flex flex-col gap-3 p-3 text-left transition-colors outline-none"
         >
           <span className="flex w-full items-center gap-3">
             <LevelInsignia level={user.level} size="md" />

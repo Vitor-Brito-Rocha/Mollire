@@ -276,6 +276,10 @@
   70%  { transform: scale(0.92); }
   100% { transform: scale(1); }
 }
+@keyframes fade-out {
+  from { opacity: 0.9; }
+  to { opacity: 0; }
+}
 @keyframes star-ring {
   0%   { transform: scale(0.7); opacity: 0.9; }
   100% { transform: scale(3); opacity: 0; }
@@ -345,9 +349,14 @@
   .animate-star-pop, .animate-star-ring, .animate-level-up, .animate-dot-pulse, .sweep-good, .sweep-bad, .route-enter {
     animation: none;
   }
-  /* Sem animação, o anel seria um círculo parado em volta da estrela. */
+  /* Sem movimento, ainda há resposta: o anel aparece já aberto e só esmaece;
+     o chip de nível aparece e some sem pular. Opacidade não é movimento. */
   .animate-star-ring {
-    display: none;
+    animation: fade-out 700ms ease-out forwards;
+    transform: scale(1.8);
+  }
+  .animate-level-up {
+    animation: fade-out 2200ms ease-in forwards;
   }
 }
 
