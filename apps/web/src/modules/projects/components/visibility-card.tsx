@@ -1,5 +1,5 @@
 import { Panel } from "@/shared/components/panel";
-import { thumbnailSrc } from "@/shared/lib/thumbnail";
+import { ThumbnailImage } from "@/shared/components/thumbnail-image";
 import { Label } from "@/shared/ui/label";
 import { Spinner } from "@/shared/ui/spinner";
 import { Switch } from "@/shared/ui/switch";
@@ -41,8 +41,8 @@ export function VisibilityCard({ project, isOwner, pending, onChange }: Visibili
       </div>
       {project.thumbnail_url ? (
         <div className="border-border overflow-hidden border">
-          <img
-            src={thumbnailSrc(project.thumbnail_url)}
+          <ThumbnailImage
+            thumbnailUrl={project.thumbnail_url}
             alt={`Captura de ${project.name}`}
             className="block w-full object-cover object-top"
           />
