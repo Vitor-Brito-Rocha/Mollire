@@ -9,7 +9,7 @@ hand:
 - `confirm-signup.html` → "Confirm signup" template
 - `reset-password.html` → "Reset Password" template
 
-Both templates link to `apps/web/src/app/auth/confirm/page.tsx`, which
+Both templates link to `apps/web/src/modules/auth/pages/confirm.page.tsx`, which
 hands the token to the API (`POST /auth/confirm`, verified via Supabase) so it
 sets the session cookie before redirecting into the app — this is what lets
 `/reset-password` see an authenticated user.
