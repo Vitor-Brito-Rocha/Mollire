@@ -1,4 +1,4 @@
-import { API_URL } from "@/shared/lib/http";
+import { thumbnailSrc } from "@/shared/lib/thumbnail";
 
 // Miniatura de um site publicado: a captura real quando existe; senão, um
 // desenho de site genérico, escolhido pelo slug para variar entre os cards.
@@ -28,7 +28,7 @@ export function SiteThumb({
 }) {
   if (thumbnailUrl) {
     return (
-      <img src={`${API_URL}${thumbnailUrl}`} alt={`Captura de ${name}`} className="h-full w-full object-cover object-top" />
+      <img src={thumbnailSrc(thumbnailUrl)} alt={`Captura de ${name}`} className="h-full w-full object-cover object-top" />
     );
   }
 
