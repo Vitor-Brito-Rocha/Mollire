@@ -1,7 +1,6 @@
-import { LayoutGrid, LogOut, Plus, Shield, Star, User } from "lucide-react";
-import { Link, useLocation, useNavigate } from "react-router";
-import { useCurrentUser, useSignOut } from "@/modules/auth";
-import { NotificationsToggle } from "@/modules/notifications";
+import { ChevronsUpDown, LayoutGrid, Plus, Star } from "lucide-react";
+import { Link, useLocation } from "react-router";
+import { useCurrentUser } from "@/modules/auth";
 import { LevelBar } from "@/shared/components/level-bar";
 import { LevelInsignia } from "@/shared/components/level-insignia";
 import { Logo } from "@/shared/components/logo";
@@ -10,7 +9,7 @@ import { levelTitle } from "@/shared/lib/level";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { Skeleton } from "@/shared/ui/skeleton";
-import { Spinner } from "@/shared/ui/spinner";
+import { ProfileMenu } from "./profile-menu";
 
 type Item = {
   to: string;
@@ -31,8 +30,6 @@ const PANEL: Item = {
   icon: LayoutGrid,
   active: (p) => p === "/" || (p.startsWith("/projects/") && p !== "/projects/new"),
 };
-const PROFILE: Item = { to: "/perfil", label: "Perfil", icon: User, active: (p) => p === "/perfil" };
-const ADMIN: Item = { to: "/admin", label: "Admin", icon: Shield, active: (p) => p.startsWith("/admin") };
 
 function RailLink({ item, pathname }: { item: Item; pathname: string }) {
   const Icon = item.icon;
@@ -54,8 +51,8 @@ function RailLink({ item, pathname }: { item: Item; pathname: string }) {
 }
 
 // O cartão do jogador: insígnia hexagonal com o nível, apelido, título da
-// faixa e a barra de XP. É o que um launcher mostra no canto — quem você é
-// e quanto falta para o próximo nível.
+// faixa e a barra de XP. É o que um launcher mostra no canto — quem você é e
+// quanto falta para o próximo nível — e é dele que abre o menu da conta.
 function PlayerCard() {
   const { user, loading } = useCurrentUser();
 
@@ -80,18 +77,25 @@ function PlayerCard() {
   }
 
   return (
-    <div className="surface mx-3 mt-4 flex flex-col gap-3 p-3">
-      <Link to="/perfil" className="group flex items-center gap-3" aria-label="Seu perfil">
-        <LevelInsignia level={user.level} size="md" />
-        <span className="flex min-w-0 flex-col gap-0.5">
-          <span className="group-hover:text-primary truncate text-body-lg font-semibold transition-colors">
-            {user.handle ?? "Sem apelido"}
+    <ProfileMenu
+      user={user}
+      trigger={
+        <button
+          type="button"
+          className="surface focus-ring hover:border-line-2 mx-3 mt-4 flex flex-col gap-3 p-3 text-left transition-colors"
+        >
+          <span className="flex w-full items-center gap-3">
+            <LevelInsignia level={user.level} size="md" />
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span className="truncate text-body-lg font-semibold">{user.handle ?? "Sem apelido"}</span>
+              <span className="label text-text-3 text-micro">{levelTitle(user.level)}</span>
+            </span>
+            <ChevronsUpDown className="text-text-3 size-4 shrink-0" aria-hidden="true" />
           </span>
-          <span className="label text-text-3 text-micro">{levelTitle(user.level)}</span>
-        </span>
-      </Link>
-      <LevelBar level={user.level} xp={user.xp} next={user.next} className="w-full" />
-    </div>
+          <LevelBar level={user.level} xp={user.xp} next={user.next} className="w-full" />
+        </button>
+      }
+    />
   );
 }
 
@@ -117,43 +121,9 @@ function NewProjectCta() {
   );
 }
 
-// O rodapé da barra: tema para todo mundo; notificações, perfil, admin e
-// sair para quem está logado. Tudo no mesmo peso — nada aqui é a ação principal.
-function RailFooter({ pathname }: { pathname: string }) {
-  const navigate = useNavigate();
-  const { user } = useCurrentUser();
-  const signOut = useSignOut();
-
-  // The session cache flips to "signed out" inside the mutation; guards on
-  // protected screens redirect on their own, this covers the public ones.
-  const handleLogout = () => signOut.mutate(undefined, { onSuccess: () => navigate("/login") });
-
-  return (
-    <div className="border-border mt-auto flex flex-col gap-0.5 border-t px-3 py-4">
-      <ThemeToggle variant="row" />
-      {user && (
-        <>
-          <NotificationsToggle />
-          <RailLink item={PROFILE} pathname={pathname} />
-          {/* UX only: the backend's RolesGuard is the real boundary. */}
-          {user.role === "ADMIN" && <RailLink item={ADMIN} pathname={pathname} />}
-          <button
-            type="button"
-            onClick={handleLogout}
-            disabled={signOut.isPending}
-            className="label focus-ring text-muted-foreground hover:text-foreground hover:bg-raised/70 flex h-10 items-center gap-3 px-3 text-mini transition-colors disabled:opacity-50"
-          >
-            {signOut.isPending ? <Spinner /> : <LogOut className="size-4" />}
-            Sair
-          </button>
-        </>
-      )}
-    </div>
-  );
-}
-
-// A coluna da esquerda de toda tela (públicas e logadas): marca, cartão do
-// jogador, navegação, e a conta embaixo. Monta uma vez e fica.
+// A coluna da esquerda de toda tela (públicas e logadas): marca e tema no
+// topo, o cartão do jogador (que abre o menu da conta), a ação principal e a
+// navegação. Sem rodapé: nada aqui pesa mais que a navegação.
 export function SideRail() {
   const { pathname } = useLocation();
   const { user } = useCurrentUser();
@@ -161,13 +131,16 @@ export function SideRail() {
 
   return (
     <aside className="bg-card/70 border-border sticky top-0 hidden h-screen w-[232px] shrink-0 flex-col border-r backdrop-blur-md md:flex">
-      <Link
-        to={user ? "/" : "/galeria"}
-        className="font-display border-border focus-ring flex h-16 shrink-0 items-center gap-2.5 border-b px-5 text-body-lg font-bold tracking-label uppercase"
-      >
-        <Logo height={24} />
-        Mollire
-      </Link>
+      <div className="border-border flex h-16 shrink-0 items-center justify-between border-b pr-2 pl-5">
+        <Link
+          to={user ? "/" : "/galeria"}
+          className="font-display focus-ring flex items-center gap-2.5 text-body-lg font-bold tracking-label uppercase"
+        >
+          <Logo height={24} />
+          Mollire
+        </Link>
+        <ThemeToggle />
+      </div>
       <PlayerCard />
       <NewProjectCta />
       <nav className="flex flex-col gap-0.5 px-3 py-5" aria-label="Principal">
@@ -175,13 +148,12 @@ export function SideRail() {
           <RailLink key={item.to} item={item} pathname={pathname} />
         ))}
       </nav>
-      <RailFooter pathname={pathname} />
     </aside>
   );
 }
 
 // Em telas estreitas a coluna vira uma barra no topo: marca, dois atalhos,
-// tema, "+" e o avatar (ou "Entrar").
+// tema, "+" e o avatar, que abre o mesmo menu da conta (ou "Entrar").
 export function MobileBar() {
   const { pathname } = useLocation();
   const { user } = useCurrentUser();
@@ -209,7 +181,7 @@ export function MobileBar() {
             </Link>
           );
         })}
-        <ThemeToggle variant="icon" className="size-8" />
+        <ThemeToggle className="size-8" />
         {user && (
           <Link
             to="/projects/new"
@@ -220,9 +192,16 @@ export function MobileBar() {
           </Link>
         )}
         {user ? (
-          <Link to="/perfil" aria-label="Seu perfil" className="focus-ring ml-1">
-            <LevelInsignia level={user.level} size="sm" solid />
-          </Link>
+          <ProfileMenu
+            user={user}
+            align="end"
+            className="min-w-[224px]"
+            trigger={
+              <button type="button" aria-label="Menu da conta" className="focus-ring ml-1 flex">
+                <LevelInsignia level={user.level} size="sm" solid />
+              </button>
+            }
+          />
         ) : (
           <Button size="sm" className="ml-1" nativeButton={false} render={<Link to="/login">Entrar</Link>} />
         )}

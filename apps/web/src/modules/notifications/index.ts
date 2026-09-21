@@ -1,1 +1,1 @@
-export { NotificationsToggle } from "./components/notifications-toggle";
+export { usePushSubscription } from "./hooks/use-push-subscription";

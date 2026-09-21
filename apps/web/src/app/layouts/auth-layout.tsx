@@ -27,7 +27,7 @@ export default function AuthLayout() {
               Ver a galeria
               <ArrowUpRight className="size-3.5" />
             </Link>
-            <ThemeToggle variant="icon" />
+            <ThemeToggle />
           </div>
         </header>
         <div className="flex flex-1 items-center justify-center px-6 py-10 md:px-12">
