@@ -41,6 +41,7 @@ Trackings: `tracking-display` (−0.02em, títulos), `tracking-label` (0.12em, c
 | Token | Valor | Uso |
 |---|---|---|
 | `--page` / `--page-narrow` | 1180 / 1000px | `max-w-(--page)` em toda tela |
+| `--screen` | viewport menos o respiro do `<main>` | `xl:h-(--screen)` numa tela que ocupa a altura toda sem rolar (novo projeto: a lista rola por dentro) |
 | `--dur-fast` / `--dur` / `--dur-slow` | 120 / 300 / 700ms | `duration-(--dur)` |
 | `--ease` | `cubic-bezier(0.2, 0.8, 0.2, 1)` | toda transição por interação |
 | `--ease-reward` | `cubic-bezier(0.2, 0.9, 0.3, 1.3)` | só as recompensas (estrela, nível) |
