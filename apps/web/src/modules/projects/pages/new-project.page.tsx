@@ -4,11 +4,10 @@ import { FormField } from "@/shared/components/form-field";
 import { SubmitButton } from "@/shared/components/submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
 import { useCurrentUser } from "@/modules/auth";
+import { useGithubRepos, type GithubRepo } from "@/modules/github";
 import { RepoPicker } from "../components/repo-picker";
 import { useCreateProject } from "../hooks/use-projects";
-import { useGithubRepos } from "../hooks/use-project-reads";
 import { projectHost } from "../lib/project-url";
-import type { GithubRepo } from "../types";
 
 const slugify = (name: string) =>
   name

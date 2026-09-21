@@ -8,5 +8,4 @@ export const projectKeys = {
   activity: (slug: string) => [...projectKeys.all, "activity", slug] as const,
   envVars: (slug: string) => [...projectKeys.all, "env", slug] as const,
   members: (slug: string) => [...projectKeys.all, "members", slug] as const,
-  githubRepos: () => [...projectKeys.all, "github-repos"] as const,
 };

@@ -2,7 +2,6 @@ import { useMutation } from "@tanstack/react-query";
 import {
   confirmEmailLink,
   createSessionFromTokens,
-  installGithubApp,
   requestPasswordReset,
   signIn,
   signOut,
@@ -54,7 +53,7 @@ export function useSignOut() {
   });
 }
 
-// The three below run from a redirect landing page, which sends the user
+// The two below run from a redirect landing page, which sends the user
 // elsewhere with its own message on failure — hence silent.
 
 export function useConfirmEmail() {
@@ -69,13 +68,6 @@ export function useCreateSessionFromTokens() {
   return useMutation({
     mutationFn: createSessionFromTokens,
     onSuccess: resetSession,
-    meta: { silent: true },
-  });
-}
-
-export function useInstallGithubApp() {
-  return useMutation({
-    mutationFn: installGithubApp,
     meta: { silent: true },
   });
 }

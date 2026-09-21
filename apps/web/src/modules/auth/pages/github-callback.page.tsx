@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router";
+import { useInstallGithubApp } from "@/modules/github";
 import { ApiError } from "@/shared/lib/http";
 import { PendingScreen } from "../components/pending-screen";
-import { useCreateSessionFromTokens, useInstallGithubApp } from "../hooks/use-auth-mutations";
+import { useCreateSessionFromTokens } from "../hooks/use-auth-mutations";
 
 // One redirect URI serves two GitHub flows:
 //  - login (OAuth): Supabase returns the tokens in the URL hash;

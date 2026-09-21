@@ -1,7 +1,6 @@
 import { http } from "@/shared/lib/http";
 import type {
   EnvVar,
-  GithubRepo,
   InviteMemberResponse,
   MembersList,
   Project,
@@ -42,5 +41,4 @@ export const projectsApi = {
   removeMember: (slug: string, userId: string) => http.delete<void>(`/projects/${slug}/members/${userId}`),
   revokeInvitation: (slug: string, id: string) => http.delete<void>(`/projects/${slug}/invitations/${id}`),
 
-  githubRepos: () => http.get<GithubRepo[]>("/github/repos?available=true"),
 };

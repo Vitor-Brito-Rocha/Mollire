@@ -10,6 +10,7 @@ const dayMonthTime = new Intl.DateTimeFormat("pt-BR", {
   minute: "2-digit",
 });
 const longDate = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+const monthYear = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" });
 const dayMonthNumeric = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" });
 
 type DateInput = string | number | Date;
@@ -20,6 +21,7 @@ export const formatDayMonthYear = (value: DateInput) => dayMonthYear.format(at(v
 export const formatDayMonthTime = (value: DateInput) => dayMonthTime.format(at(value));
 export const formatDayMonthNumeric = (value: DateInput) => dayMonthNumeric.format(at(value));
 
+export const formatMonthYear = (value: DateInput) => monthYear.format(at(value));
 export const formatLongDate = (value: DateInput) => longDate.format(at(value));
 
 export const formatNumber = (value: number) => value.toLocaleString("pt-BR");

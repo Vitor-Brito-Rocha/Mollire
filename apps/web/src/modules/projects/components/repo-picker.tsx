@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { Label } from "@/shared/ui/label";
 import { Spinner } from "@/shared/ui/spinner";
-import type { GithubRepo } from "../types";
+import type { GithubRepo } from "@/modules/github";
 
 type RepoPickerProps = {
   repos: GithubRepo[] | undefined;

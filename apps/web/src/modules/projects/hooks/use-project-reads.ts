@@ -21,12 +21,3 @@ export function useAnalytics(slug: string) {
   });
 }
 
-// Repositories the connected GitHub account can still turn into a project.
-export function useGithubRepos(enabled: boolean) {
-  return useQuery({
-    queryKey: projectKeys.githubRepos(),
-    queryFn: projectsApi.githubRepos,
-    enabled,
-    meta: { errorMessage: "Não foi possível carregar os repositórios" },
-  });
-}

@@ -12,6 +12,12 @@ export function resetSession() {
   queryClient.removeQueries({ queryKey: sessionKey });
 }
 
+// Something that feeds the session user changed on the server (GitHub connected
+// or removed…): mark it stale so mounted readers refetch it.
+export function invalidateSession() {
+  return queryClient.invalidateQueries({ queryKey: sessionKey });
+}
+
 // Profile edits return the fresh user; write it through instead of refetching.
 export function setSessionUser(user: CurrentUser) {
   queryClient.setQueryData(sessionKey, user);

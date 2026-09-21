@@ -39,16 +39,6 @@ export type Deployment = {
   finished_at: string | null;
 };
 
-export type GithubRepo = {
-  id: number;
-  full_name: string;
-  name: string;
-  private: boolean;
-  html_url: string;
-  clone_url: string;
-  default_branch: string;
-};
-
 export type ProjectRole = 'OWNER' | 'MEMBER';
 
 export type ProjectMember = {

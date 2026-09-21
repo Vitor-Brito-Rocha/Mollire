@@ -26,8 +26,3 @@ export const signOut = () => http.post<void>("/auth/logout");
 export const createSessionFromTokens = (tokens: { access_token: string; refresh_token: string; expires_in: number }) =>
   http.post<void>("/auth/session", tokens);
 
-// The GitHub App's install redirect lands on the same callback URL as GitHub
-// login, so the call lives here for now; the profile module (which lists the
-// connected accounts) is its natural home.
-export const installGithubApp = (installationId: number) =>
-  http.post<void>("/github/install", { installation_id: installationId });
