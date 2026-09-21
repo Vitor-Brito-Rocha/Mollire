@@ -31,3 +31,7 @@ export function resolveNext(next: string | null): Destination | null {
   }
   return null;
 }
+
+// Where to send someone who needs an account for what they just tried (star,
+// comment…): the login, with a way back to this very screen afterwards.
+export const loginPathFor = (returnTo: string) => `/login?next=${encodeURIComponent(returnTo)}`;

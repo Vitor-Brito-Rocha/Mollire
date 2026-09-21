@@ -1,167 +1,70 @@
-import { Link, useNavigate } from "react-router";
-import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
-import { SiteThumb } from "@/shared/components/site-thumb";
-import { StarButton } from "../components/star-button";
+import { useSearchParams } from "react-router";
+import { EmptyState } from "@/shared/components/empty-state";
+import { PageHeader } from "@/shared/components/page-header";
+import { SegmentedControl } from "@/shared/components/segmented-control";
+import { Button } from "@/shared/ui/button";
 import { Skeleton } from "@/shared/ui/skeleton";
-import { http, ApiError } from "@/shared/lib/http";
-import type { GalleryFilter, GalleryProject, StarState } from "../types";
-import { tierFor } from "../lib/tiers";
-import { useCurrentUser } from "@/modules/auth";
+import { GalleryCard } from "../components/gallery-card";
+import { useGalleryProjects } from "../hooks/use-gallery";
+import type { GalleryFilter } from "../types";
 
-const FILTERS: { label: string; value: GalleryFilter }[] = [
+const FILTERS = [
   { label: "Recentes", value: "recentes" },
   { label: "Em destaque", value: "destaque" },
   { label: "Todos", value: "todos" },
-];
+] as const satisfies readonly { label: string; value: GalleryFilter }[];
 
-export default function GaleriaPage() {
-  const navigate = useNavigate();
-  const { user } = useCurrentUser();
-  const [projects, setProjects] = useState<GalleryProject[] | null>(null);
-  const [filter, setFilter] = useState<GalleryFilter>("recentes");
-  const [pending, setPending] = useState<Record<string, boolean>>({});
+const DEFAULT_FILTER: GalleryFilter = "recentes";
 
-  const loadGallery = useCallback((f: GalleryFilter) => {
-    return http
-      .get<GalleryProject[]>(`/gallery?filter=${f}`)
-      .then(setProjects)
-      .catch(() => toast.error("Erro ao carregar a galeria"));
-  }, []);
+const parseFilter = (value: string | null): GalleryFilter =>
+  FILTERS.find((filter) => filter.value === value)?.value ?? DEFAULT_FILTER;
 
-  useEffect(() => {
-    loadGallery(filter);
-  }, [filter, loadGallery]);
+export default function GalleryPage() {
+  // The filter lives in the URL (/galeria?filtro=destaque): shareable, and the
+  // back button undoes it.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filter = parseFilter(searchParams.get("filtro"));
+  const { data: projects, isPending, isError, isPlaceholderData, refetch } = useGalleryProjects(filter);
 
-  async function toggleStar(project: GalleryProject) {
-    // Visitante anônimo pode ver a galeria, mas estrela é um gesto de quem tem conta.
-    if (!user) {
-      navigate("/login");
-      return;
-    }
-    if (pending[project.slug]) return;
-    setPending((prev) => ({ ...prev, [project.slug]: true }));
-    try {
-      const result = project.starred_by_viewer
-        ? await http.delete<StarState>(`/gallery/${project.slug}/star`)
-        : await http.post<StarState>(`/gallery/${project.slug}/star`);
-      setProjects((prev) =>
-        prev?.map((p) => (p.slug === project.slug ? { ...p, ...result } : p)) ?? prev,
-      );
-    } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : "Erro ao dar estrela");
-    } finally {
-      setPending((prev) => ({ ...prev, [project.slug]: false }));
-    }
+  function changeFilter(next: GalleryFilter) {
+    setSearchParams(next === DEFAULT_FILTER ? {} : { filtro: next });
   }
 
   return (
     <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-7">
-      <div className="flex flex-wrap items-end justify-between gap-6">
-        <div className="flex flex-col gap-2.5">
-          <span className="label text-primary flex items-center gap-2.5 tracking-[0.14em]">
-            <span className="bg-primary h-0.5 w-[18px]" />
-            Comunidade
+      <PageHeader
+        eyebrow="Comunidade"
+        title="Galeria"
+        description={
+          <span className="block max-w-[56ch]">
+            O que a comunidade publicou. Dê uma estrela no que você gostou — é um gesto de apreço, não uma nota.
           </span>
-          <h1 className="font-display text-[38px] leading-[1.1] font-bold">Galeria</h1>
-          <p className="text-muted-foreground max-w-[56ch] text-[15.5px]">
-            O que a comunidade publicou. Dê uma estrela no que você gostou — é um gesto de
-            apreço, não uma nota.
-          </p>
-        </div>
+        }
+        actions={<SegmentedControl label="Filtro" options={FILTERS} value={filter} onChange={changeFilter} />}
+      />
 
-        <div className="bg-card border-border inline-flex max-w-full flex-wrap gap-0.5 border p-[3px]" role="group" aria-label="Filtro">
-          {FILTERS.map((f) => {
-            const on = filter === f.value;
-            return (
-              <button
-                key={f.value}
-                type="button"
-                aria-pressed={on}
-                onClick={() => setFilter(f.value)}
-                className={
-                  "label min-h-[38px] px-3.5 transition-colors " +
-                  (on ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")
-                }
-              >
-                {f.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {projects === null ? (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      {isPending ? (
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-[268px] w-full" />
           ))}
         </div>
-      ) : projects.length === 0 ? (
-        <p className="text-muted-foreground text-sm">Nenhum projeto publicado ainda.</p>
+      ) : isError && !projects ? (
+        <EmptyState action={<Button variant="outline" onClick={() => refetch()}>Tentar de novo</Button>}>
+          Não foi possível carregar a galeria.
+        </EmptyState>
+      ) : projects && projects.length === 0 ? (
+        <EmptyState>Nenhum projeto publicado ainda.</EmptyState>
       ) : (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {projects.map((project) => {
-            const tier = tierFor(project.stars);
-
-            return (
-              <article
-                key={project.id}
-                className="corners bg-card border-border flex flex-col border"
-                style={{ "--corner": tier ? tier.color : "var(--line-2)" } as React.CSSProperties}
-              >
-                <Link
-                  to={`/galeria/${project.slug}`}
-                  aria-label={`Abrir ${project.name}`}
-                  className="border-border mx-1.5 mt-1.5 block h-[150px] overflow-hidden border"
-                >
-                  <SiteThumb slug={project.slug} thumbnailUrl={project.thumbnail_url} name={project.name} />
-                </Link>
-
-                <div className="flex flex-col gap-3 px-4 pt-3.5 pb-4">
-                  <div className="flex items-start justify-between gap-2.5">
-                    <div className="flex min-w-0 flex-col gap-0.5">
-                      <Link
-                        to={`/galeria/${project.slug}`}
-                        className="truncate text-base leading-tight font-semibold"
-                      >
-                        {project.name}
-                      </Link>
-                      <span className="text-muted-foreground text-[12.5px]">
-                        <Link
-                          to={`/u/${project.author}`}
-                          className="hover:text-foreground transition-colors"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {project.author}
-                        </Link>
-                        {" ·"}{" "}
-                        <span className="text-text-3 font-mono text-[11.5px]">
-                          {project.slug}.aulvi.com.br
-                        </span>
-                      </span>
-                    </div>
-                    {tier && (
-                      <span
-                        className="tag-cut bg-raised label shrink-0 py-[5px] pr-2 pl-[11px] text-[10px] font-bold"
-                        style={{ color: tier.color, boxShadow: `inset 3px 0 0 ${tier.color}` }}
-                      >
-                        {tier.label}
-                      </span>
-                    )}
-                  </div>
-
-                  <StarButton
-                    name={project.name}
-                    stars={project.stars}
-                    starred={project.starred_by_viewer}
-                    disabled={pending[project.slug]}
-                    onToggle={() => toggleStar(project)}
-                  />
-                </div>
-              </article>
-            );
-          })}
+        <div
+          className={
+            "grid gap-5 transition-opacity sm:grid-cols-2 lg:grid-cols-3 " + (isPlaceholderData ? "opacity-50" : "")
+          }
+          aria-busy={isPlaceholderData}
+        >
+          {projects?.map((project) => (
+            <GalleryCard key={project.id} project={project} />
+          ))}
         </div>
       )}
     </div>

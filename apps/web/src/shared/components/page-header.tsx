@@ -14,6 +14,19 @@ function ChevronLeft() {
   );
 }
 
+// The "‹ Seus projetos" link above a screen's title.
+export function BackLink({ to, children }: { to: string; children: React.ReactNode }) {
+  return (
+    <Link
+      to={to}
+      className="label text-muted-foreground hover:text-foreground flex w-fit items-center gap-2 transition-colors"
+    >
+      <ChevronLeft />
+      {children}
+    </Link>
+  );
+}
+
 type PageHeaderProps = {
   title: string;
   // Small accent label above the title ("Painel").
@@ -34,15 +47,7 @@ export function PageHeader({ title, eyebrow, back, description, meta, actions, c
   return (
     <div className={cn("flex flex-wrap items-end justify-between gap-6", className)}>
       <div className="flex min-w-0 flex-col gap-2.5">
-        {back && (
-          <Link
-            to={back.to}
-            className="label text-muted-foreground hover:text-foreground flex w-fit items-center gap-2 transition-colors"
-          >
-            <ChevronLeft />
-            {back.label}
-          </Link>
-        )}
+        {back && <BackLink to={back.to}>{back.label}</BackLink>}
         {eyebrow && (
           <span className="label text-primary flex items-center gap-2.5 tracking-[0.14em]">
             <span className="bg-primary h-0.5 w-[18px]" />
