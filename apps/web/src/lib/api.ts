@@ -94,6 +94,7 @@ export type Project = {
 };
 
 export type DeploymentStatus =
+  | 'QUEUED'
   | 'PENDING'
   | 'CLONING'
   | 'BUILDING'

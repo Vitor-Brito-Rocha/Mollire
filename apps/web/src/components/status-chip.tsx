@@ -29,6 +29,7 @@ export function StatusChip({
 }
 
 const DEPLOY: Record<DeploymentStatus, { label: string; tone: keyof typeof TONE }> = {
+  QUEUED:    { label: "Aguardando", tone: "busy" },
   PENDING: { label: "Na fila", tone: "busy" },
   CLONING: { label: "Clonando", tone: "busy" },
   BUILDING: { label: "Construindo", tone: "busy" },

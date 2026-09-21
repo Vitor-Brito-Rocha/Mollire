@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { api, API_URL, ApiError, type Deployment, type Project } from "@/lib/api";
 
-const IN_FLIGHT: Deployment["status"][] = ["PENDING", "CLONING", "BUILDING", "PUBLISHING"];
+const IN_FLIGHT: Deployment["status"][] = ["QUEUED", "PENDING", "CLONING", "BUILDING", "PUBLISHING"];
 
 const whenFmt = new Intl.DateTimeFormat("pt-BR", {
   day: "2-digit",
