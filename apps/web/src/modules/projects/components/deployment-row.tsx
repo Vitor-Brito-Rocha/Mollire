@@ -61,9 +61,9 @@ export const DeploymentRow = memo(function DeploymentRow({
         <span className="col-span-5 sm:col-span-3">
           <DeployStatus status={deployment.status} />
         </span>
-        <span className="text-muted-foreground col-span-7 flex flex-wrap items-center gap-x-2 text-[13px] whitespace-nowrap sm:col-span-4">
+        <span className="text-muted-foreground col-span-7 flex flex-wrap items-center gap-x-2 text-caption whitespace-nowrap sm:col-span-4">
           {formatDayMonthTime(deployment.created_at)}
-          {duration && <span className="text-text-3 font-mono text-[11px]">{duration}</span>}
+          {duration && <span className="text-text-3 font-mono text-mini">{duration}</span>}
         </span>
         <span className="text-text-3 hidden font-mono text-xs sm:col-span-3 sm:block">
           {sha ? sha.slice(0, 7) : "—"}
@@ -76,7 +76,7 @@ export const DeploymentRow = memo(function DeploymentRow({
         <span className="col-span-2 flex justify-end gap-3">
           {sha && canRedeploy && (
             <InlineAction
-              className="label hidden text-[10px] sm:inline-flex"
+              className="label hidden text-micro sm:inline-flex"
               pending={redeploying}
               onClick={(event) => {
                 // Inside <summary>: don't toggle the log open/closed.
@@ -88,7 +88,7 @@ export const DeploymentRow = memo(function DeploymentRow({
             </InlineAction>
           )}
           {hasLog && (
-            <span className="text-text-3 label group-open:text-foreground hidden text-[10px] sm:block">log</span>
+            <span className="text-text-3 label group-open:text-foreground hidden text-micro sm:block">log</span>
           )}
         </span>
       </summary>

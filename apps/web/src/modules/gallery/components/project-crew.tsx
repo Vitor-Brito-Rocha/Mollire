@@ -15,13 +15,13 @@ export function ProjectCrew({ members }: { members: GalleryProjectDetail["member
       <ul className="flex flex-col gap-2">
         {members.map((member) => (
           <li key={member.handle} className="flex items-center gap-2.5">
-            <span className="hex bg-raised font-display text-muted-foreground grid size-7 shrink-0 place-items-center text-[11px] font-bold uppercase">
+            <span className="hex bg-raised font-display text-muted-foreground grid size-7 shrink-0 place-items-center text-mini font-bold uppercase">
               {member.handle.charAt(0)}
             </span>
             <Link to={`/u/${member.handle}`} className="text-sm underline-offset-4 hover:underline">
               {member.handle}
             </Link>
-            <span className="label text-text-3 ml-auto text-[9.5px]">{member.role === "OWNER" ? "dono" : "membro"}</span>
+            <span className="label text-text-3 ml-auto text-micro">{member.role === "OWNER" ? "dono" : "membro"}</span>
           </li>
         ))}
       </ul>

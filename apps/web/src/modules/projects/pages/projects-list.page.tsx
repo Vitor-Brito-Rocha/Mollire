@@ -4,9 +4,9 @@ import { EmptyState } from "@/shared/components/empty-state";
 import { PageHeader } from "@/shared/components/page-header";
 import { Button } from "@/shared/ui/button";
 import { Skeleton } from "@/shared/ui/skeleton";
-import { FeaturedProject } from "../components/featured-project";
+import { ProjectBanner } from "../components/project-banner";
 import { LevelPanel } from "../components/level-panel";
-import { ProjectsTable } from "../components/projects-table";
+import { ProjectList } from "../components/project-list";
 import { useProjects } from "../hooks/use-projects";
 
 // O painel: o projeto mais recente como banner, a lista completa ao lado do
@@ -18,7 +18,7 @@ export default function ProjectsListPage() {
   const featured = projects?.[0];
 
   return (
-    <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-7">
+    <div className="mx-auto flex w-full max-w-(--page) flex-col gap-7">
       <PageHeader
         eyebrow="Painel"
         title="Seus projetos"
@@ -52,9 +52,9 @@ export default function ProjectsListPage() {
 
       {projects && projects.length > 0 && featured && (
         <>
-          <FeaturedProject project={featured} />
+          <ProjectBanner project={featured} />
           <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-            <ProjectsTable projects={projects} />
+            <ProjectList projects={projects} />
             {user && <LevelPanel user={user} projects={projects} />}
           </div>
         </>

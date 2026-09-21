@@ -7,9 +7,9 @@ import { projectHost } from "../lib/project-url";
 import type { Project } from "../types";
 import { StatusChip } from "./status-chip";
 
-// A lista completa: cada linha tem a capa do projeto, nome, endereço, se
+// A lista completa (ProjectList): cada linha tem a capa do projeto, nome, endereço, se
 // está na galeria e quando nasceu. Passar o mouse acende a linha inteira.
-export function ProjectsTable({ projects }: { projects: Project[] }) {
+export function ProjectList({ projects }: { projects: Project[] }) {
   return (
     <Panel title="Todos os projetos" count={projects.length}>
       <ul>
@@ -28,16 +28,16 @@ export function ProjectsTable({ projects }: { projects: Project[] }) {
               </span>
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className="flex items-center gap-2">
-                  <span className="group-hover:text-primary truncate text-[15px] font-semibold transition-colors">
+                  <span className="group-hover:text-primary truncate text-body-lg font-semibold transition-colors">
                     {project.name}
                   </span>
-                  {project.my_role === "MEMBER" && <span className="label text-text-3 shrink-0 text-[9.5px]">membro</span>}
+                  {project.my_role === "MEMBER" && <span className="label text-text-3 shrink-0 text-micro">membro</span>}
                 </span>
                 <span className="text-text-3 truncate font-mono text-xs">{projectHost(project.slug)}</span>
               </span>
               <span className="hidden items-center gap-4 sm:flex">
                 {project.is_public ? <StatusChip tone="good">Galeria</StatusChip> : <StatusChip tone="idle">Privado</StatusChip>}
-                <span className="text-muted-foreground w-[104px] text-right text-[13px] tabular-nums">
+                <span className="text-muted-foreground w-[104px] text-right text-caption tabular-nums">
                   {formatDayMonthYear(project.created_at)}
                 </span>
               </span>

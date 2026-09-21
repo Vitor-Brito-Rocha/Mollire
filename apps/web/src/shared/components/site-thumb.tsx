@@ -61,7 +61,7 @@ export function SiteThumb({
           background: `radial-gradient(ellipse 60% 55% at 85% 100%, color-mix(in srgb, ${tint} 22%, transparent), transparent 70%)`,
         }}
       />
-      {size === "card" && <span className="label relative text-[9px] opacity-70">sem captura</span>}
+      {size === "card" && <span className="label text-micro relative opacity-70">sem captura</span>}
       <span
         className={cn(
           "font-display relative self-end leading-none font-bold select-none",
@@ -71,7 +71,7 @@ export function SiteThumb({
       >
         {name.trim().charAt(0).toUpperCase() || "?"}
       </span>
-      {size === "card" && <span className="text-text-3 relative font-mono text-[10px]">{slug}</span>}
+      {size === "card" && <span className="text-text-3 text-micro relative font-mono">{slug}</span>}
     </div>
   );
 }

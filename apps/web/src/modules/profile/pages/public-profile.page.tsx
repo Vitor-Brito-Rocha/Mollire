@@ -7,13 +7,14 @@ import { ActivityHeatmap } from "../components/activity-heatmap";
 import { ProfileHeader } from "../components/profile-header";
 import { ProfileProjectCard } from "../components/profile-project-card";
 import { useUserProfile } from "../hooks/use-profile";
+import { Eyebrow } from "@/shared/components/eyebrow";
 
 export default function PublicProfilePage() {
   const handle = useRequiredParam("handle");
   const { data: profile, isPending, error, refetch } = useUserProfile(handle);
 
   return (
-    <div className="mx-auto flex w-full max-w-[1000px] flex-col gap-10">
+    <div className="mx-auto flex w-full max-w-(--page-narrow) flex-col gap-10">
       {isPending ? (
         <div className="flex flex-col gap-10" aria-busy="true">
           <Skeleton className="h-20 w-full max-w-xs" />
@@ -43,13 +44,12 @@ export default function PublicProfilePage() {
           <ActivityHeatmap data={profile.heatmap} />
 
           <div className="flex flex-col gap-5">
-            <h2 className="label flex items-center gap-2.5">
-              <span className="bg-primary h-0.5 w-[18px]" />
+            <Eyebrow as="h2" tone="section">
               Projetos públicos
               <span className="text-text-3 font-mono text-xs tracking-normal normal-case">
                 {profile.projects.length}
               </span>
-            </h2>
+            </Eyebrow>
 
             {profile.projects.length === 0 ? (
               <p className="text-muted-foreground text-sm">Nenhum projeto publicado ainda.</p>

@@ -16,7 +16,7 @@ export function InlineAction({ pending, destructive, className, children, disabl
       disabled={pending || disabled}
       aria-busy={pending}
       className={cn(
-        "text-text-3 inline-flex shrink-0 items-center gap-1 text-xs underline underline-offset-4 disabled:opacity-60",
+        "text-text-3 focus-ring inline-flex shrink-0 items-center gap-1 text-xs underline underline-offset-4 disabled:opacity-60",
         destructive ? "hover:text-destructive" : "hover:text-foreground",
         className,
       )}

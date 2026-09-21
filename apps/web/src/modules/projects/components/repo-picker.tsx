@@ -28,7 +28,7 @@ export const RepoPicker = memo(function RepoPicker({ repos, loading, selectedUrl
               type="button"
               onClick={() => onSelect(repo)}
               aria-pressed={selectedUrl === repo.clone_url}
-              className={`hover:bg-accent flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors ${
+              className={`hover:bg-accent focus-ring flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors ${
                 selectedUrl === repo.clone_url ? "bg-accent" : ""
               }`}
             >

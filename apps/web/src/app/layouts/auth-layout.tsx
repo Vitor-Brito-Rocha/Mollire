@@ -13,14 +13,14 @@ export default function AuthLayout() {
         <header className="flex h-16 items-center justify-between px-6 md:px-12">
           <Link
             to="/galeria"
-            className="font-display flex items-center gap-2.5 text-[15px] font-bold tracking-[0.12em] uppercase"
+            className="font-display flex items-center gap-2.5 text-body-lg font-bold tracking-label uppercase"
           >
             <Logo height={24} />
             Mollire
           </Link>
           <Link
             to="/galeria"
-            className="label text-muted-foreground hover:text-foreground flex items-center gap-1.5 text-[10.5px] transition-colors"
+            className="label text-muted-foreground hover:text-foreground flex items-center gap-1.5 text-micro transition-colors"
           >
             Ver a galeria
             <ArrowUpRight className="size-3.5" />

@@ -5,6 +5,7 @@ import { GridBeams } from "@/shared/components/grid-beams";
 import { SiteThumb } from "@/shared/components/site-thumb";
 import { formatNumber } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/utils";
+import { Eyebrow } from "@/shared/components/eyebrow";
 
 const STEPS = [
   { n: "01", title: "Conecte o repositório", text: "GitHub ou qualquer URL git público." },
@@ -28,13 +29,10 @@ export function AuthShowcase({ className }: { className?: string }) {
     >
       <GridBeams density={10} />
 
-      <span className="label text-primary flex items-center gap-2.5 tracking-[0.14em]">
-        <span className="bg-primary h-0.5 w-[18px]" />
-        Deploy de sites estáticos, com XP
-      </span>
+      <Eyebrow>Deploy de sites estáticos, com XP</Eyebrow>
 
       <div className="flex flex-col gap-10">
-        <h1 className="font-display text-[44px] leading-[0.98] font-bold tracking-[-0.01em] uppercase lg:text-[58px] xl:text-[68px]">
+        <h1 className="font-display text-display-lg font-bold tracking-display uppercase lg:text-display-xl xl:text-display-2xl">
           Publique.
           <br />
           <span className="text-gold">Receba estrelas.</span>
@@ -45,8 +43,8 @@ export function AuthShowcase({ className }: { className?: string }) {
           {STEPS.map((step) => (
             <li key={step.n} className="border-border flex flex-col gap-1.5 border-l-2 pl-4">
               <span className="text-primary font-mono text-xs">{step.n}</span>
-              <span className="text-[15px] font-semibold">{step.title}</span>
-              <span className="text-muted-foreground text-[13px] leading-snug">{step.text}</span>
+              <span className="text-body-lg font-semibold">{step.title}</span>
+              <span className="text-muted-foreground text-caption leading-snug">{step.text}</span>
             </li>
           ))}
         </ol>
@@ -54,10 +52,7 @@ export function AuthShowcase({ className }: { className?: string }) {
 
       {recent.length > 0 && (
         <div className="flex flex-col gap-3">
-          <span className="label text-text-3 flex items-center gap-2.5">
-            <span className="bg-line-2 h-0.5 w-[18px]" />
-            Publicados recentemente
-          </span>
+          <Eyebrow tone="muted">Publicados recentemente</Eyebrow>
           <ul className="grid grid-cols-3 gap-3">
             {recent.map((project) => (
               <li key={project.id}>
@@ -69,8 +64,8 @@ export function AuthShowcase({ className }: { className?: string }) {
                     <SiteThumb slug={project.slug} thumbnailUrl={project.thumbnail_url} name={project.name} size="thumb" />
                   </span>
                   <span className="flex items-center justify-between gap-2 px-3 py-2">
-                    <span className="truncate text-[13px] font-semibold">{project.name}</span>
-                    <span className="text-gold flex shrink-0 items-center gap-1 font-mono text-[11px]">
+                    <span className="truncate text-caption font-semibold">{project.name}</span>
+                    <span className="text-gold flex shrink-0 items-center gap-1 font-mono text-mini">
                       <Star className="size-3 fill-current" />
                       {formatNumber(project.stars)}
                     </span>

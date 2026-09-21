@@ -31,7 +31,7 @@ export default function ProjectDetailPage() {
 
   if (isPending) {
     return (
-      <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-4" aria-busy="true">
+      <div className="mx-auto flex w-full max-w-(--page) flex-col gap-4" aria-busy="true">
         <Skeleton className="h-10 w-1/2" />
         <Skeleton className="h-64 w-full" />
       </div>
@@ -40,7 +40,7 @@ export default function ProjectDetailPage() {
 
   if (isError || !project) {
     return (
-      <div className="mx-auto w-full max-w-[1120px]">
+      <div className="mx-auto w-full max-w-(--page)">
         <EmptyState
           action={<Button variant="outline" nativeButton={false} render={<Link to="/">Voltar aos projetos</Link>} />}
         >
@@ -55,7 +55,7 @@ export default function ProjectDetailPage() {
   const redeployingSha = deploy.isPending ? (deploy.variables ?? null) : null;
 
   return (
-    <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-(--page) flex-col gap-6">
       <ProjectHeader
         project={project}
         inFlight={inFlight}

@@ -11,14 +11,14 @@ export function AnalyticsBarChart({ data }: { data: { date: string; views: numbe
         return (
           <div key={d.date} className="relative flex flex-1 flex-col items-center gap-1">
             {d.views > 0 && (
-              <span className="text-text-3 absolute -top-5 w-full text-center font-mono text-[9px]">{d.views}</span>
+              <span className="text-text-3 absolute -top-5 w-full text-center font-mono text-micro">{d.views}</span>
             )}
             <div
               className="bg-primary/70 hover:bg-primary w-full transition-colors"
               style={{ height: `${Math.max((d.views / max) * 80, d.views > 0 ? 3 : 1)}px` }}
             />
             {showLabel && (
-              <span className="text-text-3 absolute -bottom-5 font-mono text-[9px] whitespace-nowrap">
+              <span className="text-text-3 absolute -bottom-5 font-mono text-micro whitespace-nowrap">
                 {formatDayMonthNumeric(d.date)}
               </span>
             )}

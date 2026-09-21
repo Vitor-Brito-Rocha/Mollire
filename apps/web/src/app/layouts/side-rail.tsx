@@ -4,11 +4,12 @@ import { useCurrentUser, useSignOut } from "@/modules/auth";
 import { NotificationsToggle } from "@/modules/notifications";
 import { LevelBar } from "@/shared/components/level-bar";
 import { Logo } from "@/shared/components/logo";
-import { levelTitle, padLevel } from "@/shared/lib/level";
+import { levelTitle } from "@/shared/lib/level";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { Spinner } from "@/shared/ui/spinner";
+import { LevelInsignia } from "@/shared/components/level-insignia";
 
 type Item = {
   to: string;
@@ -40,7 +41,7 @@ function RailLink({ item, pathname }: { item: Item; pathname: string }) {
       to={item.to}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "label relative flex h-10 items-center gap-3 px-3 text-[11px] tracking-[0.1em] transition-colors",
+        "label focus-ring relative flex h-10 items-center gap-3 px-3 text-mini transition-colors",
         active ? "text-primary bg-primary/8" : "text-muted-foreground hover:text-foreground hover:bg-raised/70",
       )}
     >
@@ -69,7 +70,7 @@ function PlayerCard() {
   if (!user) {
     return (
       <div className="surface mx-3 mt-4 flex flex-col gap-3 p-4">
-        <p className="text-muted-foreground text-[13px] leading-snug">
+        <p className="text-muted-foreground text-caption leading-snug">
           Entre para publicar seus projetos e dar estrelas no que gostou.
         </p>
         <Button size="lg" nativeButton={false} render={<Link to="/login">Entrar</Link>} />
@@ -80,16 +81,12 @@ function PlayerCard() {
   return (
     <div className="surface mx-3 mt-4 flex flex-col gap-3 p-3">
       <Link to="/perfil" className="group flex items-center gap-3" aria-label="Seu perfil">
-        <span className="relative grid size-12 shrink-0 place-items-center" aria-hidden="true">
-          <span className="hex bg-primary glow absolute inset-0" />
-          <span className="hex bg-card absolute inset-[2px]" />
-          <span className="font-display text-primary relative text-[15px] font-bold">{padLevel(user.level)}</span>
-        </span>
+        <LevelInsignia level={user.level} size="md" />
         <span className="flex min-w-0 flex-col gap-0.5">
-          <span className="group-hover:text-primary truncate text-[15px] font-semibold transition-colors">
+          <span className="group-hover:text-primary truncate text-body-lg font-semibold transition-colors">
             {user.handle ?? "Sem apelido"}
           </span>
-          <span className="label text-text-3 text-[9.5px]">{levelTitle(user.level)}</span>
+          <span className="label text-text-3 text-micro">{levelTitle(user.level)}</span>
         </span>
       </Link>
       <LevelBar level={user.level} xp={user.xp} next={user.next} className="w-full" />
@@ -109,7 +106,7 @@ function NewProjectCta() {
       to="/projects/new"
       aria-current={active ? "page" : undefined}
       className={cn(
-        "chamfer bg-primary text-primary-foreground font-display glow mx-3 mt-3 flex h-11 items-center justify-center gap-2 text-[12px] font-bold tracking-[0.12em] uppercase transition-colors",
+        "chamfer bg-primary text-primary-foreground font-display glow mx-3 mt-3 flex h-11 items-center justify-center gap-2 text-xs font-bold tracking-label uppercase transition-colors",
         active ? "bg-primary/85" : "hover:bg-primary/85",
       )}
     >
@@ -142,7 +139,7 @@ function RailFooter({ pathname }: { pathname: string }) {
         type="button"
         onClick={handleLogout}
         disabled={signOut.isPending}
-        className="label text-muted-foreground hover:text-foreground hover:bg-raised/70 flex h-10 items-center gap-3 px-3 text-[11px] tracking-[0.1em] transition-colors disabled:opacity-50"
+        className="label focus-ring text-muted-foreground hover:text-foreground hover:bg-raised/70 flex h-10 items-center gap-3 px-3 text-mini transition-colors disabled:opacity-50"
       >
         {signOut.isPending ? <Spinner /> : <LogOut className="size-4" />}
         Sair
@@ -162,7 +159,7 @@ export function SideRail() {
     <aside className="bg-card/70 border-border sticky top-0 hidden h-screen w-[232px] shrink-0 flex-col border-r backdrop-blur-md md:flex">
       <Link
         to={user ? "/" : "/galeria"}
-        className="font-display border-border flex h-16 shrink-0 items-center gap-2.5 border-b px-5 text-[15px] font-bold tracking-[0.12em] uppercase"
+        className="font-display border-border flex h-16 shrink-0 items-center gap-2.5 border-b px-5 text-body-lg font-bold tracking-label uppercase"
       >
         <Logo height={24} />
         Mollire
@@ -200,7 +197,7 @@ export function MobileBar() {
               to={item.to}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "label px-2.5 py-2 text-[10.5px] tracking-[0.1em] transition-colors",
+                "label px-2.5 py-2 text-micro transition-colors",
                 active ? "text-primary" : "text-muted-foreground",
               )}
             >
@@ -218,12 +215,8 @@ export function MobileBar() {
           </Link>
         )}
         {user ? (
-          <Link
-            to="/perfil"
-            aria-label="Seu perfil"
-            className="hex bg-primary text-primary-foreground font-display ml-1 grid size-8 place-items-center text-[11px] font-bold"
-          >
-            {padLevel(user.level)}
+          <Link to="/perfil" aria-label="Seu perfil" className="ml-1">
+            <LevelInsignia level={user.level} size="sm" solid />
           </Link>
         ) : (
           <Button size="sm" className="ml-1" nativeButton={false} render={<Link to="/login">Entrar</Link>} />

@@ -1,8 +1,9 @@
 import type { CurrentUser } from "@/modules/auth";
 import { useCountUp } from "@/shared/hooks/use-count-up";
 import { formatNumber } from "@/shared/lib/format";
-import { levelTitle, padLevel } from "@/shared/lib/level";
+import { levelTitle } from "@/shared/lib/level";
 import type { Project } from "../types";
+import { LevelInsignia } from "@/shared/components/level-insignia";
 
 // O painel de nível: insígnia hexagonal, título da faixa, a barra grande de
 // XP e três números que só vêm do que a API já devolve.
@@ -16,15 +17,11 @@ export function LevelPanel({ user, projects }: { user: CurrentUser; projects: Pr
   return (
     <section className="surface relative flex flex-col gap-6 p-5 md:p-6" aria-label="Seu nível">
       <div className="flex items-center gap-4">
-        <span className="hex bg-primary glow-lg grid size-20 shrink-0 place-items-center">
-          <span className="hex bg-card font-display text-primary grid size-[72px] place-items-center text-[26px] font-bold">
-            {padLevel(user.level)}
-          </span>
-        </span>
+        <LevelInsignia level={user.level} size="lg" />
         <div className="flex min-w-0 flex-col gap-1">
           <span className="label text-text-3">Seu nível</span>
-          <span className="font-display text-[22px] leading-tight font-bold">{levelTitle(user.level)}</span>
-          <span className="text-muted-foreground text-[13px]">
+          <span className="font-display text-heading leading-tight font-bold">{levelTitle(user.level)}</span>
+          <span className="text-muted-foreground text-caption">
             Faltam <b className="text-foreground">{formatNumber(remaining)} XP</b> para o nível {user.level + 1}
           </span>
         </div>
@@ -39,11 +36,11 @@ export function LevelPanel({ user, projects }: { user: CurrentUser; projects: Pr
           aria-valuemax={user.next}
           aria-valuenow={user.xp}
         >
-          <div className="xp-fill h-full transition-[width] duration-700 ease-out" style={{ width: `${pct}%` }} />
+          <div className="xp-fill h-full transition-[width] duration-(--dur-slow) ease-out" style={{ width: `${pct}%` }} />
         </div>
         <div className="flex items-baseline justify-between font-mono tabular-nums">
           <span className="text-foreground text-sm font-medium">{formatNumber(shownXp)} XP</span>
-          <span className="text-text-3 text-[11px]">{formatNumber(user.next)}</span>
+          <span className="text-text-3 text-mini">{formatNumber(user.next)}</span>
         </div>
       </div>
 
@@ -54,8 +51,8 @@ export function LevelPanel({ user, projects }: { user: CurrentUser; projects: Pr
           ["Como membro", memberOf],
         ].map(([name, value]) => (
           <div key={name} className="flex flex-col gap-1">
-            <dt className="label text-text-3 text-[9.5px]">{name}</dt>
-            <dd className="font-display text-[26px] leading-none font-bold tabular-nums">{value}</dd>
+            <dt className="label text-text-3 text-micro">{name}</dt>
+            <dd className="font-display text-title leading-none font-bold tabular-nums">{value}</dd>
           </div>
         ))}
       </dl>

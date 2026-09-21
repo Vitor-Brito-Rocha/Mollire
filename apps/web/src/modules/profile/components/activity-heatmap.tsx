@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { contributionsLabel, buildHeatmapGrid, heatmapColor } from "../lib/heatmap";
 import type { UserProfile } from "../types";
+import { Eyebrow } from "@/shared/components/eyebrow";
 
 export function ActivityHeatmap({ data }: { data: UserProfile["heatmap"] }) {
   // ~370 cells of date math: only redo it when the data changes.
@@ -9,13 +10,12 @@ export function ActivityHeatmap({ data }: { data: UserProfile["heatmap"] }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <h2 className="label flex items-center gap-2.5">
-        <span className="bg-primary h-0.5 w-[18px]" />
+      <Eyebrow as="h2" tone="section">
         Atividade
         <span className="text-text-3 font-mono text-xs tracking-normal normal-case">
           {contributionsLabel(total)} no último ano
         </span>
-      </h2>
+      </Eyebrow>
       <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
         <div className="flex gap-[3px]" style={{ width: "max-content" }}>
           {weeks.map((week, weekIndex) => (

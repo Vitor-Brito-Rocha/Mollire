@@ -6,6 +6,7 @@ import { SubmitButton } from "@/shared/components/submit-button";
 import { formatDayMonth } from "@/shared/lib/format";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { useInviteMember, useMembers, useRemoveMember, useRevokeInvitation } from "../hooks/use-members";
+import { ConfirmDialog } from "@/shared/components/confirm-dialog";
 
 // Quem trabalha no projeto. Membros veem a lista; só o dono convida, remove e
 // enxerga os convites pendentes (que carregam e-mail).
@@ -15,6 +16,8 @@ export function ProjectMembers({ slug }: { slug: string }) {
   const removeMember = useRemoveMember(slug);
   const revokeInvitation = useRevokeInvitation(slug);
   const [email, setEmail] = useState("");
+  // Membro aguardando confirmação para ser removido.
+  const [removing, setRemoving] = useState<{ userId: string; handle: string } | null>(null);
 
   function handleInvite(event: FormEvent) {
     event.preventDefault();
@@ -37,15 +40,15 @@ export function ProjectMembers({ slug }: { slug: string }) {
       <ul className="flex flex-col">
         {data.members.map((member) => (
           <li key={member.user_id} className="border-border flex items-center gap-3 border-b px-4 py-2.5">
-            <span className="hex bg-raised font-display text-muted-foreground grid size-7 shrink-0 place-items-center text-[11px] font-bold uppercase">
+            <span className="hex bg-raised font-display text-muted-foreground grid size-7 shrink-0 place-items-center text-mini font-bold uppercase">
               {member.handle.charAt(0)}
             </span>
             <span className="min-w-0 flex-1 truncate text-sm">{member.handle}</span>
-            <span className="label text-text-3 text-[9.5px]">{member.role === "OWNER" ? "dono" : "membro"}</span>
+            <span className="label text-text-3 text-micro">{member.role === "OWNER" ? "dono" : "membro"}</span>
             {isOwner && member.role !== "OWNER" && (
               <InlineAction
                 destructive
-                onClick={() => removeMember.mutate({ userId: member.user_id, handle: member.handle })}
+                onClick={() => setRemoving({ userId: member.user_id, handle: member.handle })}
                 pending={removeMember.isPending && removeMember.variables?.userId === member.user_id}
                 disabled={removeMember.isPending}
               >
@@ -57,11 +60,11 @@ export function ProjectMembers({ slug }: { slug: string }) {
         {isOwner &&
           data.invitations.map((invitation) => (
             <li key={invitation.id} className="border-border flex items-center gap-3 border-b px-4 py-2.5">
-              <span className="hex bg-raised text-text-3 grid size-7 shrink-0 place-items-center text-[11px]">?</span>
+              <span className="hex bg-raised text-text-3 grid size-7 shrink-0 place-items-center text-mini">?</span>
               <span className="text-muted-foreground min-w-0 flex-1 truncate font-mono text-xs">
                 {invitation.email}
               </span>
-              <span className="label text-primary text-[9.5px]">pendente</span>
+              <span className="label text-primary text-micro">pendente</span>
               <InlineAction
                 destructive
                 onClick={() => revokeInvitation.mutate(invitation.id)}
@@ -98,6 +101,15 @@ export function ProjectMembers({ slug }: { slug: string }) {
           </p>
         </form>
       )}
+      <ConfirmDialog
+        open={removing !== null}
+        title={removing ? `Remover ${removing.handle} do projeto?` : ""}
+        description="A pessoa perde o acesso na hora. Dá para convidar de novo depois."
+        confirmLabel="Remover"
+        pending={removeMember.isPending}
+        onCancel={() => setRemoving(null)}
+        onConfirm={() => removing && removeMember.mutate(removing, { onSettled: () => setRemoving(null) })}
+      />
     </Panel>
   );
 }
