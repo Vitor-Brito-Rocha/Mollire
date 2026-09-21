@@ -44,7 +44,7 @@ export default function ProjectsListPage() {
       {projects?.length === 0 && (
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
           <EmptyState action={<Button nativeButton={false} render={<Link to="/projects/new">Criar o primeiro</Link>} />}>
-            Nenhum projeto ainda. O primeiro deploy rende XP em dobro.
+            Nenhum projeto ainda. O primeiro deploy rende um bônus de 50 XP.
           </EmptyState>
           {user && <LevelPanel user={user} projects={projects} />}
         </div>
