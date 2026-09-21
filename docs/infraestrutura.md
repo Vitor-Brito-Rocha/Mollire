@@ -1,6 +1,6 @@
 # Infraestrutura Mollire
 
-Mini-Vercel self-hosted para builds estáticos de frontend. Monorepo com `apps/api` (NestJS) e `apps/web` (Next.js), servidos por Nginx com wildcard de subdomínio.
+Mini-Vercel self-hosted para builds estáticos de frontend. Monorepo com `apps/api` (NestJS) e `apps/web` (Vite + React SPA), servidos por Nginx com wildcard de subdomínio.
 
 ---
 
@@ -248,7 +248,9 @@ Os autores e membros na galeria linkam para `/u/[handle]`.
 
 ## Web (`apps/web`)
 
-- **Next.js App Router** (React 19), Tailwind v4, shadcn/ui
+- **Vite + React 19 SPA**, React Router (data router, rotas `lazy`), TanStack Query, Tailwind v4, shadcn/ui
+- Estrutura por módulo (`src/modules/<domínio>`: `api/`, `hooks/`, `components/`, `pages/`, `types.ts`, `index.ts`); `src/shared` para o que é de todos e `src/app` para router, layouts e guards
+- Deploy na Vercel (`apps/web/vercel.json` faz o fallback de SPA para `index.html`); variáveis `VITE_*` são gravadas no build
 - Auth via API própria (`/auth/*`), não pelo Supabase client
 - Cookies httpOnly gerenciados pela API — frontend nunca vê o token
 - Auto-refresh: intercepta 401, chama `POST /auth/refresh`, faz retry
@@ -256,11 +258,11 @@ Os autores e membros na galeria linkam para `/u/[handle]`.
 ### Rotas principais
 
 ```
-(auth)/login          (auth)/signup          auth/confirm
-(dashboard)/          (dashboard)/projects/[slug]
-galeria/              galeria/[slug]
-u/[handle]            (perfil público — projetos e heatmap de atividade)
-admin/                admin/projects/[slug]  admin/admins
+/login  /signup  /forgot-password  /reset-password  /auth/confirm  /auth/github/callback
+/                     /projects/new  /projects/:slug  /projects/:slug/analytics  /perfil
+/galeria              /galeria/:slug
+/u/:handle            (perfil público — projetos e heatmap de atividade)
+/admin                /admin/projects/:slug  /admin/admins
 ```
 
 ### Tipografia

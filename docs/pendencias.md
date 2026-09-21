@@ -46,20 +46,20 @@ cookie `SameSite=None` não protege contra CSRF por si só.
    - `COOKIE_DOMAIN=.SEUDOMINIO`
    - `FRONTEND_URL=https://app.SEUDOMINIO`
    - `NODE_ENV=production` (liga `Secure` no cookie)
-3. **Web (Vercel):** `NEXT_PUBLIC_API_URL=https://api.SEUDOMINIO` e **redeploy**
-   (variável `NEXT_PUBLIC_*` é gravada no build).
+3. **Web (Vercel):** `VITE_API_URL=https://api.SEUDOMINIO` (e `VITE_VAPID_PUBLIC_KEY`,
+   `VITE_GITHUB_APP_SLUG`) e **redeploy** (variável `VITE_*` é gravada no build).
+   Ao migrar do Next: renomear as `NEXT_PUBLIC_*` existentes no painel da Vercel, e
+   conferir Framework Preset = Vite, Build `npm run build`, Output `dist`.
 4. **Supabase:** Authentication → URL Configuration → Site URL e Redirect URLs com
    `https://app.SEUDOMINIO` (os e-mails de confirmação e de redefinir senha usam a
    Site URL para abrir `/auth/confirm`).
-5. **Limpeza:** remover o `ngrok-skip-browser-warning` de `apps/web/src/lib/api.ts` e,
+5. **Limpeza:** remover o `ngrok-skip-browser-warning` de `apps/web/src/shared/lib/http/client.ts` e,
    se quiser, o ramo `crossSite` de `session-cookie.ts`.
 6. **Testar** login, refresh (deixar a aba aberta > 1h), logout e o fluxo de
    redefinir senha, **no Safari/iOS também**.
 
 ## 2. Limpeza pendente
 
-- `apps/web` ainda lista `@supabase/ssr` e `@supabase/supabase-js` no `package.json`,
-  mas nada mais importa: o login passou para a API. Rodar `npm uninstall` nos dois.
 - `apps/api/revert-gallery.js` e `apps/api/verify-gallery.js` estão soltos (sem
   versionar) desde antes: commitar ou apagar.
 - `/auth/login` só conta com o rate limit do próprio Supabase; se a API ficar pública,

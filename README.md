@@ -36,7 +36,7 @@ Cada deploy cria um diretório versionado em `releases/<timestamp>/`. O symlink 
 ```
 apps/
 ├── api/    NestJS — pipeline de deploy, auth, admin, push notifications
-└── web/    Next.js — painel do tenant e área admin
+└── web/    Vite + React — painel do tenant e área admin (SPA)
 nginx/      Bloco wildcard que roteia projetos pelo header Host
 deploy/     Config de VPS (unit systemd, etc.)
 ```
@@ -52,7 +52,7 @@ Cada app gerencia seu próprio `package.json` / `node_modules` e faz deploy de f
 | Auth | Supabase Auth (JWT assimétrico, verificado via JWKS) |
 | Build engine | `simple-git` (clone) + Docker (execução isolada) |
 | Serving | Nginx com wildcard de subdomínio |
-| Dashboard | Next.js (App Router) + Tailwind v4 + shadcn/ui |
+| Dashboard | Vite + React 19 + React Router + TanStack Query + Tailwind v4 + shadcn/ui |
 | Push | Web Push / VAPID |
 
 ## Setup rápido
@@ -69,7 +69,7 @@ npm run start:dev
 # Web (outro terminal)
 cd apps/web
 npm install
-cp .env.local.example .env.local   # preencha NEXT_PUBLIC_SUPABASE_*, NEXT_PUBLIC_API_URL
+cp .env.local.example .env.local   # preencha VITE_API_URL, VITE_VAPID_PUBLIC_KEY, VITE_GITHUB_APP_SLUG
 npm run dev
 ```
 
