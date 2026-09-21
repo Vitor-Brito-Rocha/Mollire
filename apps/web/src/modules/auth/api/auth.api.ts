@@ -1,40 +1,33 @@
-import { http, ApiError } from "@/shared/lib/http";
-import { clearSession, resetSession } from "../lib/session";
+import { http } from "@/shared/lib/http";
+import type { CurrentUser } from "../types";
 
 // Auth goes through the API, which sets the session as httpOnly cookies on its
 // own origin — the browser never sees a token, so there's nothing here to store.
-type Result = { error?: string };
+// Plain endpoint calls: they throw ApiError on failure. Toasts and the cached
+// session are the hooks' business (see ../hooks/use-auth-mutations.ts).
 
-// `onSuccess` keeps the cached session honest: credentials changed, so what we
-// knew about "who is logged in" is stale.
-async function run(call: () => Promise<unknown>, onSuccess: () => void = resetSession): Promise<Result> {
-  try {
-    await call();
-    onSuccess();
-    return {};
-  } catch (error) {
-    return { error: error instanceof ApiError ? error.message : "Não foi possível falar com o servidor." };
-  }
-}
+export const fetchCurrentUser = () => http.get<CurrentUser | null>("/users/me");
 
-export const signIn = (email: string, password: string) =>
-  run(() => http.post("/auth/login", { email, password }));
+export const signIn = (email: string, password: string) => http.post<void>("/auth/login", { email, password });
 
-export const signUp = (email: string, password: string) =>
-  run(() => http.post("/auth/signup", { email, password }));
+export const signUp = (email: string, password: string) => http.post<void>("/auth/signup", { email, password });
 
-export const requestPasswordReset = (email: string) => run(() => http.post("/auth/forgot", { email }), () => {});
+export const requestPasswordReset = (email: string) => http.post<void>("/auth/forgot", { email });
 
 export const confirmEmailLink = (token_hash: string, type: string) =>
-  run(() => http.post("/auth/confirm", { token_hash, type }));
+  http.post<void>("/auth/confirm", { token_hash, type });
 
-export const updatePassword = (password: string) => run(() => http.put("/auth/password", { password }));
+export const updatePassword = (password: string) => http.put<void>("/auth/password", { password });
 
-export const signOut = () => run(() => http.post("/auth/logout"), clearSession);
+export const signOut = () => http.post<void>("/auth/logout");
 
-export function hasSession(): Promise<boolean> {
-  return http.get("/users/me").then(
-    () => true,
-    () => false,
-  );
-}
+// OAuth (GitHub) login: Supabase hands the tokens back in the URL hash and the
+// API turns them into the session cookies.
+export const createSessionFromTokens = (tokens: { access_token: string; refresh_token: string; expires_in: number }) =>
+  http.post<void>("/auth/session", tokens);
+
+// The GitHub App's install redirect lands on the same callback URL as GitHub
+// login, so the call lives here for now; the profile module (which lists the
+// connected accounts) is its natural home.
+export const installGithubApp = (installationId: number) =>
+  http.post<void>("/github/install", { installation_id: installationId });

@@ -1,7 +1,5 @@
-import { useState } from "react";
 import { Link, Outlet, useNavigate } from "react-router";
-import { toast } from "sonner";
-import { signOut, useCurrentUser } from "@/modules/auth";
+import { useCurrentUser, useSignOut } from "@/modules/auth";
 import { NotificationsToggle } from "@/modules/notifications";
 import { HudHeader } from "@/shared/components/hud-header";
 import { LevelBar } from "@/shared/components/level-bar";
@@ -13,22 +11,11 @@ import { Spinner } from "@/shared/ui/spinner";
 function SessionActions() {
   const navigate = useNavigate();
   const { user, loading } = useCurrentUser();
-  const [signingOut, setSigningOut] = useState(false);
+  const signOut = useSignOut();
 
-  async function handleLogout() {
-    setSigningOut(true);
-    const { error } = await signOut();
-    if (error) {
-      setSigningOut(false);
-      toast.error(error);
-      return;
-    }
-    // The session cache flips to "signed out" inside signOut; guards on
-    // protected screens redirect on their own, this covers public ones.
-    setSigningOut(false);
-    toast.success("Você saiu da sua conta");
-    navigate("/login");
-  }
+  // The session cache flips to "signed out" inside the mutation; guards on
+  // protected screens redirect on their own, this covers the public ones.
+  const handleLogout = () => signOut.mutate(undefined, { onSuccess: () => navigate("/login") });
 
   if (loading) {
     return <Skeleton className="h-[34px] w-32" aria-label="Carregando sessão" />;
@@ -54,8 +41,8 @@ function SessionActions() {
       >
         {(user.handle ?? user.email).charAt(0) || "?"}
       </Link>
-      <Button variant="ghost" size="sm" onClick={handleLogout} disabled={signingOut}>
-        {signingOut && <Spinner />}
+      <Button variant="ghost" size="sm" onClick={handleLogout} disabled={signOut.isPending}>
+        {signOut.isPending && <Spinner />}
         Sair
       </Button>
     </>

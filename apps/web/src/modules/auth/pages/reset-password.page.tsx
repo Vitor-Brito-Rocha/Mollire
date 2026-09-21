@@ -1,100 +1,70 @@
+import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
-import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { Button } from "@/shared/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/card";
-import { Input } from "@/shared/ui/input";
-import { Label } from "@/shared/ui/label";
-import { hasSession as checkSession, updatePassword } from "../api/auth.api";
+import { FormField } from "@/shared/components/form-field";
+import { SubmitButton } from "@/shared/components/submit-button";
+import { PageSpinner } from "@/shared/ui/spinner";
+import { AuthCard } from "../components/auth-card";
+import { useUpdatePassword } from "../hooks/use-auth-mutations";
+import { useCurrentUser } from "../hooks/use-current-user";
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [hasSession, setHasSession] = useState<boolean | null>(null);
+  const updatePassword = useUpdatePassword();
+  // /auth/confirm already exchanged the recovery link for a session cookie
+  // before redirecting here — if there's no session, the link was invalid
+  // or already used.
+  const { user, loading } = useCurrentUser();
 
-  useEffect(() => {
-    // /auth/confirm already exchanged the recovery link for a session cookie
-    // before redirecting here — if there's no session, the link was invalid
-    // or already used.
-    checkSession().then(setHasSession);
-  }, []);
-
-  async function handleSubmit(event: FormEvent) {
+  function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (password !== confirmPassword) {
       toast.error("As senhas não coincidem.");
       return;
     }
-    setLoading(true);
-    const { error } = await updatePassword(password);
-    setLoading(false);
-
-    if (error) {
-      toast.error(error);
-      return;
-    }
-    toast.success("Senha atualizada.");
-    navigate("/");
+    updatePassword.mutate(password, { onSuccess: () => navigate("/", { replace: true }) });
   }
 
-  if (hasSession === false) {
+  if (loading) return <PageSpinner />;
+
+  if (!user) {
     return (
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Link inválido ou expirado</CardTitle>
-          <CardDescription>
-            Solicite um novo link em &ldquo;Esqueceu a senha?&rdquo; na tela de login.
-          </CardDescription>
-        </CardHeader>
-      </Card>
+      <AuthCard
+        title="Link inválido ou expirado"
+        description="Solicite um novo link em “Esqueceu a senha?” na tela de login."
+      />
     );
   }
 
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader>
-        <CardTitle>Redefinir senha</CardTitle>
-        <CardDescription>Escolha uma nova senha para sua conta.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="password">Nova senha</Label>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="new-password"
-              minLength={6}
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="confirmPassword">Confirme a nova senha</Label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              autoComplete="new-password"
-              minLength={6}
-              value={confirmPassword}
-              onChange={(event) => setConfirmPassword(event.target.value)}
-              required
-            />
-          </div>
-          <Button type="submit" disabled={loading || hasSession === null}>
-            {loading ? "Salvando..." : "Salvar nova senha"}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+    <AuthCard title="Redefinir senha" description="Escolha uma nova senha para sua conta.">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <FormField
+          id="password"
+          label="Nova senha"
+          type="password"
+          autoComplete="new-password"
+          minLength={6}
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          required
+        />
+        <FormField
+          id="confirmPassword"
+          label="Confirme a nova senha"
+          type="password"
+          autoComplete="new-password"
+          minLength={6}
+          value={confirmPassword}
+          onChange={(event) => setConfirmPassword(event.target.value)}
+          required
+        />
+        <SubmitButton size="lg" pending={updatePassword.isPending} pendingLabel="Salvando…">
+          Salvar nova senha
+        </SubmitButton>
+      </form>
+    </AuthCard>
   );
 }

@@ -23,6 +23,7 @@ npm run dev                         # http://localhost:3000 (fixed: API CORS + d
 
 Scripts: `dev`, `build` (typecheck + bundle to `dist/`), `preview`, `lint`, `typecheck`.
 Only `VITE_*` values are read, all safe to expose (they are baked into the bundle at build time).
+`VITE_PROJECTS_DOMAIN` (the API's `DOMAIN`) decides which `?next=` targets the login may redirect to.
 
 ## Layout
 

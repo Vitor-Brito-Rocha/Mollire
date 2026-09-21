@@ -1,92 +1,61 @@
-import { Link } from "react-router";
 import { useState, type FormEvent } from "react";
-import { toast } from "sonner";
-import { Button } from "@/shared/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/card";
-import { Input } from "@/shared/ui/input";
-import { Label } from "@/shared/ui/label";
-import { signUp } from "../api/auth.api";
+import { Link } from "react-router";
+import { FormField } from "@/shared/components/form-field";
+import { SubmitButton } from "@/shared/components/submit-button";
+import { AuthCard } from "../components/auth-card";
+import { useSignUp } from "../hooks/use-auth-mutations";
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const signUp = useSignUp();
 
-  async function handleSubmit(event: FormEvent) {
+  function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    setLoading(true);
-    const { error } = await signUp(email, password);
-    setLoading(false);
-
-    if (error) {
-      toast.error(error);
-      return;
-    }
-    setSubmitted(true);
+    signUp.mutate({ email, password });
   }
 
-  if (submitted) {
+  if (signUp.isSuccess) {
     return (
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Confira seu email</CardTitle>
-          <CardDescription>
-            Enviamos um link de confirmação para {email}. Confirme pra poder entrar.
-          </CardDescription>
-        </CardHeader>
-      </Card>
+      <AuthCard
+        title="Confira seu email"
+        description={`Enviamos um link de confirmação para ${email}. Confirme pra poder entrar.`}
+      />
     );
   }
 
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader>
-        <CardTitle>Criar conta</CardTitle>
-        <CardDescription>Comece a publicar seus projetos.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="email">E-mail</Label>
-            <Input
-              id="email"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              required
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="password">Senha</Label>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="new-password"
-              minLength={6}
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-            />
-          </div>
-          <Button type="submit" disabled={loading}>
-            {loading ? "Criando..." : "Criar conta"}
-          </Button>
-          <p className="text-muted-foreground text-center text-sm">
-            Já tem conta?{" "}
-            <Link to="/login" className="text-primary underline underline-offset-4">
-              Entrar
-            </Link>
-          </p>
-        </form>
-      </CardContent>
-    </Card>
+    <AuthCard title="Criar conta" description="Comece a publicar seus projetos.">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <FormField
+          id="email"
+          label="E-mail"
+          type="email"
+          autoComplete="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          required
+        />
+        <FormField
+          id="password"
+          label="Senha"
+          type="password"
+          autoComplete="new-password"
+          minLength={6}
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          required
+        />
+        <SubmitButton size="lg" pending={signUp.isPending} pendingLabel="Criando…">
+          Criar conta
+        </SubmitButton>
+        <p className="text-muted-foreground text-center text-sm">
+          Já tem conta?{" "}
+          <Link to="/login" className="text-primary underline underline-offset-4">
+            Entrar
+          </Link>
+        </p>
+      </form>
+    </AuthCard>
   );
 }

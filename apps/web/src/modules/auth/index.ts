@@ -1,4 +1,4 @@
-export * from "./api/auth.api";
+export { useSignOut } from "./hooks/use-auth-mutations";
 export { useCurrentUser } from "./hooks/use-current-user";
 export { setSessionUser } from "./lib/session";
 export type * from "./types";

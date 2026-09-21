@@ -47,7 +47,7 @@ cookie `SameSite=None` não protege contra CSRF por si só.
    - `FRONTEND_URL=https://app.SEUDOMINIO`
    - `NODE_ENV=production` (liga `Secure` no cookie)
 3. **Web (Vercel):** `VITE_API_URL=https://api.SEUDOMINIO` (e `VITE_VAPID_PUBLIC_KEY`,
-   `VITE_GITHUB_APP_SLUG`) e **redeploy** (variável `VITE_*` é gravada no build).
+   `VITE_GITHUB_APP_SLUG`, `VITE_PROJECTS_DOMAIN=SEUDOMINIO`) e **redeploy** (variável `VITE_*` é gravada no build).
    Ao migrar do Next: renomear as `NEXT_PUBLIC_*` existentes no painel da Vercel, e
    conferir Framework Preset = Vite, Build `npm run build`, Output `dist`.
 4. **Supabase:** Authentication → URL Configuration → Site URL e Redirect URLs com
