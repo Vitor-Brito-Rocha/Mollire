@@ -26,6 +26,8 @@ export function CoverBanner({ slug, thumbnailUrl, name, className, contentClassN
       <div className="absolute inset-0" aria-hidden="true">
         <SiteThumb slug={slug} thumbnailUrl={thumbnailUrl} name={name} size="banner" />
       </div>
+      {/* Véu constante: o texto fica legível sobre qualquer captura, inclusive as claras. */}
+      <div className="bg-background/35 absolute inset-0" aria-hidden="true" />
       <div className="from-background via-background/85 to-background/20 absolute inset-0 bg-gradient-to-r" aria-hidden="true" />
       <div className="from-background/80 absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t to-transparent" aria-hidden="true" />
       <div className={cn("relative flex w-full flex-col p-6 md:p-8", contentClassName)}>

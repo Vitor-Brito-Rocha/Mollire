@@ -10,8 +10,8 @@ A interface é um **launcher de jogo** (Steam, Epic, Riot): escura por padrão, 
 | `--background` / `--card` / `--raised` | `#0c0f16` / `#131824` / `#1a2131` | `#f2f4f8` / `#ffffff` / `#e9edf4` | fundo, superfície, superfície elevada |
 | `--foreground` / `--muted-foreground` / `--text-3` | `#eef1f7` / `#a3adc2` / `#7f8aa3` | `#101523` / `#4c5870` / `#66718b` | texto principal, secundário, terciário |
 | `--border` / `--line-2` | `#2a3346` / `#38425a` | `#d3d9e4` / `#b8c1d2` | linhas; a segunda para hover e destaque |
-| `--primary` | `#5ee2ff` | `#0b86ab` | o acento: ações, foco, nível, XP |
-| `--gold` / `--silver` / `--bronze` | `#f2c14e` / `#c3cbd9` / `#d08a4f` | `#9a6d05` / `#6f7a8c` / `#99592d` | estrelas e selos. Dourado **só** para estrela e Ouro |
+| `--primary` | `#5ee2ff` | `#0a7594` | o acento: ações, foco, nível, XP (5,3:1 sobre branco) |
+| `--gold` / `--silver` / `--bronze` | `#f2c14e` / `#c3cbd9` / `#d08a4f` | `#9a6d05` / `#5d6879` / `#99592d` | estrelas e selos. Dourado **só** para estrela e Ouro |
 | `--good` / `--destructive` | `#4de38a` / `#ff6b70` | `#15834b` / `#d1353c` | publicado / falhou |
 | `--glow` / `--halo` / `--halo-2` / `--glow-gold` | acento a 35% / 10%, violeta 9%, dourado 35% | idem, mais fracos | brilhos e luz ambiente |
 | `--ring-good` / `--ring-bad` | verde / vermelho a 35% | idem | anel interno dos chips de estado |
@@ -33,7 +33,8 @@ Três famílias: **Chakra Petch** (`font-display`: títulos, rótulos, números 
 | `text-body-lg` | 15px | texto com um pouco mais de presença (linhas de lista) |
 | `text-caption` | 13px | legendas e metadados |
 | `text-xs` | 12px | mono pequeno |
-| `text-mini` / `text-micro` | 11 / 10px | rótulos de HUD. **10px é o piso.** |
+| `text-mini` | 11px | rótulos de HUD e chips. **Piso para informação.** |
+| `text-micro` | 10px | só decoração (o "sem captura" e o slug da capa) |
 
 Trackings: `tracking-display` (−0.02em, títulos), `tracking-label` (0.12em, caixa alta), `tracking-eyebrow` (0.14em). Nada de `text-[..px]` fora dos glifos decorativos do `SiteThumb`.
 
@@ -81,19 +82,20 @@ Button (variantes `default` chanfrada, `outline`, `secondary`, `ghost`, `destruc
 | `ConfirmDialog` | a pergunta antes de uma ação que não volta. Título curto, uma frase de consequência, botão com o verbo |
 | `EmptyState` | "nada aqui" e "não carregou", com uma ação |
 | `SegmentedControl` | filtros mutuamente exclusivos |
-| `FormField` | label + input, sempre por aqui |
+| `FormField` | label + input, sempre por aqui. Rótulo em 13px sentence case: formulário é leitura, não HUD |
 | `SubmitButton` | botão de formulário com estado pendente |
 | `InlineAction` | ação de texto dentro de linhas ("remover", "re-deploy"), com pendente próprio |
 | `GridBeams` | feixes de luz no fundo. Já está no shell; não repita por tela |
 
-Chips de estado (`StatusChip`, `DeployStatus`) e selos (`TierBadge`) vivem nos módulos `projects` e `gallery` e saem pelos `index.ts`.
+`StatusChip` (tons `good`, `bad`, `busy`, `accent`, `idle`) vive em `shared/components` e é o único rótulo pequeno além do selo `TierBadge` (módulo `gallery`); `DeployStatus` fica em `projects`. "membro", "dono", "pendente", "Destaque", "autor" são chips, nunca texto solto.
 
 ## Regras
 | Faça | Não faça |
 |---|---|
 | Tamanho de texto pela escala nomeada | `text-[13px]` |
 | `max-w-(--page)` | `max-w-[1120px]` |
-| Um `Eyebrow` acima do h1 e pronto | eyebrow em todo bloco: vira papel de parede |
+| Um `Eyebrow` acima do h1; títulos de `Panel` levam o traço do `Eyebrow` de seção | eyebrow solto em qualquer texto |
+| Botões secundários na mesma voz do primário (display, caixa alta) | primário gritando ao lado de um secundário em texto corrido |
 | `corners` em banner, cartão de vitrine e diálogo | `corners` em painel comum |
 | Dourado para estrela e Ouro | dourado como decoração |
 | `focus-ring` em botão cru | botão sem foco visível |

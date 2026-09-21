@@ -5,7 +5,7 @@ import { PageHeader } from "@/shared/components/page-header";
 import { Button } from "@/shared/ui/button";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { ProjectBanner } from "../components/project-banner";
-import { LevelPanel } from "../components/level-panel";
+import { ProgressPanel } from "../components/progress-panel";
 import { ProjectList } from "../components/project-list";
 import { useProjects } from "../hooks/use-projects";
 
@@ -22,7 +22,6 @@ export default function ProjectsListPage() {
       <PageHeader
         eyebrow="Painel"
         title="Seus projetos"
-        actions={<Button size="lg" nativeButton={false} render={<Link to="/projects/new">Novo projeto</Link>} />}
       />
 
       {isPending && (
@@ -46,7 +45,7 @@ export default function ProjectsListPage() {
           <EmptyState action={<Button nativeButton={false} render={<Link to="/projects/new">Criar o primeiro</Link>} />}>
             Nenhum projeto ainda. O primeiro deploy rende um bônus de 50 XP.
           </EmptyState>
-          {user && <LevelPanel user={user} projects={projects} />}
+          {user && <ProgressPanel user={user} projects={projects} />}
         </div>
       )}
 
@@ -55,7 +54,7 @@ export default function ProjectsListPage() {
           <ProjectBanner project={featured} />
           <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
             <ProjectList projects={projects} />
-            {user && <LevelPanel user={user} projects={projects} />}
+            {user && <ProgressPanel user={user} projects={projects} />}
           </div>
         </>
       )}

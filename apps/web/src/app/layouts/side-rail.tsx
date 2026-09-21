@@ -26,7 +26,7 @@ const GALLERY: Item = {
 };
 const PANEL: Item = {
   to: "/",
-  label: "Painel",
+  label: "Projetos",
   icon: LayoutGrid,
   active: (p) => p === "/" || (p.startsWith("/projects/") && p !== "/projects/new"),
 };
@@ -88,7 +88,7 @@ function PlayerCard() {
             <LevelInsignia level={user.level} size="md" />
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
               <span className="truncate text-body-lg font-semibold">{user.handle ?? "Sem apelido"}</span>
-              <span className="label text-text-3 text-micro">{levelTitle(user.level)}</span>
+              <span className="label text-text-3 text-mini">{levelTitle(user.level)}</span>
             </span>
             <ChevronsUpDown className="text-text-3 size-4 shrink-0" aria-hidden="true" />
           </span>
@@ -173,7 +173,7 @@ export function MobileBar() {
               to={item.to}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "label focus-ring text-micro px-2.5 py-2 transition-colors",
+                "label focus-ring text-mini flex h-10 items-center px-2.5 transition-colors",
                 active ? "text-primary" : "text-muted-foreground",
               )}
             >
@@ -181,12 +181,12 @@ export function MobileBar() {
             </Link>
           );
         })}
-        <ThemeToggle className="size-8" />
+        <ThemeToggle className="size-10" />
         {user && (
           <Link
             to="/projects/new"
             aria-label="Novo projeto"
-            className="chamfer-sm bg-primary text-primary-foreground focus-ring ml-1 grid size-8 place-items-center"
+            className="chamfer-sm bg-primary text-primary-foreground focus-ring ml-1 grid size-10 place-items-center"
           >
             <Plus className="size-4" strokeWidth={2.5} />
           </Link>
@@ -197,7 +197,7 @@ export function MobileBar() {
             align="end"
             className="min-w-[224px]"
             trigger={
-              <button type="button" aria-label="Menu da conta" className="focus-ring ml-1 flex">
+              <button type="button" aria-label="Menu da conta" className="focus-ring ml-1 grid size-10 place-items-center">
                 <LevelInsignia level={user.level} size="sm" solid />
               </button>
             }

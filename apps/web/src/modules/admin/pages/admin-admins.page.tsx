@@ -65,7 +65,7 @@ export default function AdminAdminsPage() {
               {pending.length === 1 ? "1 convite pendente" : `${pending.length} convites pendentes`}
             </p>
           )}
-          <div className="label text-text-3 border-border grid grid-cols-12 gap-3 border-b px-4 py-2.5 text-micro">
+          <div className="label text-text-3 border-border grid grid-cols-12 gap-3 border-b px-4 py-2.5 text-mini">
             <span className="col-span-7 sm:col-span-6">E-mail</span>
             <span className="col-span-5 sm:col-span-3">Estado</span>
             <span className="hidden sm:col-span-3 sm:block">Desde</span>

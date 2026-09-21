@@ -1,3 +1,4 @@
+import { Eyebrow } from "@/shared/components/eyebrow";
 import { cn } from "@/shared/lib/utils";
 
 type PanelProps = {
@@ -16,13 +17,13 @@ export function Panel({ title, count, aside, className, children }: PanelProps) 
   return (
     <section className={cn("surface flex flex-col", className)}>
       {title && (
-        <h2 className="label border-border flex items-center gap-2 border-b px-4 py-3">
+        <Eyebrow as="h2" tone="section" className="border-border border-b px-4 py-3">
           {title}
           {count !== undefined && (
             <span className="text-text-3 font-mono text-xs tracking-normal normal-case">{count}</span>
           )}
           {aside && <span className="ml-auto font-sans tracking-normal normal-case">{aside}</span>}
-        </h2>
+        </Eyebrow>
       )}
       {children}
     </section>

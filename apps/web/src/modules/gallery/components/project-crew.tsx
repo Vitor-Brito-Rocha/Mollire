@@ -21,7 +21,7 @@ export function ProjectCrew({ members }: { members: GalleryProjectDetail["member
             <Link to={`/u/${member.handle}`} className="text-sm underline-offset-4 hover:underline">
               {member.handle}
             </Link>
-            <span className="label text-text-3 ml-auto text-micro">{member.role === "OWNER" ? "dono" : "membro"}</span>
+            <span className="label text-text-3 ml-auto text-mini">{member.role === "OWNER" ? "dono" : "membro"}</span>
           </li>
         ))}
       </ul>

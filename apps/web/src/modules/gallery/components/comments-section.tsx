@@ -12,6 +12,7 @@ import { useAddComment, useDeleteComment } from "../hooks/use-comment-mutations"
 import { useComments } from "../hooks/use-gallery";
 import { ConfirmDialog } from "@/shared/components/confirm-dialog";
 import { Eyebrow } from "@/shared/components/eyebrow";
+import { StatusChip } from "@/shared/components/status-chip";
 
 export function CommentsSection({ slug, count }: { slug: string; count: number }) {
   const location = useLocation();
@@ -80,7 +81,7 @@ export function CommentsSection({ slug, count }: { slug: string; count: number }
                 <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                   <span className="text-sm font-semibold">{comment.author}</span>
                   {comment.is_project_owner && (
-                    <span className="label text-primary border-primary border px-1.5 py-0.5 text-micro">autor</span>
+                    <StatusChip tone="accent">autor</StatusChip>
                   )}
                   <span className="text-text-3 text-xs">{formatTimeAgo(comment.created_at)}</span>
                   {comment.can_delete && (
