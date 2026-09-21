@@ -32,6 +32,7 @@ export default function SignupPage() {
           label="E-mail"
           type="email"
           autoComplete="email"
+          className="h-11"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           required
@@ -42,6 +43,7 @@ export default function SignupPage() {
           type="password"
           autoComplete="new-password"
           minLength={6}
+          className="h-11"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           required

@@ -54,8 +54,8 @@ export function PageHeader({ title, eyebrow, back, description, meta, actions, c
             {eyebrow}
           </span>
         )}
-        <h1 className="font-display text-[34px] leading-[1.1] font-bold">{title}</h1>
-        {description && <p className="text-muted-foreground text-[15px]">{description}</p>}
+        <h1 className="font-display text-[36px] leading-[1.02] font-bold tracking-[-0.02em] md:text-[46px]">{title}</h1>
+        {description && <p className="text-muted-foreground max-w-[60ch] text-base leading-relaxed">{description}</p>}
         {meta && <div className="flex flex-wrap items-center gap-3">{meta}</div>}
       </div>
       {actions && <div className="flex items-center gap-3">{actions}</div>}

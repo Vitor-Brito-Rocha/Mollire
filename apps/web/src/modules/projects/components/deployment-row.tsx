@@ -1,6 +1,7 @@
-import { memo } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { InlineAction } from "@/shared/components/inline-action";
 import { formatDayMonthTime, formatDuration } from "@/shared/lib/format";
+import { isInFlight } from "../lib/deployments";
 import type { Deployment } from "../types";
 import { DeployStatus } from "./status-chip";
 
@@ -30,8 +31,27 @@ export const DeploymentRow = memo(function DeploymentRow({
   const duration = formatDuration(deployment.created_at, deployment.finished_at);
   const sha = deployment.commit_sha;
 
+  // O momento: um deploy que estava rodando e acabou nesta sessão ganha uma
+  // varredura de luz na linha — verde se publicou, vermelha se falhou.
+  const [sweep, setSweep] = useState<"good" | "bad" | null>(null);
+  const previousStatus = useRef(deployment.status);
+  useEffect(() => {
+    const was = previousStatus.current;
+    previousStatus.current = deployment.status;
+    if (!isInFlight(was) || isInFlight(deployment.status)) return;
+    setSweep(deployment.status === "SUCCESS" ? "good" : "bad");
+    const timer = setTimeout(() => setSweep(null), 1500);
+    return () => clearTimeout(timer);
+  }, [deployment.status]);
+
   return (
-    <details className="group border-border border-b last:border-b-0" open={defaultOpen}>
+    <details
+      className={
+        "group border-border border-b last:border-b-0" +
+        (sweep === "good" ? " sweep-good" : sweep === "bad" ? " sweep-bad" : "")
+      }
+      open={defaultOpen}
+    >
       <summary
         className={
           "grid grid-cols-12 items-center gap-3 px-4 py-3 " +

@@ -18,7 +18,7 @@ export default function PublicProfilePage() {
         <div className="flex flex-col gap-10" aria-busy="true">
           <Skeleton className="h-20 w-full max-w-xs" />
           <Skeleton className="h-28 w-full" />
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 3 }).map((_, i) => (
               <Skeleton key={i} className="h-[220px] w-full" />
             ))}
@@ -54,7 +54,7 @@ export default function PublicProfilePage() {
             {profile.projects.length === 0 ? (
               <p className="text-muted-foreground text-sm">Nenhum projeto publicado ainda.</p>
             ) : (
-              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
                 {profile.projects.map((project) => (
                   <ProfileProjectCard key={project.slug} project={project} />
                 ))}

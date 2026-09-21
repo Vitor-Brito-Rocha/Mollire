@@ -31,7 +31,7 @@ export default function GalleryPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-7">
+    <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-7">
       <PageHeader
         eyebrow="Comunidade"
         title="Galeria"
@@ -44,7 +44,7 @@ export default function GalleryPage() {
       />
 
       {isPending ? (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3" aria-busy="true">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-[268px] w-full" />
           ))}
@@ -58,12 +58,12 @@ export default function GalleryPage() {
       ) : (
         <div
           className={
-            "grid gap-5 transition-opacity sm:grid-cols-2 lg:grid-cols-3 " + (isPlaceholderData ? "opacity-50" : "")
+            "grid gap-5 transition-opacity sm:grid-cols-2 xl:grid-cols-3 " + (isPlaceholderData ? "opacity-50" : "")
           }
           aria-busy={isPlaceholderData}
         >
-          {projects?.map((project) => (
-            <GalleryCard key={project.id} project={project} />
+          {projects?.map((project, index) => (
+            <GalleryCard key={project.id} project={project} featured={index === 0} />
           ))}
         </div>
       )}

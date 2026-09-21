@@ -236,3 +236,129 @@
   from { transform: translateX(-100%); }
   to { transform: translateX(300%); }
 }
+
+/* ---- Movimento: momentos de recompensa ------------------------------------
+   Um jogo celebra o que você fez; um dashboard só atualiza estado. Estas
+   animações marcam os eventos que importam — estrela acesa, deploy publicado,
+   XP subindo, nível novo — e ficam paradas para quem pediu menos movimento. */
+
+@keyframes star-pop {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.45) rotate(-8deg); }
+  70%  { transform: scale(0.92); }
+  100% { transform: scale(1); }
+}
+@keyframes star-ring {
+  0%   { transform: scale(0.4); opacity: 0.9; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+@keyframes row-sweep {
+  0%   { background-position: -100% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes level-up {
+  0%   { transform: translateY(6px) scale(0.85); opacity: 0; }
+  15%  { transform: translateY(0) scale(1.08); opacity: 1; }
+  25%  { transform: scale(1); }
+  85%  { opacity: 1; }
+  100% { transform: translateY(-4px); opacity: 0; }
+}
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--dot); }
+  50%      { opacity: 0.45; box-shadow: 0 0 2px var(--dot); }
+}
+@keyframes xp-shine {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+
+@utility animate-star-pop { animation: star-pop 600ms cubic-bezier(0.2, 0.9, 0.3, 1.3); }
+@utility animate-star-ring { animation: star-ring 650ms ease-out forwards; }
+@utility animate-level-up { animation: level-up 2200ms cubic-bezier(0.2, 0.9, 0.3, 1.2) forwards; }
+@utility animate-dot-pulse { animation: dot-pulse 1.4s ease-in-out infinite; }
+/* Varredura de luz sobre a linha do deploy que acabou de terminar. */
+@utility sweep-good {
+  background-image: linear-gradient(100deg, transparent 20%, color-mix(in srgb, var(--good) 22%, transparent) 50%, transparent 80%);
+  background-size: 50% 100%;
+  background-repeat: no-repeat;
+  animation: row-sweep 1.4s ease-out 1;
+}
+@utility sweep-bad {
+  background-image: linear-gradient(100deg, transparent 20%, color-mix(in srgb, var(--destructive) 22%, transparent) 50%, transparent 80%);
+  background-size: 50% 100%;
+  background-repeat: no-repeat;
+  animation: row-sweep 1.4s ease-out 1;
+}
+
+/* Malha de fundo das telas: a leitura de "tela de comando", bem discreta.
+   Fica embaixo do halo já existente do body. */
+@layer components {
+  /* A malha vive num pseudo-elemento atrás do conteúdo: a máscara que a esvanece
+     para baixo só pode afetar a malha, nunca o que está por cima. */
+  .hud-grid {
+    position: relative;
+    isolation: isolate;
+  }
+  .hud-grid::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+      linear-gradient(90deg, color-mix(in srgb, var(--primary) 4%, transparent) 1px, transparent 1px),
+      linear-gradient(color-mix(in srgb, var(--primary) 4%, transparent) 1px, transparent 1px);
+    background-size: 32px 32px, 32px 32px;
+    mask-image: radial-gradient(ellipse 80% 70% at 50% 0%, #000 30%, transparent 100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-star-pop, .animate-star-ring, .animate-level-up, .animate-dot-pulse, .sweep-good, .sweep-bad {
+    animation: none;
+  }
+}
+
+/* ---- Produção de launcher ---------------------------------------------------
+   Profundidade em vez de painel chapado: superfície translúcida com fio de luz
+   no topo, sombra longa embaixo; o fundo ganha um segundo halo (violeta) no
+   canto oposto, como a luz ambiente de um menu de jogo. */
+@utility surface {
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+  border: 1px solid var(--border);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.045),
+    0 14px 34px -22px rgb(0 0 0 / 0.9);
+  backdrop-filter: blur(8px);
+}
+
+@layer base {
+  body {
+    background-image:
+      radial-gradient(ellipse 60% 40% at 50% -10%, var(--halo), transparent 60%),
+      radial-gradient(ellipse 45% 35% at 100% 100%, rgb(155 123 255 / 0.09), transparent 65%);
+    background-attachment: fixed;
+  }
+}
+
+/* Brilho radial que segue o ponteiro dentro de um cartão (.group). O elemento
+   é um filho real, não pseudo — .corners já usa ::before/::after. */
+@layer components {
+  .spot-glow {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 320ms ease;
+    background: radial-gradient(
+      280px circle at var(--mx, 50%) var(--my, 50%),
+      color-mix(in srgb, var(--primary) 12%, transparent),
+      transparent 60%
+    );
+  }
+  @media (hover: hover) {
+    .group:hover > .spot-glow {
+      opacity: 1;
+    }
+  }
+}

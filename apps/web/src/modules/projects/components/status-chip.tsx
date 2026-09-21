@@ -22,7 +22,7 @@ export function StatusChip({
     <span
       className={`label inline-flex w-fit items-center gap-1.5 px-2 py-1 text-[10px] font-bold whitespace-nowrap ${TONE[tone]} ${className ?? ""}`}
     >
-      <span className="size-1.5 shrink-0 bg-(--dot) shadow-[0_0_8px_var(--dot)]" />
+      <span className={"size-1.5 shrink-0 bg-(--dot) shadow-[0_0_8px_var(--dot)]" + (tone === "busy" ? " animate-dot-pulse" : "")} />
       {children}
     </span>
   );

@@ -64,7 +64,7 @@ export default function ProjectDetailPage() {
         onDeploy={() => deploy.mutate(undefined)}
       />
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 xl:grid-cols-3">
         <DeploymentHistory
           slug={slug}
           deployments={project.deployments ?? []}

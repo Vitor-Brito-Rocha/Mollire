@@ -18,8 +18,8 @@ export default function AdminLayout() {
             <span className="bg-primary h-0.5 w-[18px]" />
             Admin
           </span>
-          <h1 className="font-display text-[34px] leading-[1.1] font-bold">Console</h1>
-          <p className="text-muted-foreground text-[15px]">
+          <h1 className="font-display text-[36px] leading-[1.02] font-bold tracking-[-0.02em] md:text-[46px]">Console</h1>
+          <p className="text-muted-foreground max-w-[60ch] text-base leading-relaxed">
             Todos os projetos e deploys, de todos os tenants — somente leitura, exceto quem é admin.
           </p>
         </div>

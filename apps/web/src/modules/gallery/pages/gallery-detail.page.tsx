@@ -24,8 +24,8 @@ export default function GalleryDetailPage() {
     return (
       <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-6" aria-busy="true">
         {backToGallery}
-        <div className="grid gap-8 lg:grid-cols-3">
-          <Skeleton className="h-[420px] w-full lg:col-span-2" />
+        <div className="grid gap-8 xl:grid-cols-3">
+          <Skeleton className="h-[420px] w-full xl:col-span-2" />
           <Skeleton className="h-[320px] w-full" />
         </div>
       </div>
@@ -62,8 +62,8 @@ export default function GalleryDetailPage() {
     <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-6">
       {backToGallery}
 
-      <div className="grid gap-8 lg:grid-cols-3">
-        <div className="flex flex-col gap-6 lg:col-span-2">
+      <div className="grid gap-8 xl:grid-cols-3">
+        <div className="flex flex-col gap-6 xl:col-span-2">
           <SitePreview project={project} />
           <CommentsSection slug={slug} count={project.comments} />
         </div>
