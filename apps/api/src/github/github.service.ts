@@ -136,11 +136,13 @@ export class GithubService {
     }
   }
 
-  // Reads package.json "scripts" from the repo's default branch. Null when the
-  // repo has no (readable) package.json.
-  async fetchPackageScripts(installationId: bigint, fullName: string): Promise<unknown | null> {
+  // Reads package.json "scripts" from the repo's default branch, in `rootDir`
+  // ("" = repo root). Null when there's no (readable) package.json there.
+  // rootDir must already be validated (ROOT_DIR_PATTERN): it goes into the URL path.
+  async fetchPackageScripts(installationId: bigint, fullName: string, rootDir = ''): Promise<unknown | null> {
     const token = await this.getInstallationToken(installationId);
-    const resp = await fetch(`https://api.github.com/repos/${fullName}/contents/package.json`, {
+    const filePath = rootDir ? `${rootDir}/package.json` : 'package.json';
+    const resp = await fetch(`https://api.github.com/repos/${fullName}/contents/${filePath}`, {
       headers: { ...this.githubHeaders(`Bearer ${token}`), Accept: 'application/vnd.github.raw+json' },
     });
     if (resp.status === 404) return null;

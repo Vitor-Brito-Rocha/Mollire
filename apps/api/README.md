@@ -16,10 +16,15 @@ subdomain (`{slug}.aulvi.com.br`) via a single Nginx block instead of per-projec
 
 ## How a deploy works
 
-1. `POST /projects` registers a repo (name, slug, repository URL, build command, output dir),
-   owned by the authenticated user.
-2. `POST /projects/:slug/deploy` clones the repo, runs the build command, and copies the
-   output directory into `releases/{timestamp}/`.
+1. `POST /projects` registers a repo (name, slug, repository URL, root dir, build command,
+   output dir), owned by the authenticated user. `root_dir` is the folder of the repo where the
+   build runs (`""` = the repo root; use it for monorepos) and is verified to exist in the
+   repository before the project is saved (`POST /projects/check-root-dir` answers the same
+   question for the forms, without saving).
+2. `POST /projects/:slug/deploy` clones the repo, checks `root_dir` exists in the checkout, runs
+   `npm install && <build_command>` inside it (the install is always done by the platform, so
+   `build_command` is just the build, e.g. `npm run build`), and copies the output directory
+   (relative to `root_dir`) into `releases/{timestamp}/`.
 3. A symlink named `current` is atomically repointed at the new release (`rename()` is
    atomic on POSIX, so Nginx never serves a half-swapped directory).
 4. Nginx never needs a reload for a new project or a new deploy — it always just resolves
@@ -123,6 +128,9 @@ See [deploy/mollire.service.example](../../deploy/mollire.service.example).
 | POST   | `/projects`                | user  | Register a project                        |
 | GET    | `/projects`                | user  | List your own projects                    |
 | GET    | `/projects/:slug`          | user  | Project detail + last 10 deployments      |
+| POST   | `/projects/check-root-dir` | user  | `{ repository_url, root_dir }` → `{ status }`: `exists` \| `missing` \| `not_a_directory` \| `unverified` (private repo we can't read, provider down). Saves nothing |
+| PATCH  | `/projects/:slug`          | owner | Edit `name`, `repository_url`, `root_dir`, `build_command`, `output_dir` (all optional; the slug is fixed). `root_dir` is re-verified when it or the repo changes (400 if missing). Applies from the next deploy |
+| DELETE | `/projects/:slug`          | owner | Permanently delete the project. Body `{ confirm_name }` must equal the project's name (400 otherwise); 409 while a deploy is running/queued. Removes the row (deployments, members, env vars, comments… cascade), its files under `PROJECTS_ROOT/{slug}` and its thumbnail. 204 |
 | PATCH  | `/projects/:slug/visibility` | owner | Publish/unpublish a project to the gallery |
 | GET    | `/projects/:slug/members`  | member | Roster (handles + roles); pending invitations only for the owner |
 | POST   | `/projects/:slug/invitations` | owner | Invite by email: existing user joins now, otherwise pending until first login |

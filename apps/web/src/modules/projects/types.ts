@@ -5,6 +5,9 @@ export type Project = {
   name: string;
   slug: string;
   repository_url: string;
+  // Pasta do repositório onde roda o build ("" = a raiz). A saída é relativa a ela.
+  root_dir: string;
+  // Só o build; o npm install roda antes, sempre.
   build_command: string;
   output_dir: string;
   is_public: boolean;
@@ -19,6 +22,10 @@ export type Project = {
   deployments?: Deployment[];
   user?: { email: string };
 };
+
+// Resposta de POST /projects/check-root-dir. "unverified": não deu para saber
+// (repositório privado sem acesso, GitHub fora do ar) e isso nunca bloqueia.
+export type RootDirCheckStatus = "exists" | "missing" | "not_a_directory" | "unverified";
 
 export type DeploymentStatus =
   | 'QUEUED'

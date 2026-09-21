@@ -65,6 +65,10 @@ export default function AdminProjectDetailPage() {
               <dd className="font-mono text-xs break-all">{project.repository_url}</dd>
             </div>
             <div className="border-border flex flex-col gap-1 border-b px-4 py-3">
+              <dt className="text-muted-foreground text-xs">Pasta do projeto</dt>
+              <dd className="font-mono text-xs break-all">{project.root_dir || "raiz do repositório"}</dd>
+            </div>
+            <div className="border-border flex flex-col gap-1 border-b px-4 py-3">
               <dt className="text-muted-foreground text-xs">Build</dt>
               <dd className="font-mono text-xs break-all">{project.build_command}</dd>
             </div>

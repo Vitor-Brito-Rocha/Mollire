@@ -5,7 +5,7 @@ const githubKeys = {
   all: ["github"] as const,
   accounts: () => [...githubKeys.all, "accounts"] as const,
   repos: () => [...githubKeys.all, "repos"] as const,
-  buildScript: (repo: string) => [...githubKeys.all, "build-script", repo] as const,
+  buildScript: (repo: string, rootDir: string) => [...githubKeys.all, "build-script", repo, rootDir] as const,
 };
 
 // `enabled`: nothing to ask while the user hasn't connected GitHub.
@@ -29,12 +29,12 @@ export function useGithubRepos(enabled: boolean) {
   });
 }
 
-// Reads the repo's package.json to suggest a build command. Only a hint: on
-// failure the user keeps the manual field.
-export function useBuildScript(repo: { installation_id: string; full_name: string } | null) {
+// Reads the package.json in `rootDir` of the repo ("" = the root) to suggest a
+// build command. Only a hint: on failure the user keeps the manual field.
+export function useBuildScript(repo: { installation_id: string; full_name: string } | null, rootDir: string) {
   return useQuery({
-    queryKey: githubKeys.buildScript(repo?.full_name ?? ""),
-    queryFn: () => githubApi.buildScript(repo!.installation_id, repo!.full_name),
+    queryKey: githubKeys.buildScript(repo?.full_name ?? "", rootDir),
+    queryFn: () => githubApi.buildScript(repo!.installation_id, repo!.full_name, rootDir),
     enabled: !!repo,
     meta: { silent: true },
   });

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { projectsApi, type NewProject } from "../api/projects.api";
+import { galleryKeys } from "@/modules/gallery";
+import { projectsApi, type NewProject, type ProjectPatch } from "../api/projects.api";
 import { isInFlight, latestDeployment } from "../lib/deployments";
 import type { Project } from "../types";
 import { projectKeys } from "./keys";
@@ -39,6 +40,37 @@ export function useCreateProject() {
       return queryClient.invalidateQueries({ queryKey: projectKeys.list() });
     },
     meta: { successMessage: "Projeto criado", errorMessage: "Erro ao criar projeto" },
+  });
+}
+
+export function useUpdateProject(slug: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (patch: ProjectPatch) => projectsApi.update(slug, patch),
+    onSuccess: (updated) => {
+      // A resposta é só a linha do projeto: mescla, para não perder deploys e papel.
+      queryClient.setQueryData<Project>(projectKeys.detail(slug), (previous) =>
+        previous ? { ...previous, ...updated } : updated,
+      );
+      return queryClient.invalidateQueries({ queryKey: projectKeys.list() });
+    },
+    meta: { successMessage: "Configuração salva", errorMessage: "Erro ao salvar configuração" },
+  });
+}
+
+export function useDeleteProject(slug: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (confirmName: string) => projectsApi.remove(slug, confirmName),
+    // Sem `return` e sem tocar no cache do próprio projeto: a tela ainda está
+    // montada quando isto roda (quem chamou navega em seguida), e remover ou
+    // refazer o detalhe agora pediria um projeto que já não existe, com um toast
+    // de erro. Ao sair da tela o polling para e o cache velho é descartado.
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: projectKeys.list() });
+      void queryClient.invalidateQueries({ queryKey: galleryKeys.all });
+    },
+    meta: { successMessage: "Projeto apagado", errorMessage: "Erro ao apagar projeto" },
   });
 }
 

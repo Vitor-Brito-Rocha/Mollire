@@ -42,7 +42,8 @@ export function detectBuildScript(scripts: unknown): BuildScriptDetection {
   const obvious = top && top.priority >= AUTO_PICK_MIN_PRIORITY && top.priority !== second?.priority;
   const lone = candidates.length === 1;
   return {
-    build_command: obvious || lone ? `npm install && npm run ${top.name}` : null,
+    // Just the build: the platform runs `npm install` before it.
+    build_command: obvious || lone ? `npm run ${top.name}` : null,
     candidates,
   };
 }

@@ -23,6 +23,7 @@ export class DockerBuildService {
 
   async run(
     repoPath: string,
+    rootDir: string,
     buildCommand: string,
     outputDir: string,
     outputHostPath: string,
@@ -31,8 +32,13 @@ export class DockerBuildService {
   ): Promise<void> {
     await fs.mkdir(outputHostPath, { recursive: true });
 
+    // Install and build run in the project's folder (rootDir, "" = repo root);
+    // outputDir is relative to it. rootDir is validated to plain path
+    // characters (see ROOT_DIR_PATTERN), so it can't break out of /workspace.
+    const workdir = rootDir ? `/workspace/${rootDir}` : '/workspace';
+    // `npm install` is always part of the build, not something the tenant configures.
     // cp -r .../. /output/ copies the contents of outputDir, not the dir itself
-    const shellCmd = `${buildCommand} && cp -r /workspace/${outputDir}/. /output/`;
+    const shellCmd = `npm install && ${buildCommand} && cp -r ${workdir}/${outputDir}/. /output/`;
 
     this.logger.log(`starting build container (image=${this.image})`);
 
@@ -50,7 +56,7 @@ export class DockerBuildService {
         '-v', `${repoPath}:/workspace`,
         '-v', `${outputHostPath}:/output`,
         '-v', 'mollire-npm-cache:/root/.npm',
-        '--workdir', '/workspace',
+        '--workdir', workdir,
         this.image,
         'sh', '-c', shellCmd,
       ],

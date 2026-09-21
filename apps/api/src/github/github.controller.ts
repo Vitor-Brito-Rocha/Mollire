@@ -14,6 +14,7 @@ import {
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser } from '../auth/types';
 import { PrismaService } from '../prisma/prisma.service';
+import { normalizeRootDir, ROOT_DIR_MESSAGE, ROOT_DIR_PATTERN } from '../projects/dto/create-project.dto';
 import { detectBuildScript } from './build-script';
 import { InstallGithubDto } from './dto/install-github.dto';
 import { GithubService } from './github.service';
@@ -76,15 +77,21 @@ export class GithubController {
     @CurrentUser() user: AuthenticatedUser,
     @Query('installation_id') installationId?: string,
     @Query('repo') repo?: string,
+    @Query('root_dir') rawRootDir?: string,
   ) {
     if (!installationId || !/^\d+$/.test(installationId) || !repo || !/^[\w.-]+\/[\w.-]+$/.test(repo)) {
       throw new BadRequestException('installation_id and repo (owner/name) are required');
+    }
+    // Same folder rules as a project's root_dir, since it ends up in a GitHub API path.
+    const rootDir = String(normalizeRootDir({ value: rawRootDir ?? '' }));
+    if (!ROOT_DIR_PATTERN.test(rootDir)) {
+      throw new BadRequestException(ROOT_DIR_MESSAGE);
     }
     const account = await this.prisma.githubAccount.findFirst({
       where: { installation_id: BigInt(installationId), user_id: user.id },
     });
     if (!account) throw new NotFoundException('GitHub account not found');
-    const scripts = await this.github.fetchPackageScripts(account.installation_id, repo);
+    const scripts = await this.github.fetchPackageScripts(account.installation_id, repo, rootDir);
     return detectBuildScript(scripts);
   }
 

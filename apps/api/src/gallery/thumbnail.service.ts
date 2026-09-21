@@ -143,6 +143,16 @@ export class ThumbnailService {
     }
   }
 
+  // Deletes the file a project's thumbnail_url points at. Best-effort: a project
+  // being deleted must not be held up by a missing or locked image.
+  async remove(thumbnailUrl: string | null): Promise<void> {
+    if (!thumbnailUrl) return;
+    // basename() so a tampered DB value can't point the unlink outside the dir.
+    await fs
+      .rm(path.join(this.thumbnailsDir, path.basename(thumbnailUrl)), { force: true })
+      .catch((err) => this.logger.warn(`could not remove thumbnail "${thumbnailUrl}": ${err instanceof Error ? err.message : err}`));
+  }
+
   // Static file server for one release dir, with the same SPA fallback the Nginx
   // block gives published sites (extension-less misses fall back to index.html).
   private async serveRelease(releasePath: string): Promise<http.Server> {

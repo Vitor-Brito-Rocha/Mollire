@@ -12,6 +12,7 @@ import { ThumbnailService } from '../gallery/thumbnail.service';
 import { GithubService } from '../github/github.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ProjectsService } from '../projects/projects.service';
 import { DockerBuildService } from './docker-build.service';
 
 export type StatusEvent =
@@ -62,6 +63,7 @@ export class DeploymentsService {
     private readonly github: GithubService,
     private readonly envVars: EnvVarsService,
     private readonly activity: ActivityService,
+    private readonly projects: ProjectsService,
   ) {
     this.projectsRoot = path.resolve(this.config.get<string>('PROJECTS_ROOT', './data/projects'));
   }
@@ -206,6 +208,11 @@ export class DeploymentsService {
       const commitSha = options?.commitSha ?? clonedSha;
       this.logger.log(`[${project.slug}] clone: ${((Date.now() - cloneStart) / 1000).toFixed(1)}s`);
 
+      // The folder was checked when it was saved, but the repo may have changed
+      // since (or it was "unverified" then). Fail here, clearly, rather than as
+      // an obscure container error further down.
+      await this.assertRootDirExists(paths.repo, project.root_dir);
+
       if (installationId) {
         try {
           githubDeploymentId = await this.github.createDeployment(installationId, project.repository_url, commitSha);
@@ -218,7 +225,7 @@ export class DeploymentsService {
       await this.setStatus(deploymentId, project.id, DeploymentStatus.BUILDING);
       const buildStart = Date.now();
       const projectEnvVars = await this.envVars.getDecrypted(project.id);
-      await this.runBuild(project.build_command, paths.repo, project.output_dir, buildOutputPath, appendLog, projectEnvVars);
+      await this.runBuild(project.root_dir, project.build_command, paths.repo, project.output_dir, buildOutputPath, appendLog, projectEnvVars);
       this.logger.log(`[${project.slug}] build: ${((Date.now() - buildStart) / 1000).toFixed(1)}s`);
 
       await this.setStatus(deploymentId, project.id, DeploymentStatus.PUBLISHING);
@@ -294,6 +301,30 @@ export class DeploymentsService {
     }
   }
 
+  // Permanently removes a project: the row (everything hanging off it cascades),
+  // then what it left on disk — the checkout, the releases and the live
+  // `current` that Nginx serves, plus the gallery thumbnail. Refuses while a
+  // deploy is running or queued, since that pipeline would be writing into the
+  // directory being deleted. The row goes first: if the file cleanup then fails
+  // the project is already gone for the user, and only orphaned files remain.
+  async removeProject(project: Project) {
+    if (this.streams.has(project.id) || this.buildQueue.some((q) => q.project.id === project.id)) {
+      throw new ConflictException(`project "${project.slug}" has a deploy in progress, wait for it to finish`);
+    }
+
+    await this.projects.remove(project.id);
+
+    const { root } = this.projectPaths(project.slug);
+    // Slugs are DNS labels, so this can't escape projectsRoot; checked anyway
+    // because the next line is a recursive delete.
+    if (root.startsWith(this.projectsRoot + path.sep)) {
+      await fs.rm(root, { recursive: true, force: true }).catch((err) => {
+        this.logger.warn(`[${project.slug}] could not remove ${root}: ${err instanceof Error ? err.message : err}`);
+      });
+    }
+    await this.thumbnails.remove(project.thumbnail_url);
+  }
+
   private projectPaths(slug: string): ProjectPaths {
     const root = path.join(this.projectsRoot, slug);
     return {
@@ -365,7 +396,19 @@ export class DeploymentsService {
     return sha.trim();
   }
 
+  private async assertRootDirExists(repoPath: string, rootDir: string) {
+    if (!rootDir) return;
+    const isDir = await fs
+      .stat(path.join(repoPath, rootDir))
+      .then((stat) => stat.isDirectory())
+      .catch(() => false);
+    if (!isDir) {
+      throw new Error(`root_dir "${rootDir}" was not found in the repository — fix the project's folder in its settings`);
+    }
+  }
+
   private async runBuild(
+    rootDir: string,
     buildCommand: string,
     repoPath: string,
     outputDir: string,
@@ -373,7 +416,7 @@ export class DeploymentsService {
     log: (chunk: string) => void,
     envVars: Record<string, string> = {},
   ) {
-    await this.dockerBuild.run(repoPath, buildCommand, outputDir, outputHostPath, log, envVars);
+    await this.dockerBuild.run(repoPath, rootDir, buildCommand, outputDir, outputHostPath, log, envVars);
   }
 
   private async publish(paths: ProjectPaths, builtDir: string) {

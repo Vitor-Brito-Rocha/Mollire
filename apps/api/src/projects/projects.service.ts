@@ -1,8 +1,10 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, ProjectRole } from '@prisma/client';
 import { ActivityService } from '../activity/activity.service';
+import { RepoInspectorService } from '../github/repo-inspector.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
+import { UpdateProjectDto } from './dto/update-project.dto';
 
 // One-time bonus for a project's first-ever publish to the gallery — see
 // Project.published_at, which is what makes this un-farmable by re-toggling.
@@ -18,6 +20,7 @@ export class ProjectsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly activity: ActivityService,
+    private readonly repoInspector: RepoInspectorService,
   ) {}
 
   memberFilter(userId: string, minRole: ProjectRole = ProjectRole.MEMBER): Prisma.ProjectWhereInput {
@@ -43,6 +46,7 @@ export class ProjectsService {
     if (existing) {
       throw new ConflictException(`slug "${dto.slug}" is already taken`);
     }
+    await this.assertRootDirExists(dto.repository_url, dto.root_dir ?? '', userId);
 
     // The creator is the owner: Project.user_id says whose it is, the OWNER
     // membership row is what every tenant-facing lookup checks.
@@ -51,12 +55,31 @@ export class ProjectsService {
         name: dto.name,
         slug: dto.slug,
         repository_url: dto.repository_url,
+        root_dir: dto.root_dir ?? undefined,
         build_command: dto.build_command ?? undefined,
         output_dir: dto.output_dir ?? undefined,
         user_id: userId,
         members: { create: { user_id: userId, role: ProjectRole.OWNER } },
       },
     });
+  }
+
+  // For the forms' live "does this folder exist?" feedback (nothing is saved).
+  checkRootDir(repositoryUrl: string, rootDir: string, userId: string) {
+    return this.repoInspector.checkRootDir(repositoryUrl, rootDir, userId);
+  }
+
+  // Refuses a folder that provably isn't in the repository. "unverified" (private
+  // repo we can't read, provider down) passes: the deploy re-checks against the
+  // actual checkout and fails with a clear message.
+  private async assertRootDirExists(repositoryUrl: string, rootDir: string, userId: string) {
+    const check = await this.repoInspector.checkRootDir(repositoryUrl, rootDir, userId);
+    if (check === 'missing') {
+      throw new BadRequestException(`root_dir "${rootDir}" was not found in the repository`);
+    }
+    if (check === 'not_a_directory') {
+      throw new BadRequestException(`root_dir "${rootDir}" is a file, not a folder`);
+    }
   }
 
   async findAllForUser(userId: string) {
@@ -84,6 +107,38 @@ export class ProjectsService {
     }
     const { members, ...rest } = project;
     return { ...rest, my_role: members[0]?.role ?? ProjectRole.MEMBER };
+  }
+
+  // Owner only. Takes effect from the next deploy; a deploy already running
+  // keeps the config it started with. The slug is not editable (see
+  // UpdateProjectDto).
+  async update(slug: string, userId: string, dto: UpdateProjectDto) {
+    const project = await this.findForMember(slug, userId, ProjectRole.OWNER);
+
+    // The folder must exist in the repository the project will really use, so
+    // re-check when either half of that pair changes.
+    if (dto.root_dir !== undefined || dto.repository_url !== undefined) {
+      await this.assertRootDirExists(dto.repository_url ?? project.repository_url, dto.root_dir ?? project.root_dir, userId);
+    }
+
+    return this.prisma.project.update({
+      where: { id: project.id },
+      data: {
+        name: dto.name?.trim(),
+        repository_url: dto.repository_url,
+        root_dir: dto.root_dir,
+        build_command: dto.build_command,
+        output_dir: dto.output_dir,
+      },
+    });
+  }
+
+  // Row only: members, invitations, deployments, stars, comments, env vars,
+  // views and activity go with it through the schema's onDelete: Cascade.
+  // DeploymentsService.removeProject is the entry point — it also refuses while
+  // a deploy is running and clears the files on disk.
+  async remove(projectId: string) {
+    await this.prisma.project.delete({ where: { id: projectId } });
   }
 
   // Owner only: publishing changes what the world sees, and pays the owner's

@@ -4,6 +4,7 @@ import { EmptyState } from "@/shared/components/empty-state";
 import { useRequiredParam } from "@/shared/hooks/use-required-param";
 import { Button } from "@/shared/ui/button";
 import { Skeleton } from "@/shared/ui/skeleton";
+import { DeleteProject } from "../components/delete-project";
 import { DeploymentHistory } from "../components/deployment-history";
 import { ProjectActivityFeed } from "../components/project-activity";
 import { ProjectConfig } from "../components/project-config";
@@ -89,7 +90,10 @@ export default function ProjectDetailPage() {
         <div className={isOwner ? "xl:col-span-2" : "md:col-span-2 xl:col-span-3"}>
           <ProjectActivityFeed slug={slug} />
         </div>
-        <ProjectConfig project={project} />
+        <div className="flex flex-col gap-6">
+          <ProjectConfig project={project} isOwner={isOwner} />
+          {isOwner && <DeleteProject project={project} />}
+        </div>
       </div>
     </div>
   );

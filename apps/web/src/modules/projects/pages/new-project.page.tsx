@@ -10,10 +10,14 @@ import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { Spinner } from "@/shared/ui/spinner";
 import { RepoPicker } from "../components/repo-picker";
+import { RootDirField } from "../components/root-dir-field";
 import { useCreateProject } from "../hooks/use-projects";
+import { blocksSubmit, useRootDirCheck } from "../hooks/use-root-dir-check";
 import { projectHost } from "../lib/project-url";
+import { isValidRootDir, normalizeRootDir } from "../lib/root-dir";
 
-const DEFAULT_BUILD = "npm install && npm run build";
+// Só o build: o npm install a plataforma roda antes, sempre.
+const DEFAULT_BUILD = "npm run build";
 
 const slugify = (name: string) =>
   name
@@ -48,11 +52,18 @@ export default function NewProjectPage() {
   const { data: repos, isPending: loadingRepos } = useGithubRepos(githubConnected);
   const createProject = useCreateProject();
   const [selectedRepo, setSelectedRepo] = useState<GithubRepo | null>(null);
-  const { data: detection, isFetching: detecting } = useBuildScript(selectedRepo);
 
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [repositoryUrl, setRepositoryUrl] = useState("");
+  const [rootDir, setRootDir] = useState("");
+  // A pasta é sugerida pela pessoa (monorepo), então a detecção do package.json
+  // e a checagem "ela existe?" seguem o que foi digitado, já sem mudar a cada tecla.
+  const { state: rootDirState, settledRootDir } = useRootDirCheck(repositoryUrl, rootDir);
+  const { data: detection, isFetching: detecting } = useBuildScript(
+    isValidRootDir(settledRootDir) ? selectedRepo : null,
+    settledRootDir,
+  );
   // null: o usuário ainda não mexeu; vale o que a detecção sugerir, ou o padrão.
   const [buildCommand, setBuildCommand] = useState<string | null>(null);
   const [outputDir, setOutputDir] = useState("dist");
@@ -66,6 +77,8 @@ export default function NewProjectPage() {
   const selectRepo = useCallback((repo: GithubRepo) => {
     setSelectedRepo(repo);
     setRepositoryUrl(repo.clone_url);
+    // Outro repositório, outra estrutura: a pasta volta para a raiz.
+    setRootDir("");
     setName((current) => current || repo.name);
     setSlug((current) => current || slugify(repo.name));
     // Repositório novo, sugestão nova: o campo volta a seguir a detecção.
@@ -75,7 +88,14 @@ export default function NewProjectPage() {
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     createProject.mutate(
-      { name, slug, repository_url: repositoryUrl, build_command: effectiveBuild, output_dir: outputDir },
+      {
+        name,
+        slug,
+        repository_url: repositoryUrl,
+        root_dir: normalizeRootDir(rootDir),
+        build_command: effectiveBuild,
+        output_dir: outputDir,
+      },
       { onSuccess: (project) => navigate(`/projects/${project.slug}`) },
     );
   }
@@ -134,6 +154,8 @@ export default function NewProjectPage() {
             required
           />
 
+          <RootDirField id="root-dir" value={rootDir} onChange={setRootDir} state={rootDirState} />
+
           <div className="flex flex-col gap-2">
             <FormField
               id="build"
@@ -147,13 +169,17 @@ export default function NewProjectPage() {
                 <Spinner className="size-3" /> Lendo o package.json…
               </p>
             ) : detected ? (
-              <p className="text-good text-xs">Detectado do package.json do repositório.</p>
+              <p className="text-good text-xs">Detectado do package.json{settledRootDir ? ` em ${settledRootDir}` : " do repositório"}.</p>
+            ) : selectedRepo && detection && detection.candidates.length === 0 ? (
+              <p className="text-text-3 text-xs">
+                Nenhum script de build encontrado no package.json{settledRootDir ? ` de ${settledRootDir}` : ""}. Confira a pasta ou escreva o comando.
+              </p>
             ) : ambiguousScripts.length > 1 ? (
               <fieldset className="flex flex-col gap-2">
                 <legend className="text-text-3 mb-2 text-xs">O package.json tem mais de um script possível. Qual é o build?</legend>
                 <div className="flex flex-wrap gap-2">
                   {ambiguousScripts.map((script) => {
-                    const command = `npm install && npm run ${script.name}`;
+                    const command = `npm run ${script.name}`;
                     const on = effectiveBuild === command;
                     return (
                       <button
@@ -173,17 +199,29 @@ export default function NewProjectPage() {
                 </div>
               </fieldset>
             ) : null}
+            <p className="text-text-3 text-xs">
+              O <span className="font-mono">npm install</span> roda antes, automaticamente: aqui vai só o build.
+            </p>
           </div>
 
-          <FormField
-            id="output"
-            label="Pasta de saída"
-            value={outputDir}
-            onChange={(e) => setOutputDir(e.target.value)}
-            className="font-mono text-sm"
-          />
+          <div className="flex flex-col gap-2">
+            <FormField
+              id="output"
+              label="Pasta de saída"
+              value={outputDir}
+              onChange={(e) => setOutputDir(e.target.value)}
+              className="font-mono text-sm"
+            />
+            <p className="text-text-3 text-xs">Relativa à pasta do projeto.</p>
+          </div>
 
-          <SubmitButton size="lg" className="mt-1 w-full" pending={createProject.isPending} pendingLabel="Criando…">
+          <SubmitButton
+            size="lg"
+            className="mt-1 w-full"
+            pending={createProject.isPending}
+            pendingLabel="Criando…"
+            disabled={blocksSubmit(rootDirState)}
+          >
             Criar projeto
           </SubmitButton>
         </div>

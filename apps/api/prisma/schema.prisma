@@ -89,7 +89,11 @@ model Project {
   name           String
   slug           String    @unique
   repository_url String
-  build_command  String    @default("npm install && npm run build")
+  // Folder of the repo where install + build run; "" is the repo root.
+  root_dir       String    @default("")
+  // Just the build: the platform runs `npm install` before it, always.
+  build_command  String    @default("npm run build")
+  // Relative to root_dir.
   output_dir     String    @default("dist")
   is_public      Boolean   @default(false)
   thumbnail_url  String?
