@@ -1,7 +1,7 @@
 <!--
   Mollire — "Confirm signup" email template.
   Paste into the Supabase Dashboard: Authentication → Emails → Confirm signup.
-  Requires the /auth/confirm page (apps/web/src/app/auth/confirm/page.tsx) —
+  Requires the /auth/confirm page (apps/web/src/modules/auth/pages/confirm.page.tsx) —
   it sends {{ .TokenHash }} to the API (POST /auth/confirm), which sets the
   session cookie, before redirecting into the app.
 
