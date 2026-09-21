@@ -16,7 +16,7 @@ export function ProjectBanner({ project }: { project: Project }) {
       slug={project.slug}
       thumbnailUrl={project.thumbnail_url}
       name={project.name}
-      className="min-h-[280px]"
+      className="min-h-[240px]"
       contentClassName="max-w-[660px] justify-end gap-4 md:p-9"
     >
       {(tint) => (
