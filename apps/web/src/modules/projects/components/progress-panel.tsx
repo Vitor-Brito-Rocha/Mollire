@@ -1,9 +1,8 @@
 import type { CurrentUser } from "@/modules/auth";
-import { QuestList, useQuests } from "@/modules/progress";
+import { FALLBACK_XP_RULES, QuestList, XP_RULE_COPY, useQuests, useXpRules } from "@/modules/progress";
 import { Panel } from "@/shared/components/panel";
 import { formatNumber } from "@/shared/lib/format";
 import { levelTitle } from "@/shared/lib/level";
-import { XP_RULES } from "../lib/xp-rules";
 import type { Project } from "../types";
 
 // O que a barra lateral não mostra: quanto falta, o que você já tem e como
@@ -15,6 +14,12 @@ export function ProgressPanel({ user, projects }: { user: CurrentUser; projects:
   const memberOf = projects.filter((p) => p.my_role === "MEMBER").length;
   // Enquanto faltar missão de estreia, ela ocupa o lugar da faixa de regras.
   const { data: quests } = useQuests(true);
+  // Valores da API quando existir GET /xp/rules; até lá, o espelho do catálogo.
+  const { data: apiRules } = useXpRules();
+  const rules = (apiRules ?? FALLBACK_XP_RULES).flatMap((rule) => {
+    const copy = XP_RULE_COPY[rule.code];
+    return copy ? [{ ...rule, ...copy }] : [];
+  });
   const pendingQuests = quests && quests.completed < quests.total ? quests : null;
 
   return (
@@ -48,9 +53,9 @@ export function ProgressPanel({ user, projects }: { user: CurrentUser; projects:
         <div className="border-border flex flex-col gap-2 border-t pt-3">
           <h3 className="label text-text-3 text-mini">Como ganhar XP</h3>
           <ul className="grid grid-cols-4 gap-2">
-            {XP_RULES.map((rule) => (
+            {rules.map((rule) => (
               <li
-                key={rule.label}
+                key={rule.code}
                 title={rule.note}
                 className="bg-raised/60 flex min-w-0 flex-col gap-0.5 px-2 py-1.5"
               >

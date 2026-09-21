@@ -1,3 +1,4 @@
+import { frameColor } from "@/modules/progress";
 import { LevelInsignia } from "@/shared/components/level-insignia";
 import { formatMonthYear, formatNumber } from "@/shared/lib/format";
 import { levelTitle } from "@/shared/lib/level";
@@ -8,7 +9,7 @@ import type { UserProfile } from "../types";
 export function ProfileHeader({ profile }: { profile: UserProfile }) {
   return (
     <div className="flex items-center gap-5">
-      <LevelInsignia level={profile.level} size="lg" />
+      <LevelInsignia level={profile.level} size="lg" color={frameColor(profile.frame, profile.level)} />
       <div className="flex min-w-0 flex-col gap-1.5">
         <h1 className="font-display text-display tracking-display truncate font-bold md:text-display-lg">@{profile.handle}</h1>
         <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">

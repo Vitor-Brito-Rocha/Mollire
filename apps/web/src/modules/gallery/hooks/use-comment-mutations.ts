@@ -35,3 +35,24 @@ export function useDeleteComment(slug: string) {
     meta: { successMessage: "Comentário removido", errorMessage: "Erro ao remover comentário" },
   });
 }
+
+// Marcar/desmarcar "útil": otimista, e o servidor confirma em silêncio.
+export function useToggleHelpful(slug: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ commentId, helpful }: { commentId: string; helpful: boolean }) =>
+      helpful ? galleryApi.markHelpful(slug, commentId) : galleryApi.unmarkHelpful(slug, commentId),
+    onMutate: async ({ commentId, helpful }) => {
+      await queryClient.cancelQueries({ queryKey: galleryKeys.comments(slug) });
+      const previous = queryClient.getQueryData<GalleryComment[]>(galleryKeys.comments(slug));
+      queryClient.setQueryData<GalleryComment[]>(galleryKeys.comments(slug), (comments) =>
+        comments?.map((comment) => (comment.id === commentId ? { ...comment, helpful } : comment)),
+      );
+      return { previous };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) queryClient.setQueryData(galleryKeys.comments(slug), context.previous);
+    },
+    meta: { errorMessage: "Erro ao marcar o comentário" },
+  });
+}

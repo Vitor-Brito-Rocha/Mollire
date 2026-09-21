@@ -8,18 +8,20 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Skeleton } from "@/shared/ui/skeleton";
-import { useAddComment, useDeleteComment } from "../hooks/use-comment-mutations";
+import { useAddComment, useDeleteComment, useToggleHelpful } from "../hooks/use-comment-mutations";
 import { useComments } from "../hooks/use-gallery";
 import { ConfirmDialog } from "@/shared/components/confirm-dialog";
 import { Eyebrow } from "@/shared/components/eyebrow";
 import { StatusChip } from "@/shared/components/status-chip";
 
-export function CommentsSection({ slug, count }: { slug: string; count: number }) {
+// `isOwner`: o dono marca comentários como úteis (e o autor ganha XP).
+export function CommentsSection({ slug, count, isOwner = false }: { slug: string; count: number; isOwner?: boolean }) {
   const location = useLocation();
   const { user } = useCurrentUser();
   const { data: comments, isPending } = useComments(slug);
   const addComment = useAddComment(slug);
   const deleteComment = useDeleteComment(slug);
+  const toggleHelpful = useToggleHelpful(slug);
   const [body, setBody] = useState("");
   // Comentário aguardando confirmação para ser apagado.
   const [removing, setRemoving] = useState<string | null>(null);
@@ -83,11 +85,21 @@ export function CommentsSection({ slug, count }: { slug: string; count: number }
                   {comment.is_project_owner && (
                     <StatusChip tone="accent">autor</StatusChip>
                   )}
+                  {comment.helpful && <StatusChip tone="good">útil</StatusChip>}
                   <span className="text-text-3 text-xs">{formatTimeAgo(comment.created_at)}</span>
+                  {isOwner && comment.helpful !== undefined && !comment.is_project_owner && (
+                    <InlineAction
+                      className="ml-auto"
+                      onClick={() => toggleHelpful.mutate({ commentId: comment.id, helpful: !comment.helpful })}
+                      pending={toggleHelpful.isPending && toggleHelpful.variables?.commentId === comment.id}
+                    >
+                      {comment.helpful ? "desmarcar útil" : "marcar como útil"}
+                    </InlineAction>
+                  )}
                   {comment.can_delete && (
                     <InlineAction
                       destructive
-                      className="ml-auto"
+                      className={isOwner && comment.helpful !== undefined && !comment.is_project_owner ? undefined : "ml-auto"}
                       onClick={() => setRemoving(comment.id)}
                       pending={deleteComment.isPending && deleteComment.variables === comment.id}
                       disabled={deleteComment.isPending}

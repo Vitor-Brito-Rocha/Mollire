@@ -1,11 +1,12 @@
 import { invalidateSession, useCurrentUser } from "@/modules/auth";
 import { GithubConnectionCard } from "@/modules/github";
-import { AchievementGrid, XpHistory, useAchievements, useXpHistory } from "@/modules/progress";
+import { AchievementGrid, FramePicker, XpHistory, isFrameId, useAchievements, useXpHistory } from "@/modules/progress";
 import { ProgressPanel, useProjects } from "@/modules/projects";
 import { PageHeader } from "@/shared/components/page-header";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { ProfileForm } from "../components/profile-form";
 import { useGithubReturnNotice } from "../hooks/use-github-return-notice";
+import { useUpdateFrame } from "../hooks/use-profile";
 
 // A conta de quem está logado: apelido público, a conexão com o GitHub e o
 // seu nível — o mesmo painel do dashboard, com os mesmos números.
@@ -14,6 +15,7 @@ export default function PerfilPage() {
   const { data: projects } = useProjects();
   const { data: achievements } = useAchievements(user ? "me" : null);
   const { data: xpEvents } = useXpHistory(!!user);
+  const updateFrame = useUpdateFrame();
   useGithubReturnNotice();
 
   return (
@@ -29,6 +31,15 @@ export default function PerfilPage() {
             {/* `github_connected` is part of the session user: refresh it when an account is removed. */}
             <GithubConnectionCard connected={user.github_connected} onDisconnected={invalidateSession} />
             {achievements && <AchievementGrid achievements={achievements} showLocked />}
+            {/* Só quando a API devolve o campo: antes disso o PATCH não teria onde gravar. */}
+            {user.frame !== undefined && (
+              <FramePicker
+                level={user.level}
+                current={isFrameId(user.frame) ? user.frame : "default"}
+                pending={updateFrame.isPending}
+                onSelect={(frame) => updateFrame.mutate(frame)}
+              />
+            )}
           </div>
           <div className="flex flex-col gap-6">
             <ProgressPanel user={user} projects={projects ?? []} />

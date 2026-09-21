@@ -10,4 +10,6 @@ export type CurrentUser = {
   // Convites de projeto resgatados nesta chamada (0 na maioria das vezes).
   joined_projects?: number;
   github_connected: boolean;
+  // Moldura da insígnia escolhida (ver modules/progress). Ausente enquanto a API não a devolver.
+  frame?: string | null;
 };

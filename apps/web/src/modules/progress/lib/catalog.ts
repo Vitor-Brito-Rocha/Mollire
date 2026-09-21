@@ -11,7 +11,7 @@ import {
   Users,
   Zap,
 } from "lucide-react";
-import type { AchievementCode, QuestCode, XpReason } from "../types";
+import type { AchievementCode, FrameId, QuestCode, XpReason, XpRule } from "../types";
 
 type Icon = React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
 
@@ -54,3 +54,39 @@ export const TIER_COLOR = {
   silver: "var(--silver)",
   gold: "var(--gold)",
 } as const;
+
+// Texto da faixa "Como ganhar XP" (as quatro regras que o usuário controla) e o
+// espelho dos valores da API para quando GET /xp/rules ainda não existir.
+export const XP_RULE_COPY: Partial<Record<XpReason, { label: string; note: string }>> = {
+  DEPLOY: { label: "Deploy", note: "Cada deploy que termina bem" },
+  FIRST_DEPLOY: { label: "Estreia", note: "Bônus do seu primeiro deploy, uma vez só" },
+  PUBLISH: { label: "Galeria", note: "Na primeira vez que um projeto é publicado na galeria" },
+  STAR_RECEIVED: { label: "Estrela", note: "Cada estrela recebida num projeto seu" },
+};
+export const FALLBACK_XP_RULES: XpRule[] = [
+  { code: "DEPLOY", xp: 10 },
+  { code: "FIRST_DEPLOY", xp: 50 },
+  { code: "PUBLISH", xp: 20 },
+  { code: "STAR_RECEIVED", xp: 5 },
+];
+
+// Molduras da insígnia: o cosmético do jogo. Desbloqueia por nível, e a
+// pessoa escolhe qual usar entre as liberadas.
+export const FRAMES: { id: FrameId; label: string; minLevel: number; color: string }[] = [
+  { id: "default", label: "Padrão", minLevel: 1, color: "var(--primary)" },
+  { id: "bronze", label: "Bronze", minLevel: 3, color: "var(--bronze)" },
+  { id: "silver", label: "Prata", minLevel: 5, color: "var(--silver)" },
+  { id: "gold", label: "Ouro", minLevel: 8, color: "var(--gold)" },
+  { id: "violet", label: "Violeta", minLevel: 12, color: "var(--chart-3)" },
+];
+
+export function isFrameId(value: unknown): value is FrameId {
+  return typeof value === "string" && FRAMES.some((frame) => frame.id === value);
+}
+
+// A cor da moldura que vale para este usuário: a escolhida, se o nível dele
+// libera; senão a padrão. Um nível que caísse (não acontece) não quebra nada.
+export function frameColor(frame: string | null | undefined, level: number): string {
+  const chosen = FRAMES.find((f) => f.id === frame);
+  return chosen && level >= chosen.minLevel ? chosen.color : FRAMES[0].color;
+}

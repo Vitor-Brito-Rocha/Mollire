@@ -12,12 +12,14 @@ type LevelInsigniaProps = {
   size?: keyof typeof SIZES;
   // Hexágono cheio no acento (barra do celular). Sem brilho, sem miolo.
   solid?: boolean;
+  // Cor da moldura (a escolhida pelo usuário); padrão: o acento.
+  color?: string;
   className?: string;
 };
 
 // A insígnia do nível: hexágono no acento com o número dentro. É a mesma em
 // todo lugar — barra lateral, painel de nível, perfil — só muda o tamanho.
-export function LevelInsignia({ level, size = "md", solid = false, className }: LevelInsigniaProps) {
+export function LevelInsignia({ level, size = "md", solid = false, color, className }: LevelInsigniaProps) {
   const s = SIZES[size];
   const label = `Nível ${level}`;
 
@@ -27,6 +29,7 @@ export function LevelInsignia({ level, size = "md", solid = false, className }: 
         role="img"
         aria-label={label}
         className={cn("hex bg-primary text-primary-foreground font-display grid shrink-0 place-items-center font-bold", s.box, s.text, className)}
+        style={color ? { background: color } : undefined}
       >
         {padLevel(level)}
       </span>
@@ -35,9 +38,11 @@ export function LevelInsignia({ level, size = "md", solid = false, className }: 
 
   return (
     <span role="img" aria-label={label} className={cn("relative grid shrink-0 place-items-center", s.box, className)}>
-      <span className={cn("hex bg-primary absolute inset-0", size === "lg" ? "glow-lg" : "glow")} />
+      <span className={cn("hex bg-primary absolute inset-0", size === "lg" ? "glow-lg" : "glow")} style={color ? { background: color } : undefined} />
       <span className={cn("hex bg-card absolute", s.inner)} />
-      <span className={cn("font-display text-primary relative font-bold", s.text)}>{padLevel(level)}</span>
+      <span className={cn("font-display text-primary relative font-bold", s.text)} style={color ? { color } : undefined}>
+        {padLevel(level)}
+      </span>
     </span>
   );
 }

@@ -13,4 +13,7 @@ export const galleryApi = {
   comments: (slug: string) => http.get<GalleryComment[]>(`/gallery/${slug}/comments`),
   addComment: (slug: string, body: string) => http.post<GalleryComment>(`/gallery/${slug}/comments`, { body }),
   deleteComment: (slug: string, id: string) => http.delete<void>(`/gallery/${slug}/comments/${id}`),
+  // Só o dono do projeto marca; quem comentou ganha XP na primeira marcação.
+  markHelpful: (slug: string, id: string) => http.post<void>(`/gallery/${slug}/comments/${id}/helpful`),
+  unmarkHelpful: (slug: string, id: string) => http.delete<void>(`/gallery/${slug}/comments/${id}/helpful`),
 };

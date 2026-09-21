@@ -1,5 +1,5 @@
 import { Panel } from "@/shared/components/panel";
-import { formatDayMonthTime, formatLongDate } from "@/shared/lib/format";
+import { formatDayMonthTime, formatLongDate, formatUptime } from "@/shared/lib/format";
 import type { GalleryProjectDetail } from "../types";
 
 function Fact({ label, children, last }: { label: string; children: React.ReactNode; last?: boolean }) {
@@ -17,6 +17,11 @@ export function ProjectFacts({ project }: { project: GalleryProjectDetail }) {
       <dl className="flex flex-col">
         <Fact label="Publicado">{project.published_at ? formatLongDate(project.published_at) : "—"}</Fact>
         <Fact label="Último deploy">{project.last_deploy_at ? formatDayMonthTime(project.last_deploy_at) : "—"}</Fact>
+        {project.uptime_since && (
+          <Fact label="No ar">
+            <span className="text-good">{formatUptime(project.uptime_since).replace("no ar ", "")}</span>
+          </Fact>
+        )}
         <Fact label="Estrelas">
           <span className="font-mono tabular-nums">{project.stars}</span>
         </Fact>

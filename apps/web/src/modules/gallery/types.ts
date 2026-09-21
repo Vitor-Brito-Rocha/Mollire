@@ -27,6 +27,7 @@ export type GalleryProjectDetail = {
   members: { handle: string; role: ProjectRole }[];
   published_at: string | null;
   last_deploy_at: string | null;
+  uptime_since?: string | null;
   created_at: string;
 };
 
@@ -36,6 +37,8 @@ export type GalleryComment = {
   author: string;
   is_project_owner: boolean;
   can_delete: boolean;
+  // Marcado como útil pelo dono do projeto. Ausente enquanto a API não devolver.
+  helpful?: boolean;
   created_at: string;
 };
 

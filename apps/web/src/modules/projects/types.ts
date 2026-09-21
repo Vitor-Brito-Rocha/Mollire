@@ -9,6 +9,8 @@ export type Project = {
   output_dir: string;
   is_public: boolean;
   thumbnail_url: string | null;
+  // Início da sequência atual "no ar" (ping do back). Ausente enquanto não existir.
+  uptime_since?: string | null;
   // Papel de quem está logado neste projeto (só vem nas rotas de tenant).
   my_role?: ProjectRole;
   user_id: string;

@@ -134,21 +134,28 @@ Resposta do próprio usuário (todas, com progresso):
 
 Resposta pública (`/users/:handle/achievements`): **só as desbloqueadas**, sem progresso. Apelido inexistente: 404.
 
-## 5. Comentário útil (opcional, pequeno)
+## 5. Comentário útil (opcional, pequeno) — front pronto
 
-`POST /gallery/:slug/comments/:id/helpful` e `DELETE` do mesmo: só o dono do projeto; grava `Comment.helpful_at`; na marcação, `xp.award(autor do comentário, HELPFUL_COMMENT, { projectId, actorId: dono })`, uma vez por comentário (desmarcar não tira XP). `GalleryComment` ganha `helpful: boolean`.
+`POST /gallery/:slug/comments/:id/helpful` e `DELETE` do mesmo (204): só o dono do projeto (403 para os outros); grava `Comment.helpful_at`; na primeira marcação, `xp.award(autor do comentário, HELPFUL_COMMENT, { projectId, actorId: dono })` — desmarcar e marcar de novo não paga de novo. `GET /gallery/:slug/comments` passa a devolver `helpful: boolean` em cada comentário. **O front mostra o botão "marcar como útil" só quando o campo `helpful` existe na resposta**; o chip "útil" aparece para todo mundo.
 
-## 6. "No ar há N dias" (opcional, médio)
+## 6. "No ar há N dias" (opcional, médio) — front pronto
 
-Cron a cada 10 min faz `HEAD https://{slug}.aulvi.com.br` em todo projeto publicado; grava em `SiteCheck(project_id, ok, checked_at)`; `GET /projects/:slug` e `GET /gallery/:slug` passam a devolver `uptime_since` (início da sequência atual de `ok`). Alimenta a conquista `uptime_30` e uma linha "no ar há 12 dias" no projeto e na galeria.
+Cron a cada 10 min faz `HEAD https://{slug}.aulvi.com.br` em todo projeto publicado; grava em `SiteCheck(project_id, ok, checked_at)`; `GET /projects/:slug` e `GET /gallery/:slug` passam a devolver `uptime_since: string | null` (ISO do início da sequência atual de `ok`; `null` se o último check falhou ou nunca houve). Alimenta a conquista `uptime_30`. O front já mostra o chip "no ar há 12 dias" no cabeçalho do projeto e a linha "No ar" na galeria quando o campo vem.
+
+## 7. Moldura da insígnia (opcional, pequeno) — front pronto
+
+Cosmético: a cor do hexágono do nível. `User.frame` (string, nulo = padrão), devolvido em `GET /users/me` e em `GET /users/:handle` (é público: aparece no perfil). `PATCH /users/me { frame }` aceita um dos ids `default | bronze | silver | gold | violet` e valida o nível mínimo (bronze 3, prata 5, ouro 8, violeta 12; 400 se não liberou). **O seletor só aparece no perfil quando `frame` vem na resposta de `/users/me`** (nem que seja `null`).
 
 ## Ordem sugerida e tamanho
 
 1. `xp.award` + `XpEvent` + `GET /users/me/xp/history` + `GET /xp/rules` — meio dia. Destrava o resto.
 2. Missões — meio dia. Só leitura de dados que já existem, mais uma tabela.
 3. Conquistas — um dia. Mesma mecânica das missões.
-4. Comentário útil — duas horas.
-5. Ping de uptime — um dia.
+4. Moldura da insígnia — uma hora (um campo e uma validação).
+5. Comentário útil — duas horas.
+6. Ping de uptime — um dia.
+
+O front de todos os seis já está na main e liga sozinho quando cada endpoint ou campo aparecer.
 
 **Migrações:** só tabelas novas. Não renomear nem editar migrações já aplicadas (o `init` renomeado ainda está na fila do review de 21/09).
 
