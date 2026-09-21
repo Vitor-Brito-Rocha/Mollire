@@ -28,6 +28,18 @@ enum ErrorSource {
   UNCAUGHT
 }
 
+// Why XP was paid. The codes are the contract with the frontend catalog
+// (modules/progress/lib/catalog.ts) — add here, then there.
+enum XpReason {
+  DEPLOY
+  FIRST_DEPLOY
+  PUBLISH
+  STAR_RECEIVED
+  QUEST
+  ACHIEVEMENT
+  HELPFUL_COMMENT
+}
+
 model User {
   id         String   @id
   email      String   @unique
@@ -35,6 +47,9 @@ model User {
   // from the email at first sync, changeable via PATCH /users/me. Nullable only
   // so the migration is safe on existing rows — syncUser backfills it.
   handle     String?  @unique
+  // Cosmetic: which level-badge frame the user chose (see common/frames.ts).
+  // Null = the default frame. Public, like the level itself.
+  frame      String?
   role       Role     @default(TENANT)
   xp         Int      @default(0)
   created_at DateTime @default(now())
@@ -48,8 +63,59 @@ model User {
   project_memberships      ProjectMember[]
   project_invitations_sent ProjectInvitation[] @relation("ProjectInvitationInviter")
   github_accounts          GithubAccount[]
+  xp_events                XpEvent[]
+  quest_completions        QuestCompletion[]
+  achievements             Achievement[]
 
   @@map("users")
+}
+
+// A personal milestone the user has unlocked. Same idea as QuestCompletion: the
+// row pays its XP once and is never removed, even if what earned it is undone.
+// The catalog (what exists, how it's earned) lives in progress/achievements.catalog.ts.
+model Achievement {
+  user_id     String
+  code        String
+  unlocked_at DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@id([user_id, code])
+  @@map("achievements")
+}
+
+// A first-steps quest the user has finished. The row is what pays the XP once:
+// it outlives whatever completed the quest (disconnecting GitHub, deleting the
+// project), so undoing and redoing can't earn it twice. Which quests exist, and
+// what each is worth, lives in code (progress/quests.catalog.ts).
+model QuestCompletion {
+  user_id      String
+  code         String
+  completed_at DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@id([user_id, code])
+  @@map("quest_completions")
+}
+
+// One row per XP payment. User.xp is a cache of the sum of these (for users
+// that earned XP after this table existed) — xp.award writes both in one
+// transaction. project_id / actor_id are plain ids, not relations: history
+// outlives a deleted project, and the API resolves them to slug/handle on read.
+model XpEvent {
+  id         String   @id @default(uuid())
+  user_id    String
+  amount     Int
+  reason     XpReason
+  project_id String?  // deploy, publish, star received
+  actor_id   String?  // who starred / whose comment it was
+  created_at DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, created_at])
+  @@map("xp_events")
 }
 
 // A GitHub account (personal or organization) connected via the GitHub App.
@@ -110,6 +176,7 @@ model Project {
   env_vars    ProjectEnvVar[]
   views       ProjectView[]
   activities  ProjectActivity[]
+  site_checks SiteCheck[]
 
   @@index([user_id])
   @@map("projects")
@@ -196,6 +263,11 @@ model Comment {
   created_at DateTime  @default(now())
   updated_at DateTime  @updatedAt
   deleted_at DateTime?
+  // The project owner flagged this comment as helpful (null = not, or un-flagged).
+  helpful_at      DateTime?
+  // Set the first time it was flagged and never cleared: the one-time XP for the
+  // author is paid off this, so un-flagging and re-flagging can't pay twice.
+  helpful_paid_at DateTime?
 
   project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
@@ -225,6 +297,10 @@ model Deployment {
   commit_sha     String?
   commit_message String?
   release_path   String?
+  // True when this deploy re-published an earlier successful commit instead of
+  // the newest one (POST /projects/:slug/deploy with commit_sha). Feeds the
+  // "rollback" achievement.
+  is_rollback    Boolean          @default(false)
   log            String?
   created_at     DateTime         @default(now())
   finished_at    DateTime?
@@ -248,6 +324,22 @@ model ErrorLog {
 
   @@index([created_at])
   @@map("error_logs")
+}
+
+// One reachability probe of a published project's site (UptimeService). The
+// current "up since" is derived from these: the start of the unbroken run of ok
+// checks that ends at the latest one. Old rows are pruned; a project's checks
+// are cleared when it leaves the gallery, so the run restarts on republish.
+model SiteCheck {
+  id         String   @id @default(cuid())
+  project_id String
+  ok         Boolean
+  checked_at DateTime @default(now())
+
+  project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@index([project_id, checked_at])
+  @@map("site_checks")
 }
 
 model ProjectView {

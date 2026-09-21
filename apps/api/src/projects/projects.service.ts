@@ -1,12 +1,10 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, ProjectRole } from '@prisma/client';
+import { Prisma, ProjectRole, XpReason } from '@prisma/client';
 import { ActivityService } from '../activity/activity.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { UptimeService } from '../uptime/uptime.service';
+import { XpService } from '../xp/xp.service';
 import { CreateProjectDto } from './dto/create-project.dto';
-
-// One-time bonus for a project's first-ever publish to the gallery — see
-// Project.published_at, which is what makes this un-farmable by re-toggling.
-const PUBLISH_XP = 20;
 
 // Membership is the tenant boundary. Every lookup a tenant can trigger goes
 // through findForMember / memberFilter, so the rule lives in one place: a
@@ -18,6 +16,8 @@ export class ProjectsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly activity: ActivityService,
+    private readonly xp: XpService,
+    private readonly uptime: UptimeService,
   ) {}
 
   memberFilter(userId: string, minRole: ProjectRole = ProjectRole.MEMBER): Prisma.ProjectWhereInput {
@@ -102,10 +102,12 @@ export class ProjectsService {
     });
 
     if (firstPublish) {
-      await this.prisma.user.update({
-        where: { id: project.user_id },
-        data: { xp: { increment: PUBLISH_XP } },
-      });
+      // One-time: Project.published_at is what makes this un-farmable by re-toggling.
+      await this.xp.award(project.user_id, XpReason.PUBLISH, { projectId: project.id });
+    }
+
+    if (!isPublic) {
+      await this.uptime.reset(project.id);
     }
 
     this.activity.record({ project_id: project.id, type: 'VISIBILITY_CHANGED', actor_id: userId, payload: { is_public: isPublic } });

@@ -1,13 +1,11 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { DeploymentStatus, Prisma, Role } from '@prisma/client';
+import { DeploymentStatus, Prisma, Role, XpReason } from '@prisma/client';
 import { ActivityService } from '../activity/activity.service';
 import { AuthenticatedUser } from '../auth/types';
 import { PrismaService } from '../prisma/prisma.service';
-
-// Paid to the project owner, not the person starring — rewards making
-// something others appreciate, not the act of clicking.
-const STAR_XP = 5;
+import { UptimeService } from '../uptime/uptime.service';
+import { XpService } from '../xp/xp.service';
 
 type Viewer = AuthenticatedUser | undefined;
 
@@ -26,6 +24,8 @@ export class GalleryService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly activity: ActivityService,
+    private readonly xp: XpService,
+    private readonly uptime: UptimeService,
     config: ConfigService,
   ) {
     this.domain = config.getOrThrow<string>('DOMAIN');
@@ -82,6 +82,7 @@ export class GalleryService {
     }
 
     const lastDeploy = project.deployments[0];
+    const uptimeSince = await this.uptime.since(project.id);
     return {
       id: project.id,
       name: project.name,
@@ -97,6 +98,7 @@ export class GalleryService {
       members: project.members.map((m) => ({ handle: m.user.handle ?? 'usuário', role: m.role })),
       published_at: project.published_at,
       last_deploy_at: lastDeploy?.finished_at ?? lastDeploy?.created_at ?? null,
+      uptime_since: uptimeSince,
       created_at: project.created_at,
     };
   }
@@ -108,18 +110,20 @@ export class GalleryService {
     }
 
     try {
-      const [starrer] = await Promise.all([
-        this.prisma.user.findUnique({ where: { id: userId }, select: { handle: true } }),
-        this.prisma.projectStar.create({ data: { project_id: project.id, user_id: userId } }),
-        this.prisma.user.update({ where: { id: project.user_id }, data: { xp: { increment: STAR_XP } } }),
-      ]);
-      this.activity.record({ project_id: project.id, type: 'STAR_RECEIVED', actor_id: userId, payload: { from_handle: starrer?.handle ?? 'usuário' } });
+      await this.prisma.projectStar.create({ data: { project_id: project.id, user_id: userId } });
     } catch (err) {
-      // Already starred — idempotent no-op, not an error.
-      if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002')) {
-        throw err;
+      // Already starred — idempotent no-op, not an error, and pays nothing.
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        return this.starState(project.id, userId);
       }
+      throw err;
     }
+
+    // Paid to the project owner, not the person starring — rewards making
+    // something others appreciate, not the act of clicking.
+    await this.xp.award(project.user_id, XpReason.STAR_RECEIVED, { projectId: project.id, actorId: userId });
+    const starrer = await this.prisma.user.findUnique({ where: { id: userId }, select: { handle: true } });
+    this.activity.record({ project_id: project.id, type: 'STAR_RECEIVED', actor_id: userId, payload: { from_handle: starrer?.handle ?? 'usuário' } });
 
     return this.starState(project.id, userId);
   }
@@ -170,12 +174,63 @@ export class GalleryService {
     });
   }
 
+  // Owner-only: "this comment helped". Pays the comment's author, once per
+  // comment (helpful_paid_at survives un-flagging). The owner can't flag their
+  // own comment — that would be paying themselves.
+  async markHelpful(slug: string, commentId: string, user: AuthenticatedUser) {
+    const { comment } = await this.findCommentForOwner(slug, commentId, user);
+    if (comment.user_id === user.id) {
+      throw new ConflictException("can't mark your own comment as helpful");
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      const now = new Date();
+      // Atomic "first time only": exactly one concurrent request can flip
+      // helpful_paid_at from null, and only that one pays.
+      const first = await tx.comment.updateMany({
+        where: { id: comment.id, helpful_paid_at: null },
+        data: { helpful_at: now, helpful_paid_at: now },
+      });
+      if (first.count === 1) {
+        await this.xp.award(
+          comment.user_id,
+          XpReason.HELPFUL_COMMENT,
+          { projectId: comment.project_id, actorId: user.id },
+          tx,
+        );
+      } else {
+        await tx.comment.updateMany({ where: { id: comment.id, helpful_at: null }, data: { helpful_at: now } });
+      }
+    });
+  }
+
+  async unmarkHelpful(slug: string, commentId: string, user: AuthenticatedUser) {
+    const { comment } = await this.findCommentForOwner(slug, commentId, user);
+    // No refund: the XP was for the moment it helped.
+    await this.prisma.comment.update({ where: { id: comment.id }, data: { helpful_at: null } });
+  }
+
+  private async findCommentForOwner(slug: string, commentId: string, user: AuthenticatedUser) {
+    const project = await this.findPublicBySlug(slug);
+    const comment = await this.prisma.comment.findFirst({
+      where: { id: commentId, project_id: project.id, deleted_at: null },
+    });
+    if (!comment) {
+      throw new NotFoundException(`comment "${commentId}" not found`);
+    }
+    if (project.user_id !== user.id) {
+      throw new ForbiddenException('only the project owner can mark comments as helpful');
+    }
+    return { project, comment };
+  }
+
   private toComment(comment: CommentRow, ownerId: string, viewer: Viewer) {
     return {
       id: comment.id,
       body: comment.body,
       author: comment.user.handle ?? 'usuário',
       is_project_owner: comment.user.id === ownerId,
+      helpful: comment.helpful_at !== null,
       can_delete: !!viewer && (viewer.id === comment.user.id || viewer.role === Role.ADMIN),
       created_at: comment.created_at,
     };

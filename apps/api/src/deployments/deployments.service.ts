@@ -1,6 +1,6 @@
 import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { DeploymentStatus, ErrorSource, Project } from '@prisma/client';
+import { DeploymentStatus, ErrorSource, Project, XpReason } from '@prisma/client';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { EMPTY, Observable, Subject, merge, of } from 'rxjs';
@@ -12,6 +12,7 @@ import { ThumbnailService } from '../gallery/thumbnail.service';
 import { GithubService } from '../github/github.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { XpService } from '../xp/xp.service';
 import { DockerBuildService } from './docker-build.service';
 
 export type StatusEvent =
@@ -22,11 +23,6 @@ export type StatusEvent =
 // to keep disk usage flat regardless of deploy frequency. Bump this once storage
 // is cheap enough to afford keeping a few past releases around.
 const RELEASES_TO_KEEP = 1;
-
-// XP paid on every successful deploy, plus a one-time onboarding bonus for a
-// user's very first one — see awardDeployXp.
-const DEPLOY_XP = 10;
-const FIRST_DEPLOY_BONUS_XP = 50;
 
 type ProjectPaths = {
   root: string;
@@ -62,6 +58,7 @@ export class DeploymentsService {
     private readonly github: GithubService,
     private readonly envVars: EnvVarsService,
     private readonly activity: ActivityService,
+    private readonly xp: XpService,
   ) {
     this.projectsRoot = path.resolve(this.config.get<string>('PROJECTS_ROOT', './data/projects'));
   }
@@ -128,7 +125,11 @@ export class DeploymentsService {
     }
 
     const deployment = await this.prisma.deployment.create({
-      data: { project_id: project.id, status: queued ? DeploymentStatus.QUEUED : DeploymentStatus.PENDING },
+      data: {
+        project_id: project.id,
+        status: queued ? DeploymentStatus.QUEUED : DeploymentStatus.PENDING,
+        is_rollback: await this.isRollback(project.id, options?.targetSha),
+      },
     });
 
     this.activity.record({ project_id: project.id, type: 'DEPLOY_TRIGGERED', actor_id: options?.triggeredBy, payload: { deployment_id: deployment.id } });
@@ -148,6 +149,22 @@ export class DeploymentsService {
     }
 
     return deployment;
+  }
+
+  // A deploy by SHA is a rollback when it targets a commit that already shipped
+  // successfully before, and isn't the one currently live (redeploying the live
+  // version isn't going back). SHAs may be abbreviated, hence the prefix match.
+  private async isRollback(projectId: string, targetSha?: string): Promise<boolean> {
+    if (!targetSha) return false;
+    const successes = await this.prisma.deployment.findMany({
+      where: { project_id: projectId, status: DeploymentStatus.SUCCESS, commit_sha: { not: null } },
+      orderBy: { created_at: 'desc' },
+      select: { commit_sha: true },
+    });
+    const same = (a: string, b: string) => a.startsWith(b) || b.startsWith(a);
+    const [live, ...earlier] = successes;
+    if (!live?.commit_sha || same(live.commit_sha, targetSha)) return false;
+    return earlier.some((d) => same(d.commit_sha!, targetSha));
   }
 
   private startPipeline(
@@ -450,7 +467,14 @@ export class DeploymentsService {
     const priorSuccesses = await this.prisma.deployment.count({
       where: { project: { user_id: project.user_id }, status: DeploymentStatus.SUCCESS },
     });
-    const xp = DEPLOY_XP + (priorSuccesses === 0 ? FIRST_DEPLOY_BONUS_XP : 0);
-    await this.prisma.user.update({ where: { id: project.user_id }, data: { xp: { increment: xp } } });
+    // XP on every successful deploy, plus a one-time onboarding bonus for a
+    // user's very first one — two events, one transaction.
+    const ref = { projectId: project.id };
+    await this.prisma.$transaction(async (tx) => {
+      await this.xp.award(project.user_id, XpReason.DEPLOY, ref, tx);
+      if (priorSuccesses === 0) {
+        await this.xp.award(project.user_id, XpReason.FIRST_DEPLOY, ref, tx);
+      }
+    });
   }
 }

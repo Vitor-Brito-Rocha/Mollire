@@ -49,6 +49,26 @@ export class GalleryController {
     return this.galleryService.addComment(slug, user, dto.body);
   }
 
+  @Post(':slug/comments/:id/helpful')
+  @HttpCode(204)
+  markHelpful(
+    @Param('slug') slug: string,
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.galleryService.markHelpful(slug, id, user);
+  }
+
+  @Delete(':slug/comments/:id/helpful')
+  @HttpCode(204)
+  unmarkHelpful(
+    @Param('slug') slug: string,
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.galleryService.unmarkHelpful(slug, id, user);
+  }
+
   @Delete(':slug/comments/:id')
   @HttpCode(204)
   deleteComment(
