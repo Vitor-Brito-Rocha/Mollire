@@ -1,11 +1,13 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { XpReason } from '@prisma/client';
+import { ActivityService } from '../activity/activity.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UptimeService } from '../uptime/uptime.service';
 import { XP_VALUE } from '../xp/xp.rules';
 import { XpService } from '../xp/xp.service';
 import { ACHIEVEMENTS, Progress } from './achievements.catalog';
+import { settleMilestone } from './settle-milestone';
 
 @Injectable()
 export class AchievementsService {
@@ -16,6 +18,7 @@ export class AchievementsService {
     private readonly xp: XpService,
     private readonly uptime: UptimeService,
     private readonly notifications: NotificationsService,
+    private readonly activity: ActivityService,
   ) {}
 
   // Same mechanic as quests: evaluated on read, settling whatever newly passes.
@@ -32,13 +35,22 @@ export class AchievementsService {
   }
 
   // Called right after something that can unlock an achievement (deploy, star
-  // received, joining a project): settles it and sends a push for each one that
-  // is newly unlocked. Fire-and-forget and never throws — it runs on the tail of
-  // paths that must not fail because a milestone check did.
-  async checkAfterEvent(userId: string): Promise<void> {
+  // received, joining a project): settles it and, for each one that is newly
+  // unlocked, sends a push and — when the event happened in a project — records
+  // it in that project's activity feed. Fire-and-forget and never throws: it runs
+  // on the tail of paths that must not fail because a milestone check did.
+  async checkAfterEvent(userId: string, projectId?: string): Promise<void> {
     try {
       const { newlyUnlocked } = await this.evaluate(userId);
       for (const achievement of newlyUnlocked) {
+        if (projectId) {
+          this.activity.record({
+            project_id: projectId,
+            type: 'ACHIEVEMENT_UNLOCKED',
+            actor_id: userId,
+            payload: { code: achievement.code, title: achievement.title },
+          });
+        }
         await this.notifications.notifyTenant(userId, {
           title: `Conquista desbloqueada: ${achievement.title}`,
           body: `+${XP_VALUE.ACHIEVEMENT} XP. Veja no seu perfil.`,
@@ -94,13 +106,12 @@ export class AchievementsService {
     return { at, progressByCode, newlyUnlocked };
   }
 
-  private async settle(userId: string, code: string): Promise<boolean> {
-    return this.prisma.$transaction(async (tx) => {
-      const { count } = await tx.achievement.createMany({ data: [{ user_id: userId, code }], skipDuplicates: true });
-      if (count === 1) {
-        await this.xp.award(userId, XpReason.ACHIEVEMENT, {}, tx);
-      }
-      return count === 1;
+  private settle(userId: string, code: string): Promise<boolean> {
+    return settleMilestone(this.prisma, this.xp, {
+      table: (tx) => tx.achievement,
+      userId,
+      code,
+      reason: XpReason.ACHIEVEMENT,
     });
   }
 }

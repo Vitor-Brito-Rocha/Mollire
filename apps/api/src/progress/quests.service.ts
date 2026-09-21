@@ -3,6 +3,7 @@ import { XpReason } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { XpService } from '../xp/xp.service';
 import { QUESTS } from './quests.catalog';
+import { settleMilestone } from './settle-milestone';
 
 @Injectable()
 export class QuestsService {
@@ -39,18 +40,13 @@ export class QuestsService {
     return { quests, completed: quests.filter((q) => q.completed_at).length, total: quests.length };
   }
 
-  // Marks the quest done and pays, atomically. skipDuplicates makes the insert a
-  // no-op when a parallel request (two tabs, the 30 s poll) got there first, and
-  // only the request whose insert actually landed pays.
   private async settle(userId: string, code: string, xp: number) {
-    await this.prisma.$transaction(async (tx) => {
-      const { count } = await tx.questCompletion.createMany({
-        data: [{ user_id: userId, code }],
-        skipDuplicates: true,
-      });
-      if (count === 1) {
-        await this.xp.award(userId, XpReason.QUEST, { amount: xp }, tx);
-      }
+    await settleMilestone(this.prisma, this.xp, {
+      table: (tx) => tx.questCompletion,
+      userId,
+      code,
+      reason: XpReason.QUEST,
+      amount: xp,
     });
   }
 }

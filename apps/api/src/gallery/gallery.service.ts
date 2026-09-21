@@ -124,7 +124,7 @@ export class GalleryService {
     // Paid to the project owner, not the person starring — rewards making
     // something others appreciate, not the act of clicking.
     await this.xp.award(project.user_id, XpReason.STAR_RECEIVED, { projectId: project.id, actorId: userId });
-    void this.achievements.checkAfterEvent(project.user_id);
+    void this.achievements.checkAfterEvent(project.user_id, project.id);
     const starrer = await this.prisma.user.findUnique({ where: { id: userId }, select: { handle: true } });
     this.activity.record({ project_id: project.id, type: 'STAR_RECEIVED', actor_id: userId, payload: { from_handle: starrer?.handle ?? 'usuário' } });
 

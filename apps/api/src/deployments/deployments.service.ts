@@ -274,7 +274,7 @@ export class DeploymentsService {
       this.emitTerminal(project.id, deploymentId, DeploymentStatus.SUCCESS);
       // After the row is SUCCESS with its finished_at: first_deploy, ten_deploys,
       // fast_deploy and rollback all read it. Pushes the owner if something unlocked.
-      void this.achievements.checkAfterEvent(project.user_id);
+      void this.achievements.checkAfterEvent(project.user_id, project.id);
 
       if (installationId && githubDeploymentId !== null) {
         const appUrl = this.config.get<string>('APP_URL', '');

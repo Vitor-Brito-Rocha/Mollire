@@ -89,7 +89,8 @@ export type ActivityType =
   | 'MEMBER_REMOVED'
   | 'STAR_RECEIVED'
   | 'COMMENT_ADDED'
-  | 'VISIBILITY_CHANGED';
+  | 'VISIBILITY_CHANGED'
+  | 'ACHIEVEMENT_UNLOCKED';
 
 export type ProjectActivity = {
   id: string;

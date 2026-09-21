@@ -73,7 +73,7 @@ export class MembersService {
       });
       this.activity.record({ project_id: project.id, type: 'MEMBER_ADDED', actor_id: owner.id, payload: { handle: existing.handle ?? 'usuário' } });
       // The new member may just have hit "collaborator" (member in 3 projects).
-      void this.achievements.checkAfterEvent(existing.id);
+      void this.achievements.checkAfterEvent(existing.id, project.id);
       return {
         status: 'added' as const,
         member: { user_id: member.user_id, handle: existing.handle ?? 'usuário', role: member.role, since: member.created_at },
@@ -141,7 +141,8 @@ export class MembersService {
         });
       }
     });
-    void this.achievements.checkAfterEvent(user.id);
+    // Several invitations can be redeemed at once; the feed entry goes on the first.
+    void this.achievements.checkAfterEvent(user.id, pending[0].project_id);
     return pending.length;
   }
 }

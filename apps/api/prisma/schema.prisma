@@ -370,6 +370,7 @@ enum ActivityType {
   STAR_RECEIVED
   COMMENT_ADDED
   VISIBILITY_CHANGED
+  ACHIEVEMENT_UNLOCKED
 }
 
 model ProjectActivity {

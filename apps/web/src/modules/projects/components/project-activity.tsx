@@ -12,6 +12,7 @@ const DOT_COLOR: Record<ProjectActivity["type"], string> = {
   MEMBER_REMOVED: "bg-text-3",
   COMMENT_ADDED: "bg-purple-400",
   VISIBILITY_CHANGED: "bg-teal-400",
+  ACHIEVEMENT_UNLOCKED: "bg-amber-400",
 };
 
 function activityText(a: ProjectActivity): string {
@@ -38,6 +39,8 @@ function activityText(a: ProjectActivity): string {
       return `${p.handle ?? actor} comentou: "${String(p.body_preview ?? "").slice(0, 60)}"`;
     case "VISIBILITY_CHANGED":
       return p.is_public ? "Projeto publicado na galeria" : "Projeto removido da galeria";
+    case "ACHIEVEMENT_UNLOCKED":
+      return `${actor ?? "Alguém"} desbloqueou a conquista "${String(p.title ?? "")}"`;
     default:
       return a.type;
   }
