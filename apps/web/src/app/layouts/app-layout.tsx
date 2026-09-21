@@ -16,7 +16,9 @@ export default function AppLayout() {
       <SideRail />
       <div className="flex min-w-0 flex-1 flex-col">
         <MobileBar />
-        <main className="hud-grid flex flex-1 flex-col px-5 py-8 md:px-10 md:py-10">
+        {/* --screen: a altura útil de uma tela (viewport menos o respiro do main), para
+            páginas que querem ocupar a tela inteira sem rolar, como a de novo projeto. */}
+        <main className="hud-grid flex flex-1 flex-col px-5 py-8 [--screen:calc(100dvh-4rem)] md:px-10 md:py-10 md:[--screen:calc(100dvh-5rem)]">
           {/* Preso à janela e à direita da barra lateral: nunca por baixo do desfoque dela. */}
           <GridBeams key={theme} fixed className="md:left-[232px]" />
           <div key={pathname} className="route-enter flex flex-1 flex-col">

@@ -64,13 +64,17 @@ export function StarButton({
           : "bg-raised border-line-2 text-muted-foreground hover:border-gold hover:text-foreground")
       }
     >
-      {lit && (
-        <span
-          aria-hidden="true"
-          className="animate-star-ring border-gold pointer-events-none absolute top-1/2 left-[19px] size-5 -translate-x-1/2 -translate-y-1/2 rounded-full border"
-        />
-      )}
-      <StarIcon filled={starred} pending={pending} lit={lit} />
+      {/* O anel vive num invólucro centrado na estrela: a animação escreve
+          transform (scale), então a centralização não pode depender de translate. */}
+      <span className="relative grid place-items-center">
+        {lit && (
+          <span
+            aria-hidden="true"
+            className="animate-star-ring border-gold pointer-events-none absolute inset-0 m-auto size-5 rounded-full border"
+          />
+        )}
+        <StarIcon filled={starred} pending={pending} lit={lit} />
+      </span>
       <span className="font-mono text-caption font-medium tabular-nums">{stars}</span>
     </Button>
   );
