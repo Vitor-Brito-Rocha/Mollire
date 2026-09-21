@@ -1,8 +1,12 @@
+// `message` is already in Portuguese and safe to show (see messages.ts);
+// `detail` keeps what the API actually said, for logs and debugging.
 export class ApiError extends Error {
   status_code: number;
-  constructor(status_code: number, message: string) {
+  detail?: unknown;
+  constructor(status_code: number, message: string, detail?: unknown) {
     super(message);
     this.status_code = status_code;
+    this.detail = detail;
   }
 }
 

@@ -107,3 +107,8 @@ export type ProjectAnalytics = {
   byCountry: { country: string | null; views: number }[];
   byPath: { path: string; views: number }[];
 };
+
+// One message of GET /projects/:slug/status (server-sent events).
+export type DeploymentStreamEvent =
+  | { type: "status"; deploymentId: string; status: DeploymentStatus }
+  | { type: "log"; deploymentId: string; chunk: string };

@@ -5,13 +5,18 @@ import { ApiError, getErrorMessage } from "./http";
 // Every request gets visible feedback by default; opt out per call via `meta`.
 //
 //   useMutation({ mutationFn, meta: { successMessage: "Projeto criado" } })  -> success toast
+//   useMutation({ mutationFn, meta: { successMessage: (data, vars) => `${vars.key} salvo` } })  -> computed
 //   useMutation({ mutationFn, meta: { errorMessage: "Falha ao salvar" } })   -> fallback for non-API errors
 //   useMutation({ mutationFn, meta: { silent: true } })                      -> no toast (screen handles it)
 //   useQuery({ queryKey, queryFn, meta: { silent: true } })                  -> no toast on failure
+// A fixed string, or a function of what the mutation returned / was called with.
+// `never` parameters keep any concretely-typed function assignable here.
+type SuccessMessage = string | ((data: never, variables: never) => string);
+
 declare module "@tanstack/react-query" {
   interface Register {
     queryMeta: { silent?: boolean; errorMessage?: string };
-    mutationMeta: { silent?: boolean; successMessage?: string; errorMessage?: string };
+    mutationMeta: { silent?: boolean; successMessage?: SuccessMessage; errorMessage?: string };
   }
 }
 
@@ -26,15 +31,19 @@ export const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error, query) => {
       if (query.meta?.silent) return;
+      // A failed background refresh (polling, refetch) keeps the last good data
+      // on screen; only a load that has nothing to show is worth a toast.
+      if (query.state.data !== undefined) return;
       // Stable id: the same failing query (refetch loops, several observers)
       // shows one toast, not a stack of them.
       toast.error(getErrorMessage(error, query.meta?.errorMessage), { id: query.queryHash });
     },
   }),
   mutationCache: new MutationCache({
-    onSuccess: (_data, _variables, _context, mutation) => {
-      if (mutation.meta?.silent || !mutation.meta?.successMessage) return;
-      toast.success(mutation.meta.successMessage);
+    onSuccess: (data, variables, _context, mutation) => {
+      const message = mutation.meta?.successMessage;
+      if (mutation.meta?.silent || !message) return;
+      toast.success(typeof message === "function" ? message(data as never, variables as never) : message);
     },
     onError: (error, _variables, _context, mutation) => {
       if (mutation.meta?.silent) return;

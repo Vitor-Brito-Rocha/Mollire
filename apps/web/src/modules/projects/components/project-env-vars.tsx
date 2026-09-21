@@ -1,83 +1,57 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { toast } from "sonner";
-import { Button } from "@/shared/ui/button";
+import { useState, type FormEvent } from "react";
+import { InlineAction } from "@/shared/components/inline-action";
+import { Panel } from "@/shared/components/panel";
+import { SubmitButton } from "@/shared/components/submit-button";
+import { formatDayMonth } from "@/shared/lib/format";
 import { Input } from "@/shared/ui/input";
 import { Skeleton } from "@/shared/ui/skeleton";
-import { http, ApiError } from "@/shared/lib/http";
-import type { EnvVar } from "../types";
-
-const dateFmt = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short" });
+import { useDeleteEnvVar, useEnvVars, useSaveEnvVar } from "../hooks/use-env-vars";
 
 export function ProjectEnvVars({ slug }: { slug: string }) {
-  const [vars, setVars] = useState<EnvVar[] | null>(null);
+  const { data: vars, isPending, isError } = useEnvVars(slug);
+  const saveVar = useSaveEnvVar(slug);
+  const deleteVar = useDeleteEnvVar(slug);
   const [key, setKey] = useState("");
   const [value, setValue] = useState("");
-  const [saving, setSaving] = useState(false);
 
-  function reload() {
-    return http
-      .get<EnvVar[]>(`/projects/${slug}/env`)
-      .then(setVars)
-      .catch(() => undefined);
-  }
-
-  useEffect(() => {
-    reload();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slug]);
-
-  async function handleSave(event: FormEvent) {
+  function handleSave(event: FormEvent) {
     event.preventDefault();
-    setSaving(true);
-    try {
-      await http.put(`/projects/${slug}/env/${key}`, { value });
-      toast.success(`${key} salvo`);
-      setKey("");
-      setValue("");
-      await reload();
-    } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : "Erro ao salvar variável");
-    } finally {
-      setSaving(false);
-    }
+    saveVar.mutate(
+      { key, value },
+      {
+        onSuccess: () => {
+          setKey("");
+          setValue("");
+        },
+      },
+    );
   }
 
-  async function handleDelete(varKey: string) {
-    try {
-      await http.delete(`/projects/${slug}/env/${varKey}`);
-      toast.success(`${varKey} removido`);
-      await reload();
-    } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : "Erro ao remover variável");
-    }
+  if (isPending) return <Skeleton className="h-40 w-full" />;
+  if (isError) {
+    return (
+      <Panel title="Variáveis de ambiente">
+        <p className="text-text-3 px-4 py-6 text-center text-sm">Não foi possível carregar.</p>
+      </Panel>
+    );
   }
-
-  if (vars === null) return <Skeleton className="h-40 w-full" />;
 
   return (
-    <section className="corners bg-card border-border flex flex-col border">
-      <h2 className="label border-border flex items-center gap-2 border-b px-4 py-3">
-        Variáveis de ambiente
-        {vars.length > 0 && (
-          <span className="text-text-3 font-mono text-xs tracking-normal normal-case">{vars.length}</span>
-        )}
-      </h2>
-
+    <Panel title="Variáveis de ambiente" count={vars.length > 0 ? vars.length : undefined}>
       {vars.length > 0 && (
         <ul className="flex flex-col">
           {vars.map((v) => (
             <li key={v.key} className="border-border flex items-center gap-3 border-b px-4 py-2.5">
               <span className="min-w-0 flex-1 truncate font-mono text-xs">{v.key}</span>
-              <span className="text-text-3 shrink-0 text-xs">
-                {dateFmt.format(new Date(v.updated_at))}
-              </span>
-              <button
-                type="button"
-                onClick={() => handleDelete(v.key)}
-                className="text-text-3 hover:text-destructive shrink-0 text-xs underline underline-offset-4"
+              <span className="text-text-3 shrink-0 text-xs">{formatDayMonth(v.updated_at)}</span>
+              <InlineAction
+                destructive
+                onClick={() => deleteVar.mutate(v.key)}
+                pending={deleteVar.isPending && deleteVar.variables === v.key}
+                disabled={deleteVar.isPending}
               >
                 remover
-              </button>
+              </InlineAction>
             </li>
           ))}
         </ul>
@@ -90,6 +64,7 @@ export function ProjectEnvVars({ slug }: { slug: string }) {
             onChange={(e) => setKey(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, ""))}
             placeholder="NOME_DA_VARIAVEL"
             className="font-mono text-xs"
+            aria-label="Nome da variável"
             required
           />
           <Input
@@ -98,16 +73,17 @@ export function ProjectEnvVars({ slug }: { slug: string }) {
             onChange={(e) => setValue(e.target.value)}
             placeholder="valor"
             className="font-mono text-xs"
+            aria-label="Valor"
             required
           />
         </div>
-        <Button type="submit" size="lg" disabled={saving}>
-          {saving ? "Salvando..." : "Salvar variável"}
-        </Button>
+        <SubmitButton size="lg" pending={saveVar.isPending} pendingLabel="Salvando…">
+          Salvar variável
+        </SubmitButton>
         <p className="text-text-3 text-xs">
           Valores não são exibidos após salvos. Para atualizar, salve novamente com a mesma chave.
         </p>
       </form>
-    </section>
+    </Panel>
   );
 }

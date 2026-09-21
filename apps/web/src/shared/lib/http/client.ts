@@ -1,5 +1,6 @@
 import { API_URL } from "./config";
 import { ApiError } from "./errors";
+import { translateApiMessage } from "./messages";
 
 function send(path: string, options: RequestInit): Promise<Response> {
   return fetch(`${API_URL}${path}`, {
@@ -43,8 +44,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   }
 
   if (!response.ok) {
-    const body = await response.json().catch(() => ({ message: response.statusText }));
-    throw new ApiError(response.status, body.message ?? "Request failed");
+    const body = await response.json().catch(() => ({}));
+    throw new ApiError(response.status, translateApiMessage(body.message, response.status), body.message);
   }
 
   if (response.status === 204) {
