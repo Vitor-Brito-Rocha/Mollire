@@ -1,7 +1,10 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { ActivityType, Prisma } from '@prisma/client';
+import { AuthenticatedUser } from '../auth/types';
+import { FRAME_MIN_LEVEL, FrameId } from '../common/frames';
 import { levelForXp } from '../common/level';
 import { PrismaService } from '../prisma/prisma.service';
+import { UpdateMeDto } from './dto/update-me.dto';
 
 @Injectable()
 export class UsersService {
@@ -10,7 +13,7 @@ export class UsersService {
   async getPublicProfile(handle: string) {
     const user = await this.prisma.user.findUnique({
       where: { handle },
-      select: { id: true, handle: true, xp: true, created_at: true },
+      select: { id: true, handle: true, frame: true, xp: true, created_at: true },
     });
     if (!user) throw new NotFoundException(`user "${handle}" not found`);
 
@@ -44,6 +47,7 @@ export class UsersService {
 
     return {
       handle: user.handle!,
+      frame: user.frame,
       xp: user.xp,
       ...levelForXp(user.xp),
       joined_at: user.created_at,
@@ -60,15 +64,30 @@ export class UsersService {
     };
   }
 
-  async setHandle(userId: string, handle: string) {
+  async updateMe(user: AuthenticatedUser, dto: UpdateMeDto) {
+    if (dto.handle === undefined && dto.frame === undefined) {
+      throw new BadRequestException('nothing to update: send handle and/or frame');
+    }
+
+    const data: Prisma.UserUpdateInput = {};
+    if (dto.handle !== undefined) {
+      data.handle = dto.handle.toLowerCase();
+    }
+    if (dto.frame !== undefined) {
+      const frame = dto.frame as FrameId;
+      const { level } = levelForXp(user.xp);
+      if (level < FRAME_MIN_LEVEL[frame]) {
+        throw new BadRequestException(`frame "${frame}" unlocks at level ${FRAME_MIN_LEVEL[frame]}`);
+      }
+      // The default frame is stored as "nothing chosen".
+      data.frame = frame === 'default' ? null : frame;
+    }
+
     try {
-      return await this.prisma.user.update({
-        where: { id: userId },
-        data: { handle: handle.toLowerCase() },
-      });
+      return await this.prisma.user.update({ where: { id: user.id }, data });
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-        throw new ConflictException(`handle "${handle}" is already taken`);
+        throw new ConflictException(`handle "${dto.handle}" is already taken`);
       }
       throw err;
     }

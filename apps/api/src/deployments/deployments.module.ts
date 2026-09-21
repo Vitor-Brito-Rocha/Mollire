@@ -3,13 +3,15 @@ import { ActivityModule } from '../activity/activity.module';
 import { EnvVarsModule } from '../env-vars/env-vars.module';
 import { GalleryModule } from '../gallery/gallery.module';
 import { GithubModule } from '../github/github.module';
+import { ProgressModule } from '../progress/progress.module';
 import { ProjectsModule } from '../projects/projects.module';
+import { XpModule } from '../xp/xp.module';
 import { DeploymentsController } from './deployments.controller';
 import { DeploymentsService } from './deployments.service';
 import { DockerBuildService } from './docker-build.service';
 
 @Module({
-  imports: [ProjectsModule, GalleryModule, GithubModule, EnvVarsModule, ActivityModule],
+  imports: [ProjectsModule, GalleryModule, GithubModule, EnvVarsModule, ActivityModule, XpModule, ProgressModule],
   controllers: [DeploymentsController],
   providers: [DeploymentsService, DockerBuildService],
   exports: [DeploymentsService],

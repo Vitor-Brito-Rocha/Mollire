@@ -159,4 +159,22 @@ O front de todos os seis já está na main e liga sozinho quando cada endpoint o
 
 **Migrações:** só tabelas novas. Não renomear nem editar migrações já aplicadas (o `init` renomeado ainda está na fila do review de 21/09).
 
+## Como ficou no back (21/09/2026)
+
+Os sete itens estão implementados, com o contrato JSON acima intacto. Ajustes em relação ao texto:
+
+- **Onde mora o quê:** `src/xp/` (regras, `XpService.award`, histórico), `src/progress/` (catálogos de missões e conquistas, avaliação no `GET`), `src/uptime/` (ping e `uptime_since`). Constantes soltas (`DEPLOY_XP` etc.) viraram `XP_VALUE` em `xp/xp.rules.ts`.
+- **`GithubInstallation` não existe:** o model real é `GithubAccount`; `connect_github` olha ele.
+- **`invite_member`:** convite feito pelo usuário **ou** membro (não dono) em projeto dele — adicionar quem já tem conta não gera convite.
+- **`rollback`:** ganhou campo `Deployment.is_rollback`, marcado em `DeploymentsService.trigger` quando o deploy por `commit_sha` aponta um commit que já foi ao ar antes e não é o atual. Só conta para o dono do projeto (o deploy não guarda quem o disparou).
+- **`uptime_30`:** usa os checks reais (`SiteCheck`), cortado pelo último deploy `FAILED`. Sair da galeria apaga os checks do projeto, então a contagem recomeça ao republicar. Progresso só aparece enquanto bloqueada.
+- **Comentário útil:** dois campos em `Comment` — `helpful_at` (estado atual) e `helpful_paid_at` (marca de pagamento, nunca limpa). O dono **não** pode marcar comentário próprio (409), senão pagaria XP a si mesmo. `POST` e `DELETE` respondem 204.
+- **Ping:** `setInterval` no processo da API (sem dependência nova), a cada 10 min. **Desligado fora de produção** por padrão (`UPTIME_CHECK_ENABLED=true` liga; ver `.env.example`). Checks ficam 90 dias; se o último check tem mais de 1 h (pinger parado), `uptime_since` volta `null`. Site privado nunca tem `uptime_since`.
+- **Moldura:** `PATCH /users/me` agora aceita `handle` e/ou `frame` (ao menos um). `default` é gravado como `null`. A resposta do `PATCH` passou a trazer o formato completo de `/users/me` (inclui `github_connected`), porque o front a grava no cache da sessão.
+- **Estrela:** o `star` pagava XP mesmo quando a estrela já existia (três chamadas em `Promise.all`); agora só paga se a estrela foi criada. Continua possível estrelar, tirar e estrelar de novo pra ganhar 5 XP a cada vez — decisão pendente.
+- **Histórico antigo:** quem ganhou XP antes desta feature tem `User.xp` maior que a soma dos eventos (não há backfill); o histórico começa daqui.
+- **Push ao desbloquear conquista:** logo depois de um deploy bem-sucedido, de uma estrela recebida e de entrar num projeto (convite aceito ou adicionado pelo dono), o back roda a mesma avaliação do `GET` e manda um push (`Conquista desbloqueada: <título>`, `+25 XP`, abre `/perfil`) para cada conquista **recém**-desbloqueada. O `GET` continua silencioso (quem está com o painel aberto já vê). O título do push vem de `progress/achievements.catalog.ts` (único texto no back; manter igual ao do front). Falha de push não quebra a requisição nem desfaz o desbloqueio. Consequência: XP de conquista (+25) já entra no momento do evento, não na próxima visita ao painel.
+- **`uptime_30` também manda push:** ela só fica verdadeira com o tempo passando, então um job de hora em hora (`progress/uptime-milestone.service.ts`, mesmo liga/desliga do ping) avalia só quem tem um site publicado com check de 30+ dias e ainda não a desbloqueou.
+- **Não feito:** não registramos `ProjectActivity ACHIEVEMENT_UNLOCKED`.
+
 **Como testar sem o front:** os JSONs acima são exatamente os que o backend de mentira do Michael devolve; a tela do painel, do perfil e do perfil público já renderizam a partir deles.
