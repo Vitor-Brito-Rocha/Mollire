@@ -1,4 +1,7 @@
-import { http } from "@/shared/lib/http";
+import { notificationsApi } from "../api/notifications.api";
+
+// Browser-side Web Push plumbing. Nothing here caches or toasts: the
+// `usePushSubscription` hook owns that.
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -15,27 +18,24 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
 }
 
 export function isPushSupported(): boolean {
-  return typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window;
+  return "serviceWorker" in navigator && "PushManager" in window;
 }
 
-export async function getPushSubscriptionState(): Promise<"subscribed" | "unsubscribed"> {
+export async function isPushSubscribed(): Promise<boolean> {
   // register(), not getRegistration(): the latter can miss a registration
   // that exists but hasn't been resolved for this page load yet, silently
   // reporting "unsubscribed" even though the browser already has one.
   // register() is idempotent — the browser hands back the existing
   // registration for this scope+script instead of installing a new one.
   const registration = await navigator.serviceWorker.register("/sw.js");
-  const subscription = await registration.pushManager.getSubscription();
-  return subscription ? "subscribed" : "unsubscribed";
+  return (await registration.pushManager.getSubscription()) !== null;
 }
 
 // Requires an explicit user gesture (a click) — browsers block auto-prompting
-// notification permission on page load.
-export async function subscribeToPush(): Promise<void> {
+// notification permission on page load. Resolves false when the user says no.
+export async function subscribeToPush(): Promise<boolean> {
   const permission = await Notification.requestPermission();
-  if (permission !== "granted") {
-    throw new Error("Permissão de notificação negada");
-  }
+  if (permission !== "granted") return false;
 
   const registration = await navigator.serviceWorker.register("/sw.js");
   const subscription = await registration.pushManager.subscribe({
@@ -44,12 +44,13 @@ export async function subscribeToPush(): Promise<void> {
   });
 
   const json = subscription.toJSON();
-  await http.post("/notifications/subscribe", {
+  await notificationsApi.subscribe({
     endpoint: json.endpoint,
     p256dh: json.keys?.p256dh,
     auth: json.keys?.auth,
     user_agent: navigator.userAgent,
   });
+  return true;
 }
 
 export async function unsubscribeFromPush(): Promise<void> {
@@ -57,6 +58,6 @@ export async function unsubscribeFromPush(): Promise<void> {
   const subscription = await registration?.pushManager.getSubscription();
   if (!subscription) return;
 
-  await http.delete("/notifications/subscribe", { endpoint: subscription.endpoint });
+  await notificationsApi.unsubscribe(subscription.endpoint);
   await subscription.unsubscribe();
 }

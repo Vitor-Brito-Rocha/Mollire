@@ -1,50 +1,27 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { toast } from "sonner";
+import { useState, type FormEvent } from "react";
 import { StatusChip } from "@/modules/projects";
-import { http, ApiError } from "@/shared/lib/http";
-import type { AdminsList, InviteAdminResponse } from "../types";
-import { Button } from "@/shared/ui/button";
-import { Input } from "@/shared/ui/input";
-import { Label } from "@/shared/ui/label";
+import { EmptyState } from "@/shared/components/empty-state";
+import { FormField } from "@/shared/components/form-field";
+import { Panel } from "@/shared/components/panel";
+import { SubmitButton } from "@/shared/components/submit-button";
+import { formatDayMonthYear } from "@/shared/lib/format";
 import { Skeleton } from "@/shared/ui/skeleton";
+import { AdminError } from "../components/admin-error";
+import { useAdmins, useInviteAdmin } from "../hooks/use-admin";
 
-const dateFmt = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
+const ROW = "border-border grid grid-cols-12 items-center gap-3 border-b px-4 py-3 last:border-b-0";
 
 export default function AdminAdminsPage() {
-  const [data, setData] = useState<AdminsList | null>(null);
   const [email, setEmail] = useState("");
-  const [inviting, setInviting] = useState(false);
+  const { data, isPending, refetch } = useAdmins();
+  const invite = useInviteAdmin();
 
-  function reload() {
-    return http.get<AdminsList>("/admin/admins").then(setData);
-  }
-
-  useEffect(() => {
-    reload();
-  }, []);
-
-  async function handleSubmit(event: FormEvent) {
+  function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    setInviting(true);
-    try {
-      const result = await http.post<InviteAdminResponse>("/admin/admins", { email });
-      if (result.status === "already_admin") {
-        toast.info(`${result.user.email} já é admin`);
-      } else if (result.status === "promoted") {
-        toast.success(`${result.user.email} agora é admin`);
-      } else {
-        toast.success(`Convite criado — ${result.invite.email} vira admin no próximo login`);
-      }
-      setEmail("");
-      await reload();
-    } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : "Erro ao convidar admin");
-    } finally {
-      setInviting(false);
-    }
+    invite.mutate(email.trim(), { onSuccess: () => setEmail("") });
   }
 
-  const total = data ? data.admins.length + data.pendingInvites.length : 0;
+  const pending = data?.pendingInvites ?? [];
 
   return (
     <div className="flex flex-col gap-6">
@@ -55,15 +32,15 @@ export default function AdminAdminsPage() {
             Conceder acesso
           </span>
           <p className="text-muted-foreground text-sm">
-            Quem já fez login vira admin na hora. Quem nunca entrou fica pendente e vira admin no primeiro
-            login. Só concede — nunca remove.
+            Quem já fez login vira admin na hora. Quem nunca entrou fica pendente e vira admin no primeiro login. Só
+            concede — nunca remove.
           </p>
         </div>
         <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <div className="flex flex-1 flex-col gap-2">
-            <Label htmlFor="email">E-mail</Label>
-            <Input
+          <div className="flex-1">
+            <FormField
               id="email"
+              label="E-mail"
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
@@ -71,66 +48,53 @@ export default function AdminAdminsPage() {
               required
             />
           </div>
-          <Button type="submit" size="lg" disabled={inviting}>
-            {inviting ? "Enviando..." : "Tornar admin"}
-          </Button>
+          <SubmitButton size="lg" pending={invite.isPending} pendingLabel="Enviando…">
+            Tornar admin
+          </SubmitButton>
         </form>
       </section>
 
-      {data === null ? (
-        <Skeleton className="h-48 w-full" />
+      {isPending ? (
+        <Skeleton className="h-48 w-full" aria-busy="true" />
+      ) : !data ? (
+        <AdminError onRetry={refetch}>Erro ao carregar os admins.</AdminError>
+      ) : data.admins.length + pending.length === 0 ? (
+        <EmptyState>Nenhum admin ainda.</EmptyState>
       ) : (
-        <section className="corners bg-card border-border flex flex-col border">
-          <div className="border-border flex items-center justify-between gap-3 border-b px-4 py-3">
-            <h2 className="label flex items-center gap-2">
-              Admins
-              <span className="text-text-3 font-mono text-xs tracking-normal normal-case">{data.admins.length}</span>
-            </h2>
-            {data.pendingInvites.length > 0 && (
-              <span className="text-muted-foreground text-xs">
-                {data.pendingInvites.length === 1
-                  ? "1 convite pendente"
-                  : `${data.pendingInvites.length} convites pendentes`}
-              </span>
-            )}
-          </div>
-
-          {total === 0 ? (
-            <p className="text-muted-foreground px-4 py-10 text-center">Nenhum admin ainda.</p>
-          ) : (
-            <>
-              <div className="label text-text-3 border-border grid grid-cols-12 gap-3 border-b px-4 py-2.5 text-[10px]">
-                <span className="col-span-7 sm:col-span-6">E-mail</span>
-                <span className="col-span-5 sm:col-span-3">Estado</span>
-                <span className="hidden sm:col-span-3 sm:block">Desde</span>
-              </div>
-              {data.admins.map((admin) => (
-                <div
-                  key={admin.id}
-                  className="border-border grid grid-cols-12 items-center gap-3 border-b px-4 py-3 last:border-b-0"
-                >
-                  <span className="col-span-7 truncate font-mono text-[13px] sm:col-span-6">{admin.email}</span>
-                  <StatusChip tone="good" className="col-span-5 sm:col-span-3">Admin</StatusChip>
-                  <span className="text-muted-foreground hidden text-[13px] sm:col-span-3 sm:block">
-                    {dateFmt.format(new Date(admin.created_at))}
-                  </span>
-                </div>
-              ))}
-              {data.pendingInvites.map((invite) => (
-                <div
-                  key={invite.email}
-                  className="border-border grid grid-cols-12 items-center gap-3 border-b px-4 py-3 last:border-b-0"
-                >
-                  <span className="col-span-7 truncate font-mono text-[13px] sm:col-span-6">{invite.email}</span>
-                  <StatusChip tone="busy" className="col-span-5 sm:col-span-3">Pendente · 1º login</StatusChip>
-                  <span className="text-muted-foreground hidden text-[13px] sm:col-span-3 sm:block">
-                    convidado em {dateFmt.format(new Date(invite.created_at))}
-                  </span>
-                </div>
-              ))}
-            </>
+        <Panel title="Admins" count={data.admins.length}>
+          {pending.length > 0 && (
+            <p className="text-muted-foreground border-border border-b px-4 py-2 text-xs">
+              {pending.length === 1 ? "1 convite pendente" : `${pending.length} convites pendentes`}
+            </p>
           )}
-        </section>
+          <div className="label text-text-3 border-border grid grid-cols-12 gap-3 border-b px-4 py-2.5 text-[10px]">
+            <span className="col-span-7 sm:col-span-6">E-mail</span>
+            <span className="col-span-5 sm:col-span-3">Estado</span>
+            <span className="hidden sm:col-span-3 sm:block">Desde</span>
+          </div>
+          {data.admins.map((admin) => (
+            <div key={admin.id} className={ROW}>
+              <span className="col-span-7 truncate font-mono text-[13px] sm:col-span-6">{admin.email}</span>
+              <StatusChip tone="good" className="col-span-5 sm:col-span-3">
+                Admin
+              </StatusChip>
+              <span className="text-muted-foreground hidden text-[13px] sm:col-span-3 sm:block">
+                {formatDayMonthYear(admin.created_at)}
+              </span>
+            </div>
+          ))}
+          {pending.map((item) => (
+            <div key={item.email} className={ROW}>
+              <span className="col-span-7 truncate font-mono text-[13px] sm:col-span-6">{item.email}</span>
+              <StatusChip tone="busy" className="col-span-5 sm:col-span-3">
+                Pendente · 1º login
+              </StatusChip>
+              <span className="text-muted-foreground hidden text-[13px] sm:col-span-3 sm:block">
+                convidado em {formatDayMonthYear(item.created_at)}
+              </span>
+            </div>
+          ))}
+        </Panel>
       )}
     </div>
   );
