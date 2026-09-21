@@ -136,6 +136,25 @@ export class GithubService {
     }
   }
 
+  // Reads package.json "scripts" from the repo's default branch. Null when the
+  // repo has no (readable) package.json.
+  async fetchPackageScripts(installationId: bigint, fullName: string): Promise<unknown | null> {
+    const token = await this.getInstallationToken(installationId);
+    const resp = await fetch(`https://api.github.com/repos/${fullName}/contents/package.json`, {
+      headers: { ...this.githubHeaders(`Bearer ${token}`), Accept: 'application/vnd.github.raw+json' },
+    });
+    if (resp.status === 404) return null;
+    if (!resp.ok) {
+      const body = await resp.text();
+      throw new Error(`GitHub API ${resp.status}: ${body}`);
+    }
+    try {
+      return (JSON.parse(await resp.text()) as { scripts?: unknown }).scripts ?? null;
+    } catch {
+      return null;
+    }
+  }
+
   async uninstall(installationId: bigint): Promise<void> {
     const jwt = await this.generateAppJwt();
     const resp = await fetch(`https://api.github.com/app/installations/${installationId}`, {
