@@ -77,11 +77,12 @@ export function LevelBar({
         <div className="xp-fill h-full transition-[width] duration-(--dur-slow) ease-out" style={{ width: `${pct}%` }} />
       </div>
       {celebrating && (
-        <span
-          role="status"
-          className="animate-level-up chamfer-sm bg-primary text-primary-foreground label pointer-events-none absolute -bottom-7 left-0 px-2 py-1 text-micro font-bold"
-        >
-          Nível {padLevel(level)} · {levelTitle(level)}
+        // O invólucro centra sobre a barra (translate); o filho anima (scale).
+        // Fica dentro da própria barra, sem invadir o que vem embaixo.
+        <span role="status" className="pointer-events-none absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-center">
+          <span className="animate-level-up chamfer-sm bg-primary text-primary-foreground label glow px-2.5 py-1 text-micro font-bold">
+            Nível {padLevel(level)} · {levelTitle(level)}
+          </span>
         </span>
       )}
     </div>
