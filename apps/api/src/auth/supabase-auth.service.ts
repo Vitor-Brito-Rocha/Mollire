@@ -100,7 +100,7 @@ export class SupabaseAuthService {
   }
 
   private toAuthenticated(user: User): AuthenticatedUser {
-    return { id: user.id, email: user.email, handle: user.handle, role: user.role, xp: user.xp };
+    return { id: user.id, email: user.email, handle: user.handle, frame: user.frame, role: user.role, xp: user.xp };
   }
 
   // Default public handle: the email's local part cleaned to [a-z0-9._-],

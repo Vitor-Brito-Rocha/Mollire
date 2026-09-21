@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
 import { ActivityModule } from '../activity/activity.module';
+import { UptimeModule } from '../uptime/uptime.module';
+import { XpModule } from '../xp/xp.module';
 import { ProjectsController } from './projects.controller';
 import { ProjectsService } from './projects.service';
 
 @Module({
-  imports: [ActivityModule],
+  imports: [ActivityModule, XpModule, UptimeModule],
   controllers: [ProjectsController],
   providers: [ProjectsService],
   exports: [ProjectsService],
