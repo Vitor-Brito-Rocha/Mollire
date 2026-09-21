@@ -32,11 +32,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const message = exception instanceof Error ? exception.message : String(exception);
     const stack = exception instanceof Error ? exception.stack : undefined;
 
-    this.logger.error(`${request.method} ${request.url} -> ${status}: ${message}`, stack);
-
     // 4xx are expected client-error flow (bad input, not-found, etc.) — console
     // log only. 5xx are unexpected platform bugs: persist + page an admin.
+    const logLine = `${request.method} ${request.url} -> ${status}: ${message}`;
     if (status >= 500) {
+      this.logger.error(logLine, stack);
       await this.errorLog.record({
         message,
         stack,
