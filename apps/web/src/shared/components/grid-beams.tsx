@@ -2,8 +2,9 @@ import { useEffect, useRef } from "react";
 import { cn } from "@/shared/lib/utils";
 
 // Feixes de luz correndo pelas linhas da malha de fundo — o detalhe que faz a
-// tela parecer ligada, e não um print. Canvas leve: poucos feixes, pausa fora
-// da aba, e nada se mexe para quem pediu menos movimento no sistema.
+// tela parecer ligada, e não um print. Canvas leve: poucos feixes, só as
+// faixas por onde eles passaram são limpas a cada quadro, pausa fora da aba,
+// e nada se mexe para quem pediu menos movimento no sistema.
 const CELL = 32;
 
 type Beam = {
@@ -16,7 +17,21 @@ type Beam = {
   alpha: number;
 };
 
-export function GridBeams({ className, density = 7 }: { className?: string; density?: number }) {
+type GridBeamsProps = {
+  className?: string;
+  density?: number;
+  // `fixed`: preso à janela, não à página. Numa tela longa, o canvas fica do
+  // tamanho da janela em vez de cobrir toda a rolagem.
+  fixed?: boolean;
+};
+
+// A faixa que um feixe ocupa (com folga para a ponta e a espessura).
+function rectOf(beam: Beam): [number, number, number, number] {
+  const tail = beam.pos - beam.len;
+  return beam.axis === "x" ? [tail - 2, beam.line - 3, beam.len + 8, 6] : [beam.line - 3, tail - 2, 6, beam.len + 8];
+}
+
+export function GridBeams({ className, density = 7, fixed = false }: GridBeamsProps) {
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -55,6 +70,7 @@ export function GridBeams({ className, density = 7 }: { className?: string; dens
       const rect = canvas.getBoundingClientRect();
       width = Math.max(1, Math.floor(rect.width));
       height = Math.max(1, Math.floor(rect.height));
+      // Mudar o tamanho limpa o canvas inteiro; os feixes seguem de onde estavam.
       canvas.width = width * dpr;
       canvas.height = height * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -62,7 +78,10 @@ export function GridBeams({ className, density = 7 }: { className?: string; dens
     };
 
     const draw = (dt: number) => {
-      ctx.clearRect(0, 0, width, height);
+      // Primeiro apaga onde todos estavam, depois desenha todos: dois feixes na
+      // mesma linha não apagam um ao outro.
+      for (const beam of beams) ctx.clearRect(...rectOf(beam));
+
       for (const beam of beams) {
         beam.pos += beam.speed * dt;
         const travel = beam.axis === "x" ? width : height;
@@ -91,6 +110,7 @@ export function GridBeams({ className, density = 7 }: { className?: string; dens
     };
 
     const tick = (time: number) => {
+      // Quadro longo (aba voltando, máquina ocupada) não teleporta os feixes.
       const dt = last ? Math.min(0.05, (time - last) / 1000) : 0;
       last = time;
       draw(dt);
@@ -119,11 +139,11 @@ export function GridBeams({ className, density = 7 }: { className?: string; dens
     };
   }, [density]);
 
+  // O invólucro é quem se estica por left/right: <canvas> é elemento substituído
+  // e ficaria no tamanho intrínseco (300×150) se recebesse o inset direto.
   return (
-    <canvas
-      ref={ref}
-      aria-hidden="true"
-      className={cn("pointer-events-none absolute inset-0 -z-10 h-full w-full", className)}
-    />
+    <div aria-hidden="true" className={cn("pointer-events-none inset-0 -z-10", fixed ? "fixed" : "absolute", className)}>
+      <canvas ref={ref} className="block h-full w-full" />
+    </div>
   );
 }
