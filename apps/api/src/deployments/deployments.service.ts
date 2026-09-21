@@ -8,6 +8,7 @@ import { simpleGit } from 'simple-git';
 import { ActivityService } from '../activity/activity.service';
 import { EnvVarsService } from '../env-vars/env-vars.service';
 import { ErrorLogService } from '../error-log/error-log.service';
+import { AchievementsService } from '../progress/achievements.service';
 import { ThumbnailService } from '../gallery/thumbnail.service';
 import { GithubService } from '../github/github.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -59,6 +60,7 @@ export class DeploymentsService {
     private readonly envVars: EnvVarsService,
     private readonly activity: ActivityService,
     private readonly xp: XpService,
+    private readonly achievements: AchievementsService,
   ) {
     this.projectsRoot = path.resolve(this.config.get<string>('PROJECTS_ROOT', './data/projects'));
   }
@@ -263,6 +265,9 @@ export class DeploymentsService {
         payload: { deployment_id: deploymentId, commit_sha: commitSha ?? null, commit_message: options?.commitMessage ?? null },
       });
       this.emitTerminal(project.id, deploymentId, DeploymentStatus.SUCCESS);
+      // After the row is SUCCESS with its finished_at: first_deploy, ten_deploys,
+      // fast_deploy and rollback all read it. Pushes the owner if something unlocked.
+      void this.achievements.checkAfterEvent(project.user_id);
 
       if (installationId && githubDeploymentId !== null) {
         const appUrl = this.config.get<string>('APP_URL', '');

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { DeploymentStatus, Prisma, Role, XpReason } from '@prisma/client';
 import { ActivityService } from '../activity/activity.service';
 import { AuthenticatedUser } from '../auth/types';
+import { AchievementsService } from '../progress/achievements.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UptimeService } from '../uptime/uptime.service';
 import { XpService } from '../xp/xp.service';
@@ -26,6 +27,7 @@ export class GalleryService {
     private readonly activity: ActivityService,
     private readonly xp: XpService,
     private readonly uptime: UptimeService,
+    private readonly achievements: AchievementsService,
     config: ConfigService,
   ) {
     this.domain = config.getOrThrow<string>('DOMAIN');
@@ -122,6 +124,7 @@ export class GalleryService {
     // Paid to the project owner, not the person starring — rewards making
     // something others appreciate, not the act of clicking.
     await this.xp.award(project.user_id, XpReason.STAR_RECEIVED, { projectId: project.id, actorId: userId });
+    void this.achievements.checkAfterEvent(project.user_id);
     const starrer = await this.prisma.user.findUnique({ where: { id: userId }, select: { handle: true } });
     this.activity.record({ project_id: project.id, type: 'STAR_RECEIVED', actor_id: userId, payload: { from_handle: starrer?.handle ?? 'usuário' } });
 

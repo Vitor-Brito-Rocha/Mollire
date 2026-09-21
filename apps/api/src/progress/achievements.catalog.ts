@@ -8,6 +8,9 @@ type Deps = { prisma: PrismaService; uptime: UptimeService };
 
 export type AchievementDef = {
   code: string;
+  // Only for the unlock push notification — every other screen takes its text
+  // from the frontend catalog. Keep it in sync with the title there.
+  title: string;
   // `progress` only for the ones that count something; the API shows it while locked.
   check: (deps: Deps, userId: string) => Promise<{ unlocked: boolean; progress?: Progress }>;
 };
@@ -54,14 +57,17 @@ async function longestUptimeDays({ prisma, uptime }: Deps, userId: string): Prom
 export const ACHIEVEMENTS: AchievementDef[] = [
   {
     code: 'first_deploy',
+    title: 'Estreia',
     check: async ({ prisma }, userId) => ({ unlocked: (await succeededDeploys(prisma, userId)) >= 1 }),
   },
   {
     code: 'ten_deploys',
+    title: 'Constante',
     check: async ({ prisma }, userId) => counted(await succeededDeploys(prisma, userId), 10),
   },
   {
     code: 'first_star',
+    title: 'Notado',
     check: async ({ prisma }, userId) => ({
       unlocked: (await prisma.projectStar.count({ where: { project: { user_id: userId } } })) >= 1,
     }),
@@ -70,6 +76,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     // Push to live in under a minute. created_at is when the deploy was queued,
     // so waiting for a build slot counts against it — that's the felt speed.
     code: 'fast_deploy',
+    title: 'Relâmpago',
     check: async ({ prisma }, userId) => {
       const [row] = await prisma.$queryRaw<{ ok: boolean }[]>`
         SELECT EXISTS (
@@ -85,6 +92,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   },
   {
     code: 'rollback',
+    title: 'Sangue frio',
     check: async ({ prisma }, userId) => ({
       unlocked:
         (await prisma.deployment.count({
@@ -94,11 +102,13 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   },
   {
     code: 'collaborator',
+    title: 'Da equipe',
     check: async ({ prisma }, userId) =>
       counted(await prisma.projectMember.count({ where: { user_id: userId, role: ProjectRole.MEMBER } }), 3),
   },
   {
     code: 'uptime_30',
+    title: 'Sempre no ar',
     check: async (deps, userId) => counted(await longestUptimeDays(deps, userId), 30),
   },
 ];

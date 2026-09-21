@@ -3,6 +3,7 @@ import { InvitationStatus, ProjectRole } from '@prisma/client';
 import { ActivityService } from '../activity/activity.service';
 import { AuthenticatedUser } from '../auth/types';
 import { PrismaService } from '../prisma/prisma.service';
+import { AchievementsService } from '../progress/achievements.service';
 import { ProjectsService } from '../projects/projects.service';
 
 const INVITATION_DAYS = 14;
@@ -15,6 +16,7 @@ export class MembersService {
     private readonly prisma: PrismaService,
     private readonly projects: ProjectsService,
     private readonly activity: ActivityService,
+    private readonly achievements: AchievementsService,
   ) {}
 
   async list(slug: string, user: AuthenticatedUser) {
@@ -70,6 +72,8 @@ export class MembersService {
         update: {},
       });
       this.activity.record({ project_id: project.id, type: 'MEMBER_ADDED', actor_id: owner.id, payload: { handle: existing.handle ?? 'usuário' } });
+      // The new member may just have hit "collaborator" (member in 3 projects).
+      void this.achievements.checkAfterEvent(existing.id);
       return {
         status: 'added' as const,
         member: { user_id: member.user_id, handle: existing.handle ?? 'usuário', role: member.role, since: member.created_at },
@@ -137,6 +141,7 @@ export class MembersService {
         });
       }
     });
+    void this.achievements.checkAfterEvent(user.id);
     return pending.length;
   }
 }

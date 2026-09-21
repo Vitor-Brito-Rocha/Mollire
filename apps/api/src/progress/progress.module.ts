@@ -9,5 +9,6 @@ import { QuestsService } from './quests.service';
   imports: [XpModule, UptimeModule],
   controllers: [ProgressController],
   providers: [QuestsService, AchievementsService],
+  exports: [AchievementsService],
 })
 export class ProgressModule {}
