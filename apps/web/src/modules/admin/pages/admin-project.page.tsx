@@ -99,7 +99,7 @@ export default function AdminProjectDetailPage() {
                     {deployment.commit_sha ? deployment.commit_sha.slice(0, 7) : "—"}
                   </span>
                   {deployment.log && (
-                    <span className="text-text-3 label group-open:text-foreground hidden text-micro sm:col-span-2 sm:block sm:text-right">
+                    <span className="text-text-3 label group-open:text-foreground hidden text-mini sm:col-span-2 sm:block sm:text-right">
                       log
                     </span>
                   )}

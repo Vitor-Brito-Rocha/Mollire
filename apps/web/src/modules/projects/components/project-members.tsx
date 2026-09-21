@@ -6,6 +6,7 @@ import { SubmitButton } from "@/shared/components/submit-button";
 import { formatDayMonth } from "@/shared/lib/format";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { useInviteMember, useMembers, useRemoveMember, useRevokeInvitation } from "../hooks/use-members";
+import { StatusChip } from "./status-chip";
 import { ConfirmDialog } from "@/shared/components/confirm-dialog";
 
 // Quem trabalha no projeto. Membros veem a lista; só o dono convida, remove e
@@ -44,7 +45,7 @@ export function ProjectMembers({ slug }: { slug: string }) {
               {member.handle.charAt(0)}
             </span>
             <span className="min-w-0 flex-1 truncate text-sm">{member.handle}</span>
-            <span className="label text-text-3 text-micro">{member.role === "OWNER" ? "dono" : "membro"}</span>
+            <StatusChip tone="idle">{member.role === "OWNER" ? "dono" : "membro"}</StatusChip>
             {isOwner && member.role !== "OWNER" && (
               <InlineAction
                 destructive
@@ -64,7 +65,7 @@ export function ProjectMembers({ slug }: { slug: string }) {
               <span className="text-muted-foreground min-w-0 flex-1 truncate font-mono text-xs">
                 {invitation.email}
               </span>
-              <span className="label text-primary text-micro">pendente</span>
+              <StatusChip tone="accent">pendente</StatusChip>
               <InlineAction
                 destructive
                 onClick={() => revokeInvitation.mutate(invitation.id)}

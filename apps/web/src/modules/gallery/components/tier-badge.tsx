@@ -5,7 +5,7 @@ import type { Tier } from "../lib/tiers";
 export function TierBadge({ tier, className }: { tier: Tier; className?: string }) {
   return (
     <span
-      className={cn("tag-cut bg-raised label w-fit shrink-0 py-[5px] pr-2 pl-[11px] text-micro font-bold", className)}
+      className={cn("tag-cut bg-raised label w-fit shrink-0 py-[5px] pr-2 pl-[11px] text-mini font-bold", className)}
       style={{ color: tier.color, boxShadow: `inset 3px 0 0 ${tier.color}` }}
     >
       {tier.label}

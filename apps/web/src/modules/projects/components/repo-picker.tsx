@@ -78,7 +78,7 @@ export const RepoPicker = memo(function RepoPicker({ repos, loading, selectedUrl
                       <span className="text-text-3 truncate font-mono text-xs">{owner}</span>
                     </span>
                     {repo.private && (
-                      <span className="label text-text-3 text-micro flex shrink-0 items-center gap-1">
+                      <span className="label text-text-3 text-mini flex shrink-0 items-center gap-1">
                         <Lock className="size-3" aria-hidden="true" />
                         privado
                       </span>

@@ -22,7 +22,7 @@ export default function AuthLayout() {
           <div className="flex items-center gap-2">
             <Link
               to="/galeria"
-              className="label focus-ring text-muted-foreground hover:text-foreground text-micro flex items-center gap-1.5 px-2 transition-colors"
+              className="label focus-ring text-muted-foreground hover:text-foreground text-mini flex items-center gap-1.5 px-2 transition-colors"
             >
               Ver a galeria
               <ArrowUpRight className="size-3.5" />

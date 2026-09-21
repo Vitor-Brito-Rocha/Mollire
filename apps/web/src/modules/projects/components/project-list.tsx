@@ -31,7 +31,7 @@ export function ProjectList({ projects }: { projects: Project[] }) {
                   <span className="group-hover:text-primary truncate text-body-lg font-semibold transition-colors">
                     {project.name}
                   </span>
-                  {project.my_role === "MEMBER" && <span className="label text-text-3 shrink-0 text-micro">membro</span>}
+                  {project.my_role === "MEMBER" && <StatusChip tone="idle">membro</StatusChip>}
                 </span>
                 <span className="text-text-3 truncate font-mono text-xs">{projectHost(project.slug)}</span>
               </span>

@@ -76,7 +76,7 @@ export const DeploymentRow = memo(function DeploymentRow({
         <span className="col-span-2 flex justify-end gap-3">
           {sha && canRedeploy && (
             <InlineAction
-              className="label hidden text-micro sm:inline-flex"
+              className="label hidden text-mini sm:inline-flex"
               pending={redeploying}
               onClick={(event) => {
                 // Inside <summary>: don't toggle the log open/closed.
@@ -88,7 +88,7 @@ export const DeploymentRow = memo(function DeploymentRow({
             </InlineAction>
           )}
           {hasLog && (
-            <span className="text-text-3 label group-open:text-foreground hidden text-micro sm:block">log</span>
+            <span className="text-text-3 label group-open:text-foreground hidden text-mini sm:block">log</span>
           )}
         </span>
       </summary>

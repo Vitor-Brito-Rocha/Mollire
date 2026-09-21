@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { SiteThumb } from "@/shared/components/site-thumb";
+import { StatusChip } from "@/shared/components/status-chip";
 import { useSpotlight } from "@/shared/hooks/use-spotlight";
 import { cn } from "@/shared/lib/utils";
 
@@ -51,9 +52,9 @@ export function CoverCard({ to, slug, thumbnailUrl, name, badge, tag, corner, fe
         />
         {badge && <span className="absolute top-3 left-3">{badge}</span>}
         {tag && (
-          <span className="label bg-background/70 text-primary text-micro absolute top-3 right-3 px-2 py-1 backdrop-blur">
+          <StatusChip tone="accent" className="absolute top-3 right-3">
             {tag}
-          </span>
+          </StatusChip>
         )}
       </Link>
       <div className="flex items-start justify-between gap-3 px-4 pt-3.5 pb-4">{children}</div>

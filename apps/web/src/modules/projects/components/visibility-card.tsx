@@ -4,6 +4,7 @@ import { Label } from "@/shared/ui/label";
 import { Spinner } from "@/shared/ui/spinner";
 import { Switch } from "@/shared/ui/switch";
 import type { Project } from "../types";
+import { StatusChip } from "./status-chip";
 
 type VisibilityCardProps = {
   project: Project;
@@ -36,7 +37,7 @@ export function VisibilityCard({ project, isOwner, pending, onChange }: Visibili
             />
           </div>
         ) : (
-          <span className="label text-text-3 text-micro">só o dono</span>
+          <StatusChip tone="idle">só o dono</StatusChip>
         )}
       </div>
       {project.thumbnail_url ? (

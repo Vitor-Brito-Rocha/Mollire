@@ -12,7 +12,7 @@ export function ProfileHeader({ profile }: { profile: UserProfile }) {
       <div className="flex min-w-0 flex-col gap-1.5">
         <h1 className="font-display text-display tracking-display truncate font-bold md:text-display-lg">@{profile.handle}</h1>
         <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-          <span className="label text-text-3 text-micro">{levelTitle(profile.level)}</span>
+          <span className="label text-text-3 text-mini">{levelTitle(profile.level)}</span>
           <span className="text-border">·</span>
           <span className="font-mono">{formatNumber(profile.xp)} XP</span>
           <span className="text-border">·</span>

@@ -39,7 +39,7 @@ export default function AdminProjectsPage() {
         <EmptyState>Nenhum projeto no sistema ainda.</EmptyState>
       ) : (
         <div className="corners bg-card border-border flex flex-col border">
-          <div className="label text-text-3 border-border grid grid-cols-12 gap-3 border-b px-4 py-2.5 text-micro">
+          <div className="label text-text-3 border-border grid grid-cols-12 gap-3 border-b px-4 py-2.5 text-mini">
             <span className="col-span-6 sm:col-span-5">Projeto</span>
             <span className="col-span-6 sm:col-span-4">Dono</span>
             <span className="hidden sm:col-span-3 sm:block">Criado em</span>

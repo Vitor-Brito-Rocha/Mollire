@@ -1,6 +1,6 @@
 import { invalidateSession, useCurrentUser } from "@/modules/auth";
 import { GithubConnectionCard } from "@/modules/github";
-import { LevelPanel, useProjects } from "@/modules/projects";
+import { ProgressPanel, useProjects } from "@/modules/projects";
 import { PageHeader } from "@/shared/components/page-header";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { ProfileForm } from "../components/profile-form";
@@ -26,7 +26,7 @@ export default function PerfilPage() {
             {/* `github_connected` is part of the session user: refresh it when an account is removed. */}
             <GithubConnectionCard connected={user.github_connected} onDisconnected={invalidateSession} />
           </div>
-          <LevelPanel user={user} projects={projects ?? []} />
+          <ProgressPanel user={user} projects={projects ?? []} />
         </div>
       )}
     </div>
