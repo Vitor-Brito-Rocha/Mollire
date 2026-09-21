@@ -17,7 +17,8 @@ export default function AppLayout() {
       <div className="flex min-w-0 flex-1 flex-col">
         <MobileBar />
         <main className="hud-grid flex flex-1 flex-col px-5 py-8 md:px-10 md:py-10">
-          <GridBeams key={theme} />
+          {/* Preso à janela e à direita da barra lateral: nunca por baixo do desfoque dela. */}
+          <GridBeams key={theme} fixed className="md:left-[232px]" />
           <div key={pathname} className="route-enter flex flex-1 flex-col">
             <Outlet />
           </div>
