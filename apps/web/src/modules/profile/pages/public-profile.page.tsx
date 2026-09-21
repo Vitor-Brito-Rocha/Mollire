@@ -1,3 +1,4 @@
+import { AchievementGrid, useAchievements } from "@/modules/progress";
 import { EmptyState } from "@/shared/components/empty-state";
 import { useRequiredParam } from "@/shared/hooks/use-required-param";
 import { ApiError } from "@/shared/lib/http";
@@ -12,6 +13,7 @@ import { Eyebrow } from "@/shared/components/eyebrow";
 export default function PublicProfilePage() {
   const handle = useRequiredParam("handle");
   const { data: profile, isPending, error, refetch } = useUserProfile(handle);
+  const { data: achievements } = useAchievements(handle);
 
   return (
     <div className="mx-auto flex w-full max-w-(--page-narrow) flex-col gap-10">
@@ -41,6 +43,7 @@ export default function PublicProfilePage() {
       ) : (
         <>
           <ProfileHeader profile={profile} />
+          {achievements && <AchievementGrid achievements={achievements} showLocked={false} />}
           <ActivityHeatmap data={profile.heatmap} />
 
           <div className="flex flex-col gap-5">

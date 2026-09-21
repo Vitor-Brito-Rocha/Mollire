@@ -1,4 +1,5 @@
 import type { CurrentUser } from "@/modules/auth";
+import { QuestList, useQuests } from "@/modules/progress";
 import { Panel } from "@/shared/components/panel";
 import { formatNumber } from "@/shared/lib/format";
 import { levelTitle } from "@/shared/lib/level";
@@ -12,13 +13,19 @@ export function ProgressPanel({ user, projects }: { user: CurrentUser; projects:
   const remaining = Math.max(0, user.next - user.xp);
   const publicCount = projects.filter((p) => p.is_public).length;
   const memberOf = projects.filter((p) => p.my_role === "MEMBER").length;
+  // Enquanto faltar missão de estreia, ela ocupa o lugar da faixa de regras.
+  const { data: quests } = useQuests(true);
+  const pendingQuests = quests && quests.completed < quests.total ? quests : null;
 
   return (
     <Panel title="Progresso" aside={<span className="text-text-3 font-mono text-xs">{levelTitle(user.level)}</span>}>
       <div className="flex flex-col gap-4 p-4">
-        <p className="text-muted-foreground text-sm">
-          Faltam <b className="text-foreground font-mono">{formatNumber(remaining)} XP</b> para o nível {user.level + 1}.
-        </p>
+        {/* Com missões pendentes, a linha sai: a barra da lateral já diz quanto falta. */}
+        {!pendingQuests && (
+          <p className="text-muted-foreground text-sm">
+            Faltam <b className="text-foreground font-mono">{formatNumber(remaining)} XP</b> para o nível {user.level + 1}.
+          </p>
+        )}
 
         <dl className="grid grid-cols-3 gap-3">
           {[
@@ -33,6 +40,11 @@ export function ProgressPanel({ user, projects }: { user: CurrentUser; projects:
           ))}
         </dl>
 
+        {pendingQuests ? (
+          <div className="border-border border-t pt-3">
+            <QuestList data={pendingQuests} />
+          </div>
+        ) : (
         <div className="border-border flex flex-col gap-2 border-t pt-3">
           <h3 className="label text-text-3 text-mini">Como ganhar XP</h3>
           <ul className="grid grid-cols-4 gap-2">
@@ -48,6 +60,7 @@ export function ProgressPanel({ user, projects }: { user: CurrentUser; projects:
             ))}
           </ul>
         </div>
+        )}
       </div>
     </Panel>
   );
