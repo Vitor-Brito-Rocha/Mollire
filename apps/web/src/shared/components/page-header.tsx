@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { cn } from "@/shared/lib/utils";
+import { Eyebrow } from "@/shared/components/eyebrow";
 
 function ChevronLeft() {
   return (
@@ -49,12 +50,9 @@ export function PageHeader({ title, eyebrow, back, description, meta, actions, c
       <div className="flex min-w-0 flex-col gap-2.5">
         {back && <BackLink to={back.to}>{back.label}</BackLink>}
         {eyebrow && (
-          <span className="label text-primary flex items-center gap-2.5 tracking-[0.14em]">
-            <span className="bg-primary h-0.5 w-[18px]" />
-            {eyebrow}
-          </span>
+          <Eyebrow>{eyebrow}</Eyebrow>
         )}
-        <h1 className="font-display text-[36px] leading-[1.02] font-bold tracking-[-0.02em] md:text-[46px]">{title}</h1>
+        <h1 className="font-display text-display font-bold tracking-display md:text-display-lg">{title}</h1>
         {description && <p className="text-muted-foreground max-w-[60ch] text-base leading-relaxed">{description}</p>}
         {meta && <div className="flex flex-wrap items-center gap-3">{meta}</div>}
       </div>

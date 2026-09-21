@@ -22,7 +22,7 @@ export default function GalleryDetailPage() {
 
   if (isPending) {
     return (
-      <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-6" aria-busy="true">
+      <div className="mx-auto flex w-full max-w-(--page) flex-col gap-6" aria-busy="true">
         {backToGallery}
         <div className="grid gap-8 xl:grid-cols-3">
           <Skeleton className="h-[420px] w-full xl:col-span-2" />
@@ -35,7 +35,7 @@ export default function GalleryDetailPage() {
   if (!project) {
     const missing = error instanceof ApiError && error.status_code === 404;
     return (
-      <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-6">
+      <div className="mx-auto flex w-full max-w-(--page) flex-col gap-6">
         {backToGallery}
         {missing ? (
           <EmptyState
@@ -59,7 +59,7 @@ export default function GalleryDetailPage() {
   const tier = tierFor(project.stars);
 
   return (
-    <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-(--page) flex-col gap-6">
       {backToGallery}
 
       <div className="grid gap-8 xl:grid-cols-3">
@@ -71,7 +71,7 @@ export default function GalleryDetailPage() {
         <aside className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">
             {tier && <TierBadge tier={tier} />}
-            <h1 className="font-display text-[30px] leading-[1.1] font-bold">{project.name}</h1>
+            <h1 className="font-display text-title-lg font-bold">{project.name}</h1>
             <span className="text-muted-foreground text-sm">
               por{" "}
               <Link to={`/u/${project.author}`} className="hover:text-foreground transition-colors">

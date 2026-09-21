@@ -58,11 +58,11 @@ export function LevelBar({
 
   return (
     <div className={cn("relative flex w-[180px] flex-col gap-1.5", className)}>
-      <div className="label text-muted-foreground flex items-baseline justify-between tracking-[0.08em]">
+      <div className="label text-muted-foreground flex items-baseline justify-between">
         <span>
           Nível <b className="text-foreground">{padLevel(level)}</b>
         </span>
-        <span className="font-mono text-[11px] font-medium tracking-normal normal-case tabular-nums">
+        <span className="font-mono text-mini font-medium tracking-normal normal-case tabular-nums">
           {shownXp.toLocaleString("pt-BR")} / {next.toLocaleString("pt-BR")}
         </span>
       </div>
@@ -74,12 +74,12 @@ export function LevelBar({
         aria-valuemax={next}
         aria-valuenow={xp}
       >
-        <div className="xp-fill h-full transition-[width] duration-700 ease-out" style={{ width: `${pct}%` }} />
+        <div className="xp-fill h-full transition-[width] duration-(--dur-slow) ease-out" style={{ width: `${pct}%` }} />
       </div>
       {celebrating && (
         <span
           role="status"
-          className="animate-level-up chamfer-sm bg-primary text-primary-foreground label pointer-events-none absolute -bottom-7 left-0 px-2 py-1 text-[9.5px] font-bold"
+          className="animate-level-up chamfer-sm bg-primary text-primary-foreground label pointer-events-none absolute -bottom-7 left-0 px-2 py-1 text-micro font-bold"
         >
           Nível {padLevel(level)} · {levelTitle(level)}
         </span>

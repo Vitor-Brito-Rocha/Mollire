@@ -1,4 +1,5 @@
 import { Link, Outlet, useLocation } from "react-router";
+import { Eyebrow } from "@/shared/components/eyebrow";
 
 const NAV_ITEMS = [
   { href: "/admin", label: "Projetos" },
@@ -11,14 +12,11 @@ export default function AdminLayout() {
   const { pathname } = useLocation();
 
   return (
-    <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-(--page) flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-6">
         <div className="flex flex-col gap-2.5">
-          <span className="label text-primary flex items-center gap-2.5 tracking-[0.14em]">
-            <span className="bg-primary h-0.5 w-[18px]" />
-            Admin
-          </span>
-          <h1 className="font-display text-[36px] leading-[1.02] font-bold tracking-[-0.02em] md:text-[46px]">Console</h1>
+          <Eyebrow>Admin</Eyebrow>
+          <h1 className="font-display text-display font-bold tracking-display md:text-display-lg">Console</h1>
           <p className="text-muted-foreground max-w-[60ch] text-base leading-relaxed">
             Todos os projetos e deploys, de todos os tenants — somente leitura, exceto quem é admin.
           </p>

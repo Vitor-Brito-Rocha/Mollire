@@ -1,12 +1,12 @@
-import { ThumbnailImage } from "@/shared/components/thumbnail-image";
-import { cn } from "@/shared/lib/utils";
-
+import { useThumbnailSrc } from "@/shared/hooks/use-thumbnail-src";
 import { tintFor } from "@/shared/lib/tint";
+import { cn } from "@/shared/lib/utils";
+import { Skeleton } from "@/shared/ui/skeleton";
 
-// Miniatura de um site publicado: a captura real quando existe. Sem captura,
-// uma capa honesta — a inicial do projeto e o endereço sobre uma malha —
-// em vez de um desenho fingindo ser um site. Cada projeto tem sua cor.
-
+// Miniatura de um site publicado: a captura real quando existe e carrega.
+// Sem captura — ou se ela falhar — uma capa honesta: a inicial do projeto e o
+// endereço sobre uma malha, na cor do projeto. Nunca um ícone de imagem
+// quebrada, nunca um esqueleto eterno.
 type Size = "thumb" | "card" | "banner";
 
 const LETTER: Record<Size, string> = {
@@ -28,14 +28,11 @@ export function SiteThumb({
   size?: Size;
   className?: string;
 }) {
-  if (thumbnailUrl) {
-    return (
-      <ThumbnailImage
-        thumbnailUrl={thumbnailUrl}
-        alt={`Captura de ${name}`}
-        className={cn("h-full w-full object-cover object-top", className)}
-      />
-    );
+  const { src, isLoading } = useThumbnailSrc(thumbnailUrl);
+
+  if (isLoading) return <Skeleton className={cn("h-full w-full", className)} aria-busy="true" />;
+  if (src) {
+    return <img src={src} alt={`Captura de ${name}`} className={cn("h-full w-full object-cover object-top", className)} />;
   }
 
   const tint = tintFor(slug);
@@ -61,7 +58,7 @@ export function SiteThumb({
           background: `radial-gradient(ellipse 60% 55% at 85% 100%, color-mix(in srgb, ${tint} 22%, transparent), transparent 70%)`,
         }}
       />
-      {size === "card" && <span className="label relative text-[9px] opacity-70">sem captura</span>}
+      {size === "card" && <span className="label text-micro relative opacity-70">sem captura</span>}
       <span
         className={cn(
           "font-display relative self-end leading-none font-bold select-none",
@@ -71,7 +68,7 @@ export function SiteThumb({
       >
         {name.trim().charAt(0).toUpperCase() || "?"}
       </span>
-      {size === "card" && <span className="text-text-3 relative font-mono text-[10px]">{slug}</span>}
+      {size === "card" && <span className="text-text-3 text-micro relative font-mono">{slug}</span>}
     </div>
   );
 }

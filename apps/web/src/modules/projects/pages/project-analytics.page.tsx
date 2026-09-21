@@ -32,7 +32,7 @@ export default function ProjectAnalyticsPage() {
   );
 
   return (
-    <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-(--page) flex-col gap-6">
       <PageHeader back={{ to: `/projects/${slug}`, label: slug }} title="Analytics" />
 
       {isError ? (
@@ -55,7 +55,7 @@ export default function ProjectAnalyticsPage() {
         <div className="flex flex-col gap-6">
           <Panel className="flex-row items-center gap-6 px-6 py-5">
             <div className="flex flex-col gap-0.5">
-              <span className="font-display text-[48px] leading-none font-bold tabular-nums">
+              <span className="font-display text-display-lg leading-none font-bold tabular-nums">
                 {formatNumber(analytics.total)}
               </span>
               <span className="text-muted-foreground text-sm">visitas únicas por dia (total)</span>

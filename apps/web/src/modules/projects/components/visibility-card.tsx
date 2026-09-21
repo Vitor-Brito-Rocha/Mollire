@@ -36,7 +36,7 @@ export function VisibilityCard({ project, isOwner, pending, onChange }: Visibili
             />
           </div>
         ) : (
-          <span className="label text-text-3 text-[9.5px]">só o dono</span>
+          <span className="label text-text-3 text-micro">só o dono</span>
         )}
       </div>
       {project.thumbnail_url ? (

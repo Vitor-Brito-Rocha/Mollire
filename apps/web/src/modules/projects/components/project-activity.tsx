@@ -9,7 +9,7 @@ const DOT_COLOR: Record<ProjectActivity["type"], string> = {
   DEPLOY_TRIGGERED: "bg-yellow-400",
   STAR_RECEIVED: "bg-yellow-500",
   MEMBER_ADDED: "bg-blue-400",
-  MEMBER_REMOVED: "bg-zinc-400",
+  MEMBER_REMOVED: "bg-text-3",
   COMMENT_ADDED: "bg-purple-400",
   VISIBILITY_CHANGED: "bg-teal-400",
 };
@@ -61,8 +61,8 @@ export function ProjectActivityFeed({ slug }: { slug: string }) {
             <li key={a.id} className="flex items-start gap-3 px-4 py-3">
               <span className={`mt-0.5 size-2 shrink-0 rounded-full ${DOT_COLOR[a.type]}`} />
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="text-foreground text-[13px] leading-snug">{activityText(a)}</span>
-                <span className="text-text-3 font-mono text-[11px]">{formatDayMonthTime(a.created_at)}</span>
+                <span className="text-foreground text-caption leading-snug">{activityText(a)}</span>
+                <span className="text-text-3 font-mono text-mini">{formatDayMonthTime(a.created_at)}</span>
               </div>
             </li>
           ))}

@@ -40,7 +40,7 @@ export default function AdminProjectDetailPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2.5">
         <BackLink to="/admin">Projetos</BackLink>
-        <h2 className="font-display text-[28px] leading-[1.1] font-bold">{project.name}</h2>
+        <h2 className="font-display text-title-lg font-bold">{project.name}</h2>
         <p className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-sm">
           <a
             href={projectUrl(project.slug)}
@@ -92,14 +92,14 @@ export default function AdminProjectDetailPage() {
                   <span className="col-span-5 sm:col-span-3">
                     <DeployStatus status={deployment.status} />
                   </span>
-                  <span className="text-muted-foreground col-span-5 text-[13px] sm:col-span-4">
+                  <span className="text-muted-foreground col-span-5 text-caption sm:col-span-4">
                     {formatDayMonthTime(deployment.created_at)}
                   </span>
                   <span className="text-text-3 col-span-2 font-mono text-xs sm:col-span-3">
                     {deployment.commit_sha ? deployment.commit_sha.slice(0, 7) : "—"}
                   </span>
                   {deployment.log && (
-                    <span className="text-text-3 label group-open:text-foreground hidden text-[10px] sm:col-span-2 sm:block sm:text-right">
+                    <span className="text-text-3 label group-open:text-foreground hidden text-micro sm:col-span-2 sm:block sm:text-right">
                       log
                     </span>
                   )}

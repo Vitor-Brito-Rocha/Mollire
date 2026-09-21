@@ -4,8 +4,8 @@ import { Button } from "@/shared/ui/button";
 function Screen({ title, message, action }: { title: string; message: string; action: React.ReactNode }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
-      <h1 className="font-display text-[34px] font-bold">{title}</h1>
-      <p className="text-muted-foreground text-[15px]">{message}</p>
+      <h1 className="font-display text-display font-bold">{title}</h1>
+      <p className="text-muted-foreground text-body-lg">{message}</p>
       {action}
     </div>
   );

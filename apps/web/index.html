@@ -1,8 +1,15 @@
 <!doctype html>
-<!-- .dark engata as variantes dark: do shadcn; o tema em si já é escuro em :root. -->
-<html lang="pt-BR" class="dark h-full antialiased">
+<html lang="pt-BR" class="h-full antialiased">
   <head>
     <meta charset="UTF-8" />
+    <!-- O tema salvo entra antes da primeira pintura, para a tela não piscar. Padrão: escuro. -->
+    <script>
+      try {
+        document.documentElement.classList.toggle("dark", localStorage.getItem("mollire:theme") !== "light");
+      } catch (e) {
+        document.documentElement.classList.add("dark");
+      }
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mollire</title>
     <meta name="description" content="Publique, receba estrelas, suba de nível." />

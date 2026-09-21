@@ -31,7 +31,7 @@ export function SegmentedControl<T extends string>({
             aria-pressed={on}
             onClick={() => onChange(option.value)}
             className={cn(
-              "label min-h-[38px] px-3.5 transition-colors",
+              "label focus-ring min-h-[38px] px-3.5 transition-colors",
               on ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
             )}
           >

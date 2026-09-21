@@ -6,6 +6,7 @@ import { formatDayMonth } from "@/shared/lib/format";
 import { Input } from "@/shared/ui/input";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { useDeleteEnvVar, useEnvVars, useSaveEnvVar } from "../hooks/use-env-vars";
+import { ConfirmDialog } from "@/shared/components/confirm-dialog";
 
 export function ProjectEnvVars({ slug }: { slug: string }) {
   const { data: vars, isPending, isError } = useEnvVars(slug);
@@ -13,6 +14,8 @@ export function ProjectEnvVars({ slug }: { slug: string }) {
   const deleteVar = useDeleteEnvVar(slug);
   const [key, setKey] = useState("");
   const [value, setValue] = useState("");
+  // Variável aguardando confirmação para ser apagada.
+  const [removing, setRemoving] = useState<string | null>(null);
 
   function handleSave(event: FormEvent) {
     event.preventDefault();
@@ -46,7 +49,7 @@ export function ProjectEnvVars({ slug }: { slug: string }) {
               <span className="text-text-3 shrink-0 text-xs">{formatDayMonth(v.updated_at)}</span>
               <InlineAction
                 destructive
-                onClick={() => deleteVar.mutate(v.key)}
+                onClick={() => setRemoving(v.key)}
                 pending={deleteVar.isPending && deleteVar.variables === v.key}
                 disabled={deleteVar.isPending}
               >
@@ -84,6 +87,15 @@ export function ProjectEnvVars({ slug }: { slug: string }) {
           Valores não são exibidos após salvos. Para atualizar, salve novamente com a mesma chave.
         </p>
       </form>
+      <ConfirmDialog
+        open={removing !== null}
+        title={removing ? `Apagar ${removing}?` : ""}
+        description="O próximo deploy roda sem essa variável. O valor não pode ser recuperado."
+        confirmLabel="Apagar"
+        pending={deleteVar.isPending}
+        onCancel={() => setRemoving(null)}
+        onConfirm={() => removing && deleteVar.mutate(removing, { onSettled: () => setRemoving(null) })}
+      />
     </Panel>
   );
 }

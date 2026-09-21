@@ -14,7 +14,7 @@ export default function PerfilPage() {
   useGithubReturnNotice();
 
   return (
-    <div className="mx-auto flex w-full max-w-[1000px] flex-col gap-7">
+    <div className="mx-auto flex w-full max-w-(--page-narrow) flex-col gap-7">
       <PageHeader eyebrow="Conta" title="Perfil" description="Seu apelido é como a galeria te conhece. O e-mail fica só com você." />
 
       {user === null ? (

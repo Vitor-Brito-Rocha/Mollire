@@ -10,6 +10,8 @@ import { Label } from "@/shared/ui/label";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { useAddComment, useDeleteComment } from "../hooks/use-comment-mutations";
 import { useComments } from "../hooks/use-gallery";
+import { ConfirmDialog } from "@/shared/components/confirm-dialog";
+import { Eyebrow } from "@/shared/components/eyebrow";
 
 export function CommentsSection({ slug, count }: { slug: string; count: number }) {
   const location = useLocation();
@@ -18,6 +20,8 @@ export function CommentsSection({ slug, count }: { slug: string; count: number }
   const addComment = useAddComment(slug);
   const deleteComment = useDeleteComment(slug);
   const [body, setBody] = useState("");
+  // Comentário aguardando confirmação para ser apagado.
+  const [removing, setRemoving] = useState<string | null>(null);
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -28,11 +32,10 @@ export function CommentsSection({ slug, count }: { slug: string; count: number }
 
   return (
     <section className="flex flex-col gap-4">
-      <h2 className="label flex items-center gap-2.5">
-        <span className="bg-primary h-0.5 w-[18px]" />
+      <Eyebrow as="h2" tone="section">
         Comentários
         <span className="text-text-3 font-mono text-xs tracking-normal normal-case">{count}</span>
-      </h2>
+      </Eyebrow>
 
       {user ? (
         <form onSubmit={handleSubmit} className="flex flex-col gap-2">
@@ -77,14 +80,14 @@ export function CommentsSection({ slug, count }: { slug: string; count: number }
                 <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                   <span className="text-sm font-semibold">{comment.author}</span>
                   {comment.is_project_owner && (
-                    <span className="label text-primary border-primary border px-1.5 py-0.5 text-[9.5px]">autor</span>
+                    <span className="label text-primary border-primary border px-1.5 py-0.5 text-micro">autor</span>
                   )}
                   <span className="text-text-3 text-xs">{formatTimeAgo(comment.created_at)}</span>
                   {comment.can_delete && (
                     <InlineAction
                       destructive
                       className="ml-auto"
-                      onClick={() => deleteComment.mutate(comment.id)}
+                      onClick={() => setRemoving(comment.id)}
                       pending={deleteComment.isPending && deleteComment.variables === comment.id}
                       disabled={deleteComment.isPending}
                     >
@@ -92,12 +95,21 @@ export function CommentsSection({ slug, count }: { slug: string; count: number }
                     </InlineAction>
                   )}
                 </div>
-                <p className="text-[14.5px] leading-relaxed break-words whitespace-pre-line">{comment.body}</p>
+                <p className="text-body-lg leading-relaxed break-words whitespace-pre-line">{comment.body}</p>
               </div>
             </div>
           ))}
         </div>
       )}
+      <ConfirmDialog
+        open={removing !== null}
+        title="Apagar este comentário?"
+        description="Ele some da página do projeto para todo mundo. Não dá para desfazer."
+        confirmLabel="Apagar"
+        pending={deleteComment.isPending}
+        onCancel={() => setRemoving(null)}
+        onConfirm={() => removing && deleteComment.mutate(removing, { onSettled: () => setRemoving(null) })}
+      />
     </section>
   );
 }

@@ -58,9 +58,9 @@ export function StarButton({
       aria-busy={pending}
       aria-label={starred ? `Remover estrela de ${name}` : `Dar estrela para ${name}`}
       className={
-        "font-display relative min-h-11 w-fit gap-2 px-3.5 text-xs font-semibold tracking-[0.08em] transition-colors disabled:opacity-100 " +
+        "font-display relative min-h-11 w-fit gap-2 px-3.5 text-xs font-semibold transition-colors disabled:opacity-100 " +
         (starred
-          ? "border-gold text-gold bg-gold/12 shadow-[0_0_14px_rgba(242,193,78,0.35)] hover:bg-gold/16 hover:text-gold"
+          ? "border-gold text-gold bg-gold/12 shadow-[0_0_14px_var(--glow-gold)] hover:bg-gold/16 hover:text-gold"
           : "bg-raised border-line-2 text-muted-foreground hover:border-gold hover:text-foreground")
       }
     >
@@ -71,7 +71,7 @@ export function StarButton({
         />
       )}
       <StarIcon filled={starred} pending={pending} lit={lit} />
-      <span className="font-mono text-[13px] font-medium tabular-nums">{stars}</span>
+      <span className="font-mono text-caption font-medium tabular-nums">{stars}</span>
     </Button>
   );
 }
