@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/shared/ui/button";
 
 function StarIcon({ filled, pending, lit }: { filled: boolean; pending: boolean; lit: boolean }) {
@@ -36,17 +36,23 @@ export function StarButton({
   pending?: boolean;
   onToggle: () => void;
 }) {
-  const [lit, setLit] = useState(false);
-  const wasStarred = useRef(starred);
+  // Cada acendimento ganha um número novo; 0 é apagado. Derivado durante a
+  // renderização (não num efeito): acender marca, apagar zera na hora. O
+  // temporizador apaga só o número que o criou, então clicar várias vezes
+  // rápido nunca deixa um anel preso.
+  const [previousStarred, setPreviousStarred] = useState(starred);
+  const [glow, setGlow] = useState(0);
+  if (starred !== previousStarred) {
+    setPreviousStarred(starred);
+    setGlow(starred ? glow + 1 : 0);
+  }
+  const lit = glow > 0;
 
   useEffect(() => {
-    const turnedOn = starred && !wasStarred.current;
-    wasStarred.current = starred;
-    if (!turnedOn) return;
-    setLit(true);
-    const timer = setTimeout(() => setLit(false), 700);
-    return () => clearTimeout(timer);
-  }, [starred]);
+    if (!glow) return;
+    const timer = window.setTimeout(() => setGlow((current) => (current === glow ? 0 : current)), 700);
+    return () => window.clearTimeout(timer);
+  }, [glow]);
 
   return (
     <Button
@@ -64,13 +70,13 @@ export function StarButton({
           : "bg-raised border-line-2 text-muted-foreground hover:border-gold hover:text-foreground")
       }
     >
-      {/* O anel vive num invólucro centrado na estrela: a animação escreve
-          transform (scale), então a centralização não pode depender de translate. */}
+      {/* O anel tem exatamente a caixa do ícone (inset-0, sem tamanho próprio) e
+          cresce do centro por scale; nada de translate ou margem automática. */}
       <span className="relative grid place-items-center">
         {lit && (
           <span
             aria-hidden="true"
-            className="animate-star-ring border-gold pointer-events-none absolute inset-0 m-auto size-5 rounded-full border"
+            className="animate-star-ring border-gold pointer-events-none absolute inset-0 rounded-full border"
           />
         )}
         <StarIcon filled={starred} pending={pending} lit={lit} />

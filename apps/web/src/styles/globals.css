@@ -277,8 +277,8 @@
   100% { transform: scale(1); }
 }
 @keyframes star-ring {
-  0%   { transform: scale(0.4); opacity: 0.9; }
-  100% { transform: scale(2.2); opacity: 0; }
+  0%   { transform: scale(0.7); opacity: 0.9; }
+  100% { transform: scale(3); opacity: 0; }
 }
 @keyframes row-sweep {
   0%   { background-position: -100% 0; }
@@ -344,6 +344,10 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-star-pop, .animate-star-ring, .animate-level-up, .animate-dot-pulse, .sweep-good, .sweep-bad, .route-enter {
     animation: none;
+  }
+  /* Sem animação, o anel seria um círculo parado em volta da estrela. */
+  .animate-star-ring {
+    display: none;
   }
 }
 
