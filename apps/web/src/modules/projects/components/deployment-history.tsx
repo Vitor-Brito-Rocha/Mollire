@@ -26,7 +26,7 @@ export function DeploymentHistory({
   onRedeploy,
 }: DeploymentHistoryProps) {
   return (
-    <Panel title="Histórico de deploys" count={deployments.length} className="xl:col-span-2">
+    <Panel title="Histórico de deploys" count={deployments.length}>
       {deployments.length === 0 ? (
         <div className="flex flex-col items-center gap-3 px-4 py-12 text-center">
           <p className="text-muted-foreground">Nenhum deploy ainda.</p>

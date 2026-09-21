@@ -64,29 +64,32 @@ export default function ProjectDetailPage() {
         onDeploy={() => deploy.mutate(undefined)}
       />
 
-      <div className="grid gap-6 xl:grid-cols-3">
-        <DeploymentHistory
-          slug={slug}
-          deployments={project.deployments ?? []}
-          inFlight={inFlight}
-          liveLog={liveLog}
-          redeployingSha={redeployingSha}
-          deployPending={deploy.isPending}
-          onRedeploy={handleRedeploy}
-        />
+      {/* O histórico ocupa a largura toda: é a lista principal da tela e cresce
+          com o tempo. O resto vai em linhas de três, sem coluna vazia embaixo. */}
+      <DeploymentHistory
+        slug={slug}
+        deployments={project.deployments ?? []}
+        inFlight={inFlight}
+        liveLog={liveLog}
+        redeployingSha={redeployingSha}
+        deployPending={deploy.isPending}
+        onRedeploy={handleRedeploy}
+      />
 
-        <div className="flex flex-col gap-6">
-          <VisibilityCard
-            project={project}
-            isOwner={isOwner}
-            pending={setVisibility.isPending}
-            onChange={setVisibility.mutate}
-          />
-          <ProjectMembers slug={slug} />
-          {isOwner && <ProjectEnvVars slug={slug} />}
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        <VisibilityCard
+          project={project}
+          isOwner={isOwner}
+          pending={setVisibility.isPending}
+          onChange={setVisibility.mutate}
+        />
+        <ProjectMembers slug={slug} />
+        {isOwner && <ProjectEnvVars slug={slug} />}
+        {/* Sem variáveis (membro), a atividade fecha a linha sozinha. */}
+        <div className={isOwner ? "xl:col-span-2" : "md:col-span-2 xl:col-span-3"}>
           <ProjectActivityFeed slug={slug} />
-          <ProjectConfig project={project} />
         </div>
+        <ProjectConfig project={project} />
       </div>
     </div>
   );
