@@ -1,6 +1,10 @@
+import { ChevronDown, RefreshCw, RotateCcw } from "lucide-react";
 import { memo, useEffect, useRef, useState } from "react";
-import { InlineAction } from "@/shared/components/inline-action";
+import { StatusChip } from "@/shared/components/status-chip";
 import { formatDayMonthTime, formatDuration } from "@/shared/lib/format";
+import { cn } from "@/shared/lib/utils";
+import { Button } from "@/shared/ui/button";
+import { Spinner } from "@/shared/ui/spinner";
 import { isInFlight } from "../lib/deployments";
 import type { Deployment } from "../types";
 import { DeployStatus } from "./status-chip";
@@ -11,11 +15,17 @@ type DeploymentRowProps = {
   log: string | null;
   // Expanded from the start (the running deploy, once output arrives).
   defaultOpen: boolean;
+  // A versão que está no ar agora (o deploy publicado mais recente).
+  current: boolean;
   canRedeploy: boolean;
   redeploying: boolean;
   onRedeploy: (commitSha: string) => void;
 };
 
+// Uma linha por deploy: o estado, a mensagem do commit como texto principal,
+// os metadados numa linha discreta, e as ações à direita. Voltar a uma versão
+// antiga se chama "Restaurar"; refazer a atual, "Refazer".
+//
 // Memoised on purpose: while a deploy runs the log grows chunk by chunk and the
 // page re-renders on each one — only the running row's `log` changes, so every
 // other row (each with its own <pre>) skips the work.
@@ -23,6 +33,7 @@ export const DeploymentRow = memo(function DeploymentRow({
   deployment,
   log,
   defaultOpen,
+  current,
   canRedeploy,
   redeploying,
   onRedeploy,
@@ -30,6 +41,7 @@ export const DeploymentRow = memo(function DeploymentRow({
   const hasLog = !!log;
   const duration = formatDuration(deployment.created_at, deployment.finished_at);
   const sha = deployment.commit_sha;
+  const running = isInFlight(deployment.status);
 
   // O momento: um deploy que estava rodando e acabou nesta sessão ganha uma
   // varredura de luz na linha — verde se publicou, vermelha se falhou.
@@ -44,51 +56,64 @@ export const DeploymentRow = memo(function DeploymentRow({
     return () => clearTimeout(timer);
   }, [deployment.status]);
 
+  const Icon = current ? RefreshCw : RotateCcw;
+
   return (
     <details
-      className={
-        "group border-border border-b last:border-b-0" +
-        (sweep === "good" ? " sweep-good" : sweep === "bad" ? " sweep-bad" : "")
-      }
+      className={cn("group border-border border-b last:border-b-0", sweep === "good" && "sweep-good", sweep === "bad" && "sweep-bad")}
       open={defaultOpen}
     >
       <summary
-        className={
-          "grid grid-cols-12 items-center gap-3 px-4 py-3 " +
-          (hasLog ? "hover:bg-raised cursor-pointer" : "cursor-default [&::-webkit-details-marker]:hidden")
-        }
+        className={cn(
+          "flex items-center gap-4 px-4 py-3 [&::-webkit-details-marker]:hidden",
+          hasLog ? "hover:bg-raised/60 cursor-pointer" : "cursor-default",
+        )}
       >
-        <span className="col-span-5 sm:col-span-3">
-          <DeployStatus status={deployment.status} />
-        </span>
-        <span className="text-muted-foreground col-span-7 flex flex-wrap items-center gap-x-2 text-caption whitespace-nowrap sm:col-span-4">
-          {formatDayMonthTime(deployment.created_at)}
-          {duration && <span className="text-text-3 font-mono text-mini">{duration}</span>}
-        </span>
-        <span className="text-text-3 hidden font-mono text-xs sm:col-span-3 sm:block">
-          {sha ? sha.slice(0, 7) : "—"}
-          {deployment.commit_message && (
-            <span className="text-text-3 ml-2 hidden truncate font-sans not-italic sm:inline">
-              {deployment.commit_message}
+        <DeployStatus status={deployment.status} className="w-[118px] justify-center" />
+
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="truncate text-sm font-medium">
+              {deployment.commit_message || (running ? "Deploy em andamento" : "Deploy manual")}
             </span>
-          )}
+            {current && <StatusChip tone="accent">no ar</StatusChip>}
+          </span>
+          <span className="text-text-3 flex flex-wrap items-center gap-x-2 text-xs">
+            {sha && <span className="font-mono">{sha.slice(0, 7)}</span>}
+            {sha && <span aria-hidden="true">·</span>}
+            <span>{formatDayMonthTime(deployment.created_at)}</span>
+            {duration && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span className="font-mono">{duration}</span>
+              </>
+            )}
+          </span>
         </span>
-        <span className="col-span-2 flex justify-end gap-3">
+
+        <span className="flex shrink-0 items-center gap-2">
           {sha && canRedeploy && (
-            <InlineAction
-              className="label hidden text-mini sm:inline-flex"
-              pending={redeploying}
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={redeploying}
+              aria-busy={redeploying}
               onClick={(event) => {
                 // Inside <summary>: don't toggle the log open/closed.
                 event.preventDefault();
                 onRedeploy(sha);
               }}
+              title={current ? "Rodar o build de novo com este commit" : "Voltar o site para esta versão"}
             >
-              re-deploy
-            </InlineAction>
+              {redeploying ? <Spinner /> : <Icon className="size-3.5" />}
+              <span className="hidden sm:inline">{current ? "Refazer" : "Restaurar"}</span>
+            </Button>
           )}
           {hasLog && (
-            <span className="text-text-3 label group-open:text-foreground hidden text-mini sm:block">log</span>
+            <span className="label text-text-3 group-open:text-foreground flex items-center gap-1 text-mini transition-colors">
+              log
+              <ChevronDown className="size-3.5 transition-transform group-open:rotate-180" aria-hidden="true" />
+            </span>
           )}
         </span>
       </summary>

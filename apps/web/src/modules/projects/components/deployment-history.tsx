@@ -37,12 +37,15 @@ export function DeploymentHistory({
       ) : (
         deployments.map((deployment, index) => {
           const running = index === 0 && inFlight;
+          // A versão no ar é o deploy publicado mais recente.
+          const current = deployment.id === deployments.find((d) => d.status === "SUCCESS")?.id;
           return (
             <DeploymentRow
               key={deployment.id}
               deployment={deployment}
               log={running ? liveLog : deployment.log}
               defaultOpen={running && !!liveLog}
+              current={current}
               canRedeploy={!inFlight && !deployPending}
               redeploying={redeployingSha === deployment.commit_sha}
               onRedeploy={onRedeploy}
