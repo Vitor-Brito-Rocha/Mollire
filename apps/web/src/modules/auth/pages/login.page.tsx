@@ -54,6 +54,7 @@ export default function LoginPage() {
           label="E-mail"
           type="email"
           autoComplete="email"
+          className="h-11"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           required
@@ -68,6 +69,7 @@ export default function LoginPage() {
           }
           type="password"
           autoComplete="current-password"
+          className="h-11"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           required
@@ -80,7 +82,7 @@ export default function LoginPage() {
             <span className="border-border w-full border-t" />
           </div>
           <div className="relative flex justify-center text-xs">
-            <span className="bg-card text-muted-foreground px-2">ou</span>
+            <span className="bg-background text-muted-foreground px-2">ou</span>
           </div>
         </div>
         <GithubButton />

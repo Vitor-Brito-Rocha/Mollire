@@ -57,7 +57,7 @@ export default function AdminProjectDetailPage() {
         </p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 xl:grid-cols-3">
         <Panel title="Configuração" className="lg:col-span-1">
           <dl className="flex flex-col">
             <div className="border-border flex flex-col gap-1 border-b px-4 py-3">
@@ -75,7 +75,7 @@ export default function AdminProjectDetailPage() {
           </dl>
         </Panel>
 
-        <Panel title="Histórico de deploys" count={deployments.length} className="lg:col-span-2">
+        <Panel title="Histórico de deploys" count={deployments.length} className="xl:col-span-2">
           {deployments.length === 0 ? (
             <p className="text-muted-foreground px-4 py-10 text-center">Nenhum deploy ainda.</p>
           ) : (

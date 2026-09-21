@@ -1,5 +1,33 @@
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { useCountUp } from "@/shared/hooks/use-count-up";
+import { levelTitle, padLevel } from "@/shared/lib/level";
+import { cn } from "@/shared/lib/utils";
+
+const LAST_LEVEL_KEY = "mollire:last-level";
+
+function readLastLevel(): number | null {
+  try {
+    const raw = localStorage.getItem(LAST_LEVEL_KEY);
+    return raw ? Number(raw) || null : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeLastLevel(level: number) {
+  try {
+    localStorage.setItem(LAST_LEVEL_KEY, String(level));
+  } catch {
+    // storage indisponível: só perde a celebração entre sessões
+  }
+}
+
 // Progresso de nível, no formato do HUD: rótulo em cima, barra segmentada
 // embaixo. Não busca nada — recebe os números de quem já os tem.
+//
+// Recompensa: o XP conta para cima quando muda, e uma subida de nível — nesta
+// sessão ou desde a última visita — ganha um selo animado e um toast.
 export function LevelBar({
   level,
   xp,
@@ -12,15 +40,30 @@ export function LevelBar({
   className?: string;
 }) {
   const pct = Math.min(100, Math.round((xp / next) * 100));
+  const shownXp = useCountUp(xp);
+  const [celebrating, setCelebrating] = useState(false);
+  const previousLevel = useRef<number | null>(null);
+
+  useEffect(() => {
+    const previous = previousLevel.current ?? readLastLevel();
+    previousLevel.current = level;
+    writeLastLevel(level);
+    if (previous === null || level <= previous) return;
+
+    setCelebrating(true);
+    toast.success(`Você subiu para o nível ${level} — ${levelTitle(level)}`);
+    const timer = setTimeout(() => setCelebrating(false), 2200);
+    return () => clearTimeout(timer);
+  }, [level]);
 
   return (
-    <div className={`flex w-[180px] flex-col gap-1.5 ${className ?? ""}`}>
+    <div className={cn("relative flex w-[180px] flex-col gap-1.5", className)}>
       <div className="label text-muted-foreground flex items-baseline justify-between tracking-[0.08em]">
         <span>
-          Nível <b className="text-foreground">{String(level).padStart(2, "0")}</b>
+          Nível <b className="text-foreground">{padLevel(level)}</b>
         </span>
         <span className="font-mono text-[11px] font-medium tracking-normal normal-case tabular-nums">
-          {xp.toLocaleString("pt-BR")} / {next.toLocaleString("pt-BR")}
+          {shownXp.toLocaleString("pt-BR")} / {next.toLocaleString("pt-BR")}
         </span>
       </div>
       <div
@@ -31,8 +74,16 @@ export function LevelBar({
         aria-valuemax={next}
         aria-valuenow={xp}
       >
-        <div className="xp-fill h-full" style={{ width: `${pct}%` }} />
+        <div className="xp-fill h-full transition-[width] duration-700 ease-out" style={{ width: `${pct}%` }} />
       </div>
+      {celebrating && (
+        <span
+          role="status"
+          className="animate-level-up chamfer-sm bg-primary text-primary-foreground label pointer-events-none absolute -bottom-7 left-0 px-2 py-1 text-[9.5px] font-bold"
+        >
+          Nível {padLevel(level)} · {levelTitle(level)}
+        </span>
+      )}
     </div>
   );
 }

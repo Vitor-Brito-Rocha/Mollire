@@ -5,7 +5,9 @@ import { galleryKeys } from "./keys";
 
 // Switching filters keeps the previous grid on screen (dimmed, see
 // `isPlaceholderData`) instead of flashing skeletons.
-export function useGalleryProjects(filter: GalleryFilter) {
+// `silent`: the caller has somewhere better than a toast to put a failure
+// (or nowhere at all, like the login showcase).
+export function useGalleryProjects(filter: GalleryFilter, options: { silent?: boolean } = {}) {
   return useQuery({
     queryKey: galleryKeys.list(filter),
     queryFn: () => galleryApi.list(filter),
@@ -13,7 +15,7 @@ export function useGalleryProjects(filter: GalleryFilter) {
     // Public, shared data that others (and the owner's own publish toggle)
     // change: always ask again when the screen opens.
     staleTime: 0,
-    meta: { errorMessage: "Erro ao carregar a galeria" },
+    meta: options.silent ? { silent: true } : { errorMessage: "Erro ao carregar a galeria" },
   });
 }
 
