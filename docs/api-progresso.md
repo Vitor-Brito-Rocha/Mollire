@@ -1,0 +1,155 @@
+# Contrato da API de progresso: missões, conquistas e histórico de XP
+
+Pedido do Vitor em 21/09/2026. O front já consome estes endpoints (`apps/web/src/modules/progress/`): enquanto eles não existem, cada bloco some em silêncio (404), então dá pra subir o back por partes. Os tipos TypeScript em `modules/progress/types.ts` são a fonte da verdade; este documento explica o que está por trás deles.
+
+**Princípio:** a API devolve **fatos por código** (o que foi feito, quando, quanto vale). Texto, ícone, cor e link de cada item ficam no front (`modules/progress/lib/catalog.ts`). Criar uma missão ou conquista nova é: uma constante no back, uma entrada no catálogo do front.
+
+## 1. Regras de XP: `GET /xp/rules` (público)
+
+Hoje os valores vivem em constantes espalhadas (`DEPLOY_XP`, `FIRST_DEPLOY_BONUS_XP` em `deployments.service.ts`; `PUBLISH_XP` em `projects.service.ts`; `STAR_XP` em `gallery.service.ts`) e o front os espelha em `modules/projects/lib/xp-rules.ts`. Um endpoint tira o espelho.
+
+```json
+[
+  { "code": "DEPLOY", "xp": 10 },
+  { "code": "FIRST_DEPLOY", "xp": 50 },
+  { "code": "PUBLISH", "xp": 20 },
+  { "code": "STAR_RECEIVED", "xp": 5 },
+  { "code": "QUEST", "xp": 10 },
+  { "code": "HELPFUL_COMMENT", "xp": 5 }
+]
+```
+
+Sem tabela: é um objeto constante no back. Cache de um dia é seguro.
+
+## 2. Histórico de XP: `GET /users/me/xp/history?limit=20` (sessão)
+
+Toda soma de XP passa a **também gravar um evento**. Sem isso, o histórico não existe e as missões não têm como dar XP uma vez só.
+
+```prisma
+model XpEvent {
+  id         String   @id @default(uuid())
+  user_id    String
+  amount     Int
+  reason     XpReason
+  project_id String?  // deploy, publicação, estrela recebida
+  actor_id   String?  // quem deu a estrela / marcou o comentário
+  created_at DateTime @default(now())
+  user       User     @relation(fields: [user_id], references: [id])
+  @@index([user_id, created_at])
+}
+
+enum XpReason { DEPLOY FIRST_DEPLOY PUBLISH STAR_RECEIVED QUEST ACHIEVEMENT HELPFUL_COMMENT }
+```
+
+Onde gravar: dentro de `awardDeployXp` (DEPLOY e, quando for o caso, FIRST_DEPLOY), no `publish` do `projects.service`, no `star` do `gallery.service` (o XP vai pro **dono** do projeto; `actor_id` é quem deu a estrela). Ideal: uma função só, `xp.award(userId, reason, { projectId, actorId })`, que soma no `User.xp` e grava o evento na mesma transação. Aí `User.xp` vira um cache do somatório, e recalcular é possível.
+
+Resposta (mais recente primeiro; `ref` tem o que o front precisa pro link):
+
+```json
+[
+  { "id": "…", "amount": 10, "reason": "DEPLOY",
+    "ref": { "project": { "slug": "turma-3b", "name": "Agenda da Turma 3B" } },
+    "created_at": "2026-09-21T18:02:00Z" },
+  { "id": "…", "amount": 5, "reason": "STAR_RECEIVED",
+    "ref": { "project": { "slug": "clima-agora", "name": "Clima Agora" }, "handle": "helena.r" },
+    "created_at": "2026-09-21T15:10:00Z" },
+  { "id": "…", "amount": 10, "reason": "QUEST", "ref": null, "created_at": "…" }
+]
+```
+
+`limit` entre 1 e 50, padrão 20. `ref.handle` é o apelido do ator (nunca e-mail). Projeto apagado: `ref: null`.
+
+## 3. Missões de estreia: `GET /users/me/quests` (sessão)
+
+Sete missões, todas dedutíveis de dados que já existem. A única tabela nova guarda a conclusão, pra pagar o XP **uma vez só** mesmo que o usuário desfaça e refaça (desconecte o GitHub, apague o projeto).
+
+| code | Completa quando | XP |
+|---|---|---|
+| `connect_github` | existe `GithubInstallation` do usuário | 10 |
+| `create_project` | existe projeto do usuário (dono) | 10 |
+| `first_deploy` | existe deploy `SUCCESS` em projeto do usuário | 10 |
+| `publish_gallery` | existe projeto do usuário com `is_public` | 10 |
+| `give_star` | existe estrela dada pelo usuário | 5 |
+| `invite_member` | existe convite ou membro adicionado pelo usuário | 10 |
+| `add_env_var` | existe variável em projeto do usuário | 10 |
+
+```prisma
+model QuestCompletion {
+  user_id      String
+  code         String
+  completed_at DateTime @default(now())
+  @@id([user_id, code])
+}
+```
+
+Avaliação: no `GET`, para cada missão sem `QuestCompletion`, checar a condição; se passou, gravar a conclusão e `xp.award(user, QUEST)`. Simples, sem ganchos espalhados, e o usuário vê a missão virar concluída na próxima visita ao painel (o front busca a cada 30 s). Quem já fez tudo antes desta feature ganha tudo de uma vez na primeira chamada; é aceitável e até simpático.
+
+```json
+{
+  "quests": [
+    { "code": "connect_github", "xp": 10, "completed_at": "2026-09-19T12:00:00Z" },
+    { "code": "give_star", "xp": 5, "completed_at": null }
+  ],
+  "completed": 4,
+  "total": 7
+}
+```
+
+Ordem fixa, a da tabela acima. O front mostra as missões no painel Progresso enquanto `completed < total`; depois volta a mostrar as regras de XP.
+
+## 4. Conquistas: `GET /users/me/achievements` (sessão) e `GET /users/:handle/achievements` (público)
+
+Marco pessoal, não ranking. Sete pra começar:
+
+| code | Desbloqueia quando | Progresso exposto |
+|---|---|---|
+| `first_deploy` | 1º deploy `SUCCESS` | não |
+| `ten_deploys` | 10 deploys `SUCCESS` (somando os projetos do usuário) | `current/10` |
+| `first_star` | 1ª estrela recebida | não |
+| `fast_deploy` | um deploy `SUCCESS` com `finished_at - created_at < 60 s` | não |
+| `rollback` | 1º redeploy por SHA de uma versão anterior | não |
+| `collaborator` | membro (não dono) em 3 projetos | `current/3` |
+| `uptime_30` | um site publicado 30 dias sem deploy `FAILED` e sem sair da galeria | `current/30` (dias) |
+
+```prisma
+model Achievement {
+  user_id     String
+  code        String
+  unlocked_at DateTime @default(now())
+  @@id([user_id, code])
+}
+```
+
+Avaliação: como as missões, **no `GET`** (checar as não desbloqueadas, gravar as que passaram, `xp.award(user, ACHIEVEMENT)` com 25 XP cada, por exemplo). Se quiserem toast na hora e push, o passo 2 é chamar a mesma avaliação ao fim de `awardDeployXp`, do `star` e do `addMember`, e registrar uma `ProjectActivity` do tipo `ACHIEVEMENT_UNLOCKED`. O `uptime_30` depende do item 6 (ping); até lá, contar dias desde o último deploy bem-sucedido sem falha é uma aproximação honesta.
+
+Resposta do próprio usuário (todas, com progresso):
+
+```json
+[
+  { "code": "first_deploy", "unlocked_at": "2026-09-19T13:00:00Z" },
+  { "code": "ten_deploys", "unlocked_at": null, "progress": { "current": 6, "target": 10 } },
+  { "code": "rollback", "unlocked_at": null }
+]
+```
+
+Resposta pública (`/users/:handle/achievements`): **só as desbloqueadas**, sem progresso. Apelido inexistente: 404.
+
+## 5. Comentário útil (opcional, pequeno)
+
+`POST /gallery/:slug/comments/:id/helpful` e `DELETE` do mesmo: só o dono do projeto; grava `Comment.helpful_at`; na marcação, `xp.award(autor do comentário, HELPFUL_COMMENT, { projectId, actorId: dono })`, uma vez por comentário (desmarcar não tira XP). `GalleryComment` ganha `helpful: boolean`.
+
+## 6. "No ar há N dias" (opcional, médio)
+
+Cron a cada 10 min faz `HEAD https://{slug}.aulvi.com.br` em todo projeto publicado; grava em `SiteCheck(project_id, ok, checked_at)`; `GET /projects/:slug` e `GET /gallery/:slug` passam a devolver `uptime_since` (início da sequência atual de `ok`). Alimenta a conquista `uptime_30` e uma linha "no ar há 12 dias" no projeto e na galeria.
+
+## Ordem sugerida e tamanho
+
+1. `xp.award` + `XpEvent` + `GET /users/me/xp/history` + `GET /xp/rules` — meio dia. Destrava o resto.
+2. Missões — meio dia. Só leitura de dados que já existem, mais uma tabela.
+3. Conquistas — um dia. Mesma mecânica das missões.
+4. Comentário útil — duas horas.
+5. Ping de uptime — um dia.
+
+**Migrações:** só tabelas novas. Não renomear nem editar migrações já aplicadas (o `init` renomeado ainda está na fila do review de 21/09).
+
+**Como testar sem o front:** os JSONs acima são exatamente os que o backend de mentira do Michael devolve; a tela do painel, do perfil e do perfil público já renderizam a partir deles.
