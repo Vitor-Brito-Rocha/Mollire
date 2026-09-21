@@ -29,7 +29,6 @@ const PANEL: Item = {
   icon: LayoutGrid,
   active: (p) => p === "/" || (p.startsWith("/projects/") && p !== "/projects/new"),
 };
-const NEW_PROJECT: Item = { to: "/projects/new", label: "Novo projeto", icon: Plus, active: (p) => p === "/projects/new" };
 const PROFILE: Item = { to: "/perfil", label: "Perfil", icon: User, active: (p) => p === "/perfil" };
 const ADMIN: Item = { to: "/admin", label: "Admin", icon: Shield, active: (p) => p.startsWith("/admin") };
 
@@ -98,6 +97,28 @@ function PlayerCard() {
   );
 }
 
+// Criar projeto é o centro do produto, então não é "mais um item" da lista:
+// é o botão de ação da barra, primeiro e com a cara do botão primário.
+function NewProjectCta() {
+  const { user } = useCurrentUser();
+  const { pathname } = useLocation();
+  if (!user) return null;
+  const active = pathname === "/projects/new";
+  return (
+    <Link
+      to="/projects/new"
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "chamfer bg-primary text-primary-foreground font-display glow mx-3 mt-3 flex h-11 items-center justify-center gap-2 text-[12px] font-bold tracking-[0.12em] uppercase transition-colors",
+        active ? "bg-primary/85" : "hover:bg-primary/85",
+      )}
+    >
+      <Plus className="size-4" strokeWidth={2.5} />
+      Novo projeto
+    </Link>
+  );
+}
+
 function RailFooter({ pathname }: { pathname: string }) {
   const navigate = useNavigate();
   const { user } = useCurrentUser();
@@ -135,7 +156,7 @@ function RailFooter({ pathname }: { pathname: string }) {
 export function SideRail() {
   const { pathname } = useLocation();
   const { user } = useCurrentUser();
-  const items = user ? [PANEL, GALLERY, NEW_PROJECT] : [GALLERY];
+  const items = user ? [PANEL, GALLERY] : [GALLERY];
 
   return (
     <aside className="bg-card/70 border-border sticky top-0 hidden h-screen w-[232px] shrink-0 flex-col border-r backdrop-blur-md md:flex">
@@ -147,6 +168,7 @@ export function SideRail() {
         Mollire
       </Link>
       <PlayerCard />
+      <NewProjectCta />
       <nav className="flex flex-col gap-0.5 px-3 py-5" aria-label="Principal">
         {items.map((item) => (
           <RailLink key={item.to} item={item} pathname={pathname} />
@@ -186,6 +208,15 @@ export function MobileBar() {
             </Link>
           );
         })}
+        {user && (
+          <Link
+            to="/projects/new"
+            aria-label="Novo projeto"
+            className="chamfer-sm bg-primary text-primary-foreground ml-1 grid size-8 place-items-center"
+          >
+            <Plus className="size-4" strokeWidth={2.5} />
+          </Link>
+        )}
         {user ? (
           <Link
             to="/perfil"
