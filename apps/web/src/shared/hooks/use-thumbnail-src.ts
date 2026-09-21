@@ -13,15 +13,21 @@ async function fetchThumbnail(url: string): Promise<string> {
   return URL.createObjectURL(await response.blob());
 }
 
-export function useThumbnailSrc(thumbnailUrl: string) {
-  const url = `${API_URL}${thumbnailUrl}`;
+// `null` when the project has no capture yet: nothing is fetched.
+export function useThumbnailSrc(thumbnailUrl: string | null) {
+  const url = thumbnailUrl ? `${API_URL}${thumbnailUrl}` : null;
   const { data, isPending, isError } = useQuery({
     queryKey: ["thumbnail", url],
-    queryFn: () => fetchThumbnail(url),
+    queryFn: () => fetchThumbnail(url ?? ""),
+    enabled: url !== null,
+    // A missing file won't appear by retrying, and TanStack pauses retries
+    // while the tab is hidden — which would hold the skeleton instead of
+    // showing the fallback cover. Fail on the first answer; the next mount asks again.
+    retry: 0,
     // The blob URL lives as long as the cache entry; the file changes only on a new deploy.
     staleTime: Infinity,
     meta: { silent: true },
   });
 
-  return { src: data, isLoading: isPending, isError };
+  return { src: url ? data : undefined, isLoading: url !== null && isPending, isError };
 }
