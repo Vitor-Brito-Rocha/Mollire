@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -13,6 +14,7 @@ import {
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser } from '../auth/types';
 import { PrismaService } from '../prisma/prisma.service';
+import { detectBuildScript } from './build-script';
 import { InstallGithubDto } from './dto/install-github.dto';
 import { GithubService } from './github.service';
 
@@ -67,6 +69,25 @@ export class GithubController {
     }));
   }
 
+  // Reads the repo's package.json and either picks the build script or returns
+  // the ranked candidates for the user to choose from.
+  @Get('build-script')
+  async buildScript(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('installation_id') installationId?: string,
+    @Query('repo') repo?: string,
+  ) {
+    if (!installationId || !/^\d+$/.test(installationId) || !repo || !/^[\w.-]+\/[\w.-]+$/.test(repo)) {
+      throw new BadRequestException('installation_id and repo (owner/name) are required');
+    }
+    const account = await this.prisma.githubAccount.findFirst({
+      where: { installation_id: BigInt(installationId), user_id: user.id },
+    });
+    if (!account) throw new NotFoundException('GitHub account not found');
+    const scripts = await this.github.fetchPackageScripts(account.installation_id, repo);
+    return detectBuildScript(scripts);
+  }
+
   @Get('repos')
   async repos(@CurrentUser() user: AuthenticatedUser, @Query('available') available?: string) {
     const accounts = await this.prisma.githubAccount.findMany({
@@ -76,15 +97,23 @@ export class GithubController {
       throw new NotFoundException('GitHub not connected — install the GitHub App first');
     }
     const [perAccount, projects] = await Promise.all([
-      Promise.all(accounts.map((a) => this.github.listFrontendRepos(a.installation_id))),
+      Promise.all(
+        accounts.map(async (a) =>
+          (await this.github.listFrontendRepos(a.installation_id)).map((r) => ({
+            ...r,
+            installation_id: a.installation_id.toString(),
+          })),
+        ),
+      ),
       this.prisma.project.findMany({
         where: { user_id: user.id },
         select: { repository_url: true },
       }),
     ]);
     const usedUrls = new Set(projects.map((p) => p.repository_url));
-    const repos = perAccount.flat().map(({ id, full_name, name, private: isPrivate, html_url, clone_url, default_branch }) => ({
+    const repos = perAccount.flat().map(({ id, installation_id, full_name, name, private: isPrivate, html_url, clone_url, default_branch }) => ({
       id,
+      installation_id,
       full_name,
       name,
       private: isPrivate,
