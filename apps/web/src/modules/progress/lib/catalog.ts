@@ -1,6 +1,8 @@
 import {
   Clock,
+  Flag,
   GitBranch,
+  Handshake,
   Globe,
   KeyRound,
   PlusSquare,
@@ -37,6 +39,8 @@ export const ACHIEVEMENTS: Record<
   rollback: { title: "Sangue frio", description: "Voltou uma versão com rollback.", icon: RotateCcw, tier: "bronze" },
   collaborator: { title: "Da equipe", description: "Membro em três projetos de outras pessoas.", icon: Users, tier: "silver" },
   uptime_30: { title: "Sempre no ar", description: "Um site seu trinta dias no ar sem cair.", icon: Clock, tier: "gold" },
+  team_all_deployed: { title: "Todos no ar", description: "Cada pessoa da equipe fez pelo menos um deploy no projeto.", icon: Handshake, tier: "silver" },
+  team_first_milestone: { title: "Primeira entrega", description: "Seu grupo cumpriu uma entrega da turma no prazo.", icon: Flag, tier: "bronze" },
 };
 
 export const XP_REASONS: Record<XpReason, string> = {
@@ -47,6 +51,8 @@ export const XP_REASONS: Record<XpReason, string> = {
   QUEST: "Missão concluída",
   ACHIEVEMENT: "Conquista",
   HELPFUL_COMMENT: "Comentário útil",
+  TEAM_DEPLOY: "Deploy da equipe",
+  MILESTONE: "Entrega cumprida",
 };
 
 export const TIER_COLOR = {

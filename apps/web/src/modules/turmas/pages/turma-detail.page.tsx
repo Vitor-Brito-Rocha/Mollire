@@ -1,8 +1,9 @@
-import { Globe, Lock, Upload, Users } from "lucide-react";
+import { Globe, Link2, Lock, Upload, Users } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 import { useCurrentUser } from "@/modules/auth";
 import { EmptyState } from "@/shared/components/empty-state";
+import { InlineAction } from "@/shared/components/inline-action";
 import { PageHeader } from "@/shared/components/page-header";
 import { Panel } from "@/shared/components/panel";
 import { StatusChip } from "@/shared/components/status-chip";
@@ -12,14 +13,19 @@ import { Button } from "@/shared/ui/button";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { CodeBadge } from "../components/code-badge";
 import { GroupsPanel } from "../components/groups-panel";
+import { MilestonesPanel } from "../components/milestones-panel";
 import { StudentsPanel } from "../components/students-panel";
 import { SubmitProjectDialog } from "../components/submit-project-dialog";
+import { TurmaProgressPanel } from "../components/turma-progress-panel";
 import { TurmaProjectCard } from "../components/turma-project-card";
 import { useTurma, useTurmaGallery } from "../hooks/use-turmas";
 import { formatStudents } from "../lib/format";
+import { copyText, inviteLink } from "../lib/invite";
 
-// A turma por dentro: a galeria dela, os grupos (para escolher ou gerir) e,
-// para o professor, a lista de alunos. O papel de quem vê muda a tela.
+// A turma por dentro: as entregas, a galeria dela, o progresso de todo mundo,
+// os grupos (para escolher ou gerir) e, para o professor, a lista de alunos.
+// O papel de quem vê muda a tela. Os blocos das ideias de grupos
+// (docs/api-grupos.md) só aparecem quando o back responde.
 export default function TurmaDetailPage() {
   const id = useRequiredParam("id");
   const { user } = useCurrentUser();
@@ -82,6 +88,13 @@ export default function TurmaDetailPage() {
               {formatStudents(turma.students_count, turma.capacity)}
             </span>
             <CodeBadge code={turma.code} />
+            <InlineAction
+              onClick={() => copyText(inviteLink(turma.code), "Link de convite copiado", "Não foi possível copiar. O link é")}
+              title="Um link que já entra na turma"
+            >
+              <Link2 className="size-3" aria-hidden="true" />
+              copiar link de convite
+            </InlineAction>
           </>
         }
         actions={
@@ -93,37 +106,42 @@ export default function TurmaDetailPage() {
       />
 
       <div className="grid items-start gap-6 xl:grid-cols-3">
-        <Panel title="Projetos da turma" count={projects?.length} className="xl:col-span-2">
-          {loadingProjects ? (
-            <div className="grid gap-4 p-4 sm:grid-cols-2" aria-busy="true">
-              <Skeleton className="h-[260px] w-full" />
-              <Skeleton className="h-[260px] w-full" />
-            </div>
-          ) : !projects || projects.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 px-4 py-12 text-center">
-              <p className="text-muted-foreground">Nenhum projeto enviado ainda.</p>
-              <p className="text-text-3 max-w-[40ch] text-sm">
-                {professor
-                  ? "Quando os alunos enviarem, eles aparecem aqui com estrela e nota."
-                  : "Envie o seu: ele entra com o seu grupo, e os colegas podem dar estrela."}
-              </p>
-            </div>
-          ) : (
-            <div className="grid gap-4 p-4 sm:grid-cols-2">
-              {projects.map((project) => (
-                <TurmaProjectCard
-                  key={project.id}
-                  turmaId={turma.id}
-                  project={project}
-                  viewerHandle={user?.handle ?? null}
-                  canGrade={professor}
-                />
-              ))}
-            </div>
-          )}
-        </Panel>
+        <div className="flex flex-col gap-6 xl:col-span-2">
+          <MilestonesPanel turma={turma} />
+
+          <Panel title="Projetos da turma" count={projects?.length}>
+            {loadingProjects ? (
+              <div className="grid gap-4 p-4 sm:grid-cols-2" aria-busy="true">
+                <Skeleton className="h-[260px] w-full" />
+                <Skeleton className="h-[260px] w-full" />
+              </div>
+            ) : !projects || projects.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 px-4 py-12 text-center">
+                <p className="text-muted-foreground">Nenhum projeto enviado ainda.</p>
+                <p className="text-text-3 max-w-[40ch] text-sm">
+                  {professor
+                    ? "Quando os alunos enviarem, eles aparecem aqui com estrela e nota."
+                    : "Envie o seu: ele entra com o seu grupo, e os colegas podem dar estrela."}
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-4 p-4 sm:grid-cols-2">
+                {projects.map((project) => (
+                  <TurmaProjectCard
+                    key={project.id}
+                    turmaId={turma.id}
+                    project={project}
+                    viewerHandle={user?.handle ?? null}
+                    canGrade={professor}
+                  />
+                ))}
+              </div>
+            )}
+          </Panel>
+        </div>
 
         <div className="flex flex-col gap-6">
+          <TurmaProgressPanel turmaId={turma.id} />
           {showGroups && <GroupsPanel turma={turma} />}
           {professor && <StudentsPanel turmaId={turma.id} />}
         </div>

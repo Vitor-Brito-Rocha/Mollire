@@ -9,10 +9,12 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Spinner } from "@/shared/ui/spinner";
 import { useAddGroup, useJoinGroup, useLeaveGroup, useRemoveGroup } from "../hooks/use-turma-mutations";
+import { copyText, inviteLink } from "../lib/invite";
 import type { TurmaDetail } from "../types";
 
 // Os grupos da turma. Aluno escolhe o seu (ou troca); professor cria e
-// remove. Cada linha mostra quantos cabem.
+// remove. Cada linha mostra quantos cabem e, quando o back gera o código do
+// grupo, um link de convite que já entra na turma e no grupo.
 export function GroupsPanel({ turma }: { turma: TurmaDetail }) {
   const canManage = turma.my_role === "PROFESSOR";
   const addGroup = useAddGroup(turma.id);
@@ -56,6 +58,14 @@ export function GroupsPanel({ turma }: { turma: TurmaDetail }) {
                     <span className="text-text-3 font-mono text-xs tabular-nums">
                       {group.members_count}/{group.max_size}
                     </span>
+                    {group.code && (canManage || mine) && (
+                      <InlineAction
+                        onClick={() => copyText(inviteLink(group.code ?? ""), `Link do ${group.name} copiado`, "Não foi possível copiar. O link é")}
+                        title="Um link que entra na turma e neste grupo"
+                      >
+                        link
+                      </InlineAction>
+                    )}
                   </span>
                 </span>
                 {canManage ? (

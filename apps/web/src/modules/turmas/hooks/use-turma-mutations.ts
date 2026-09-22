@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { turmasApi } from "../api/turmas.api";
-import type { NewTurma, TurmaProject } from "../types";
+import type { GradeInput, NewMilestone, NewTurma, TurmaProject } from "../types";
 import { turmaKeys } from "./keys";
 
 export function useCreateTurma() {
@@ -41,7 +41,8 @@ export function useJoinPublic() {
   });
 }
 
-// Tudo que muda a turma invalida o detalhe (grupos, contagens) e a lista de alunos.
+// Tudo que muda a turma invalida o detalhe (grupos, contagens), a lista de
+// alunos, a galeria e o que deriva delas (progresso, entregas).
 function useTurmaInvalidation(id: string) {
   const queryClient = useQueryClient();
   return () =>
@@ -49,6 +50,8 @@ function useTurmaInvalidation(id: string) {
       queryClient.invalidateQueries({ queryKey: turmaKeys.detail(id) }),
       queryClient.invalidateQueries({ queryKey: turmaKeys.students(id) }),
       queryClient.invalidateQueries({ queryKey: turmaKeys.gallery(id) }),
+      queryClient.invalidateQueries({ queryKey: turmaKeys.progress(id) }),
+      queryClient.invalidateQueries({ queryKey: turmaKeys.milestones(id) }),
     ]);
 }
 
@@ -109,7 +112,7 @@ export function useRemoveSubmission(id: string) {
 export function useGradeProject(id: string) {
   const invalidate = useTurmaInvalidation(id);
   return useMutation({
-    mutationFn: ({ slug, grade }: { slug: string; grade: number }) => turmasApi.grade(id, slug, grade),
+    mutationFn: ({ slug, ...body }: GradeInput & { slug: string }) => turmasApi.grade(id, slug, body),
     onSuccess: invalidate,
     meta: { successMessage: "Nota salva", errorMessage: "Erro ao salvar a nota" },
   });
@@ -140,5 +143,35 @@ export function useToggleTurmaStar(id: string) {
       );
     },
     meta: { errorMessage: "Não foi possível dar a estrela" },
+  });
+}
+
+// ---- Entregas (docs/api-grupos.md §2) ---------------------------------------
+
+export function useAddMilestone(id: string) {
+  const invalidate = useTurmaInvalidation(id);
+  return useMutation({
+    mutationFn: (body: NewMilestone) => turmasApi.addMilestone(id, body),
+    onSuccess: invalidate,
+    meta: { successMessage: "Entrega criada", errorMessage: "Erro ao criar a entrega" },
+  });
+}
+
+export function useUpdateMilestone(id: string) {
+  const invalidate = useTurmaInvalidation(id);
+  return useMutation({
+    mutationFn: ({ milestoneId, ...body }: Partial<NewMilestone> & { milestoneId: string }) =>
+      turmasApi.updateMilestone(id, milestoneId, body),
+    onSuccess: invalidate,
+    meta: { successMessage: "Entrega salva", errorMessage: "Erro ao salvar a entrega" },
+  });
+}
+
+export function useRemoveMilestone(id: string) {
+  const invalidate = useTurmaInvalidation(id);
+  return useMutation({
+    mutationFn: (milestoneId: string) => turmasApi.removeMilestone(id, milestoneId),
+    onSuccess: invalidate,
+    meta: { successMessage: "Entrega removida", errorMessage: "Erro ao remover a entrega" },
   });
 }

@@ -49,3 +49,32 @@ export function useTurmaGallery(id: string) {
     meta: { errorMessage: "Não foi possível carregar os projetos da turma." },
   });
 }
+
+// Os dois abaixo são das ideias de grupos (docs/api-grupos.md): enquanto o
+// back não responde, o bloco correspondente não aparece — por isso silenciosos.
+
+export function useTurmaProgress(id: string) {
+  return useQuery({
+    queryKey: turmaKeys.progress(id),
+    queryFn: () => turmasApi.progress(id),
+    meta: { silent: true },
+  });
+}
+
+export function useTurmaMilestones(id: string) {
+  return useQuery({
+    queryKey: turmaKeys.milestones(id),
+    queryFn: () => turmasApi.milestones(id),
+    meta: { silent: true },
+  });
+}
+
+// "Quem entregou": só o professor abre, e só quando pede.
+export function useMilestoneDetail(id: string, milestoneId: string | null) {
+  return useQuery({
+    queryKey: turmaKeys.milestone(id, milestoneId ?? ""),
+    queryFn: () => turmasApi.milestone(id, milestoneId ?? ""),
+    enabled: milestoneId !== null,
+    meta: { errorMessage: "Não foi possível carregar a entrega." },
+  });
+}

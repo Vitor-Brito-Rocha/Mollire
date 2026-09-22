@@ -27,6 +27,8 @@ export const router = createBrowserRouter([
           { path: "galeria", ...page(() => import("@/modules/gallery/pages/gallery.page")) },
           { path: "galeria/:slug", ...page(() => import("@/modules/gallery/pages/gallery-detail.page")) },
           { path: "u/:handle", ...page(() => import("@/modules/profile/pages/public-profile.page")) },
+          // Link de convite de turma: público para poder mandar ao login e voltar.
+          { path: "turmas/entrar", ...page(() => import("@/modules/turmas/pages/join-link.page")) },
 
           // Signed in
           {

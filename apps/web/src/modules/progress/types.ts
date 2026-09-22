@@ -26,7 +26,10 @@ export type AchievementCode =
   | "fast_deploy"
   | "rollback"
   | "collaborator"
-  | "uptime_30";
+  | "uptime_30"
+  // Equipe (docs/api-grupos.md §3).
+  | "team_all_deployed"
+  | "team_first_milestone";
 
 // GET /users/me/achievements  |  GET /users/:handle/achievements (só as desbloqueadas)
 export type Achievement = {
@@ -43,7 +46,10 @@ export type XpReason =
   | "STAR_RECEIVED"
   | "QUEST"
   | "ACHIEVEMENT"
-  | "HELPFUL_COMMENT";
+  | "HELPFUL_COMMENT"
+  // Equipe e entregas (docs/api-grupos.md §3).
+  | "TEAM_DEPLOY"
+  | "MILESTONE";
 
 // GET /users/me/xp/history?limit=20
 export type XpEvent = {

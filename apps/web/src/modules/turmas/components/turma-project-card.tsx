@@ -11,25 +11,32 @@ import { useGradeProject, useRemoveSubmission, useToggleTurmaStar } from "../hoo
 import { formatGrade } from "../lib/format";
 import type { TurmaProject } from "../types";
 import { GradeField } from "./grade-field";
+import { TeamAvatars } from "./team-avatars";
 
 type TurmaProjectCardProps = {
   turmaId: string;
   project: TurmaProject;
-  // Apelido de quem está vendo: dono do projeto vê a própria nota e pode retirar.
+  // Apelido de quem está vendo: dono retira o projeto; dono e equipe veem a nota.
   viewerHandle: string | null;
   // Professor: dá nota e vê todas.
   canGrade: boolean;
 };
 
-// Um projeto enviado à turma: capa, grupo, estrela dos colegas e a nota —
-// que só o professor e o dono enxergam. Nota não é ranking.
+// Um projeto enviado à turma: capa, grupo, equipe, estrela dos colegas, e a
+// nota — que só o professor e a equipe enxergam. O feedback escrito segue a
+// escolha do professor: só a equipe, ou a turma inteira. Nota não é ranking.
 export function TurmaProjectCard({ turmaId, project, viewerHandle, canGrade }: TurmaProjectCardProps) {
   const toggleStar = useToggleTurmaStar(turmaId);
   const grade = useGradeProject(turmaId);
   const remove = useRemoveSubmission(turmaId);
   const [removing, setRemoving] = useState(false);
   const mine = viewerHandle !== null && viewerHandle === project.author;
+  const onTeam = mine || (viewerHandle !== null && (project.team?.some((m) => m.handle === viewerHandle) ?? false));
   const tier = tierFor(project.stars);
+  // O back só manda o texto para quem pode ler; ausente = back sem o campo.
+  const commentSupported = project.grade_comment !== undefined;
+  const comment = project.grade_comment ?? null;
+  const showTeam = (project.team?.length ?? 0) > 1;
 
   return (
     <CoverCard
@@ -60,7 +67,7 @@ export function TurmaProjectCard({ turmaId, project, viewerHandle, canGrade }: T
               <span className="text-text-3 font-mono text-xs">{projectHost(project.slug)}</span>
             </span>
           </div>
-          {mine ? (
+          {onTeam ? (
             <span className="text-text-3 flex shrink-0 items-center gap-1 font-mono text-caption tabular-nums" title="Estrelas dos colegas">
               <Star className="size-3.5" aria-hidden="true" />
               {project.stars}
@@ -76,24 +83,45 @@ export function TurmaProjectCard({ turmaId, project, viewerHandle, canGrade }: T
           )}
         </div>
 
-        {(canGrade || mine) && (
-          <div className="border-border flex flex-wrap items-center justify-between gap-3 border-t pt-3">
+        {showTeam && project.team && <TeamAvatars team={project.team} />}
+
+        {(canGrade || onTeam || comment) && (
+          <div className="border-border flex flex-col gap-3 border-t pt-3">
             {canGrade ? (
               <GradeField
-                key={project.grade ?? "none"}
+                key={`${project.grade ?? "none"}|${comment ?? ""}|${project.grade_comment_public ?? false}`}
                 value={project.grade}
+                comment={comment}
+                commentPublic={project.grade_comment_public}
+                commentSupported={commentSupported}
                 pending={grade.isPending && grade.variables?.slug === project.slug}
-                onSave={(value) => grade.mutate({ slug: project.slug, grade: value })}
+                onSave={(input) => grade.mutate({ slug: project.slug, ...input })}
               />
-            ) : project.grade !== null ? (
-              <StatusChip tone="good">Nota {formatGrade(project.grade)}</StatusChip>
             ) : (
-              <span className="text-text-3 text-xs">Ainda sem nota</span>
-            )}
-            {mine && (
-              <InlineAction destructive onClick={() => setRemoving(true)} disabled={remove.isPending}>
-                retirar da turma
-              </InlineAction>
+              <>
+                {onTeam && (
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    {project.grade !== null ? (
+                      <StatusChip tone="good">Nota {formatGrade(project.grade)}</StatusChip>
+                    ) : (
+                      <span className="text-text-3 text-xs">Ainda sem nota</span>
+                    )}
+                    {mine && (
+                      <InlineAction destructive onClick={() => setRemoving(true)} disabled={remove.isPending}>
+                        retirar da turma
+                      </InlineAction>
+                    )}
+                  </div>
+                )}
+                {comment && (
+                  <blockquote className="border-primary/40 text-muted-foreground border-l-2 pl-3 text-sm leading-relaxed">
+                    <span className="label text-text-3 mb-1 block text-micro">
+                      Feedback do professor{onTeam && project.grade_comment_public ? " · visível para a turma" : ""}
+                    </span>
+                    {comment}
+                  </blockquote>
+                )}
+              </>
             )}
           </div>
         )}
