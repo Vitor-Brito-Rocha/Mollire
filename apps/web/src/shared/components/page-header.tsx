@@ -56,7 +56,7 @@ export function PageHeader({ title, eyebrow, back, description, meta, actions, c
         {description && <p className="text-muted-foreground max-w-[60ch] text-base leading-relaxed">{description}</p>}
         {meta && <div className="flex flex-wrap items-center gap-3">{meta}</div>}
       </div>
-      {actions && <div className="flex items-center gap-3">{actions}</div>}
+      {actions && <div className="flex flex-wrap items-center gap-3">{actions}</div>}
     </div>
   );
 }

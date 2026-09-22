@@ -1,7 +1,8 @@
-import { Bell, LogOut, Shield, User } from "lucide-react";
+import { Bell, LogOut, Moon, Shield, Sun, User } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useSignOut, type CurrentUser } from "@/modules/auth";
 import { usePushSubscription } from "@/modules/notifications";
+import { useTheme } from "@/shared/hooks/use-theme";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -28,6 +29,7 @@ export function ProfileMenu({ user, trigger, align = "start", className }: Profi
   const navigate = useNavigate();
   const signOut = useSignOut();
   const push = usePushSubscription();
+  const { theme, toggle: toggleTheme } = useTheme();
 
   // The session cache flips to "signed out" inside the mutation; guards on
   // protected screens redirect on their own, this covers the public ones.
@@ -69,6 +71,11 @@ export function ProfileMenu({ user, trigger, align = "start", className }: Profi
             {push.isPending && <Spinner className="ml-auto size-3" />}
           </DropdownMenuCheckboxItem>
         )}
+        {/* Abaixo de `sm` a barra do celular não tem espaço pro botão de tema; ele mora aqui. */}
+        <DropdownMenuItem className="sm:hidden" closeOnClick={false} onClick={toggleTheme}>
+          {theme === "dark" ? <Sun /> : <Moon />}
+          {theme === "dark" ? "Modo claro" : "Modo escuro"}
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem variant="destructive" onClick={handleLogout} disabled={signOut.isPending}>
           {signOut.isPending ? <Spinner /> : <LogOut />}

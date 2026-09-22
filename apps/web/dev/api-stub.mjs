@@ -1,0 +1,177 @@
+// Backend de mentira para desenvolver o front sem a API de verdade.
+//
+//   npm run dev:stub      (porta 4000; o front usa VITE_API_URL=http://localhost:4000)
+//
+// Entra com qualquer e-mail e senha. Tudo em memória: reiniciar zera. Cobre as
+// rotas que o front chama hoje, inclusive turmas, progresso e capturas. Não é
+// a API: é um espelho dos JSONs dos contratos em docs/api-*.md.
+import http from "node:http";
+import zlib from "node:zlib";
+
+const PORT = Number(process.env.PORT || 4000);
+const ORIGIN = process.env.FRONTEND_URL || "http://localhost:3000";
+const h = (hoursAgo) => new Date(Date.now() - hoursAgo * 3600e3).toISOString();
+const thresholdFor = (level) => 50 * level * (level - 1);
+const levelOf = (xp) => { let level = 1; while (xp >= thresholdFor(level + 1)) level++; return level; };
+
+// ---- estado ----------------------------------------------------------------
+let me = { id: "u-voce", email: "voce@exemplo.com", handle: "voce", role: "ADMIN", xp: 2860, github_connected: true, frame: "gold" };
+
+const gallery = [
+  { id: "g1", name: "Clima Agora", slug: "clima-agora", author: "helena.r", stars: 231, published_at: "2026-08-12T12:00:00Z", last_deploy_at: h(20), created_at: h(24 * 36), members: [{ handle: "helena.r", role: "OWNER" }, { handle: "kauan.t", role: "MEMBER" }] },
+  { id: "g2", name: "Portfólio da Marina", slug: "marina-dev", author: "marina.s", stars: 127, published_at: "2026-08-20T12:00:00Z", last_deploy_at: h(50), created_at: h(24 * 30), members: [{ handle: "marina.s", role: "OWNER" }] },
+  { id: "g3", name: "Jogo da Cobrinha", slug: "cobrinha", author: "dudu", stars: 89, published_at: "2026-09-01T12:00:00Z", last_deploy_at: h(3), created_at: h(24 * 16), members: [{ handle: "dudu", role: "OWNER" }] },
+  { id: "g4", name: "Gerador de Senha", slug: "senha-forte", author: "kauan.t", stars: 61, published_at: "2026-09-03T12:00:00Z", last_deploy_at: h(100), created_at: h(24 * 14), members: [{ handle: "kauan.t", role: "OWNER" }] },
+  { id: "g5", name: "Receitas da Vó", slug: "receitas-da-vo", author: "bia.m", stars: 43, published_at: "2026-09-08T12:00:00Z", last_deploy_at: h(30), created_at: h(24 * 9), members: [{ handle: "bia.m", role: "OWNER" }] },
+  { id: "g6", name: "Agenda da Turma 3B", slug: "turma-3b", author: "prof.aline", stars: 12, published_at: "2026-09-12T12:00:00Z", last_deploy_at: h(8), created_at: h(24 * 5), members: [{ handle: "prof.aline", role: "OWNER" }] },
+];
+const THUMBS = { "clima-agora": "/thumbnails/clima-agora.png", "marina-dev": "/thumbnails/marina-dev.png" };
+const starred = new Set();
+const comments = {
+  "clima-agora": [
+    { id: "c1", body: "A transição do card de previsão ficou muito suave. Como você fez o carregamento dos ícones sem piscar?", author: "dudu", is_project_owner: false, helpful: false, created_at: h(3) },
+    { id: "c2", body: "Pré-carrego o sprite dos ícones no primeiro render e troco só a posição do fundo.", author: "helena.r", is_project_owner: true, helpful: false, created_at: h(2) },
+  ],
+};
+
+const deployment = (id, status, sha, message, hoursAgo, finishedMinutes) => ({ id, project_id: "p", status, commit_sha: sha, commit_message: message, release_path: status === "SUCCESS" ? "/r" : null, log: status === "SUCCESS" ? "> npm install\n> npm run build\n✓ built in 21s\npublicado" : null, created_at: h(hoursAgo), finished_at: finishedMinutes === null ? null : new Date(Date.parse(h(hoursAgo)) + finishedMinutes * 60e3).toISOString() });
+const mine = [
+  { id: "p2", name: "Agenda da Turma 3B", slug: "turma-3b", repository_url: "https://github.com/voce/turma-3b.git", build_command: "npm install && npm run build", output_dir: "dist", root_dir: null, is_public: true, thumbnail_url: "/thumbnails/turma-3b.png", uptime_since: h(24 * 12), user_id: "u-voce", created_at: h(24 * 5), updated_at: h(3), my_role: "OWNER", deployments: [deployment("d1", "BUILDING", "e4f5a6b", "deploy manual", 0.2, null), deployment("d2", "SUCCESS", "e4f5a6b", "ajusta cores do calendário", 4, 3)] },
+  { id: "p1", name: "Clima Agora", slug: "clima-agora", repository_url: "https://github.com/voce/clima-agora.git", build_command: "npm install && npm run build", output_dir: "out", root_dir: null, is_public: true, thumbnail_url: "/thumbnails/clima-agora.png", uptime_since: h(24 * 41), user_id: "u-voce", created_at: h(24 * 36), updated_at: h(20), my_role: "OWNER", deployments: [deployment("d3", "SUCCESS", "9f3a1c2", "primeira versão", 24 * 30, 2)] },
+  { id: "p3", name: "Jogo da Cobrinha", slug: "cobrinha", repository_url: "https://github.com/dudu/cobrinha.git", build_command: "npm install && npm run build", output_dir: "dist", root_dir: null, is_public: true, thumbnail_url: null, uptime_since: null, user_id: "u-dudu", created_at: h(24 * 16), updated_at: h(3), my_role: "MEMBER", deployments: [deployment("d4", "SUCCESS", "1b2c3d4", "movimento suave", 24 * 2, 1)] },
+];
+const NEXT = { QUEUED: "BUILDING", PENDING: "CLONING", CLONING: "BUILDING", BUILDING: "PUBLISHING", PUBLISHING: "SUCCESS" };
+const members = {
+  "turma-3b": { members: [{ user_id: "u-voce", handle: "voce", role: "OWNER", since: h(24 * 5) }], invitations: [] },
+  "clima-agora": { members: [{ user_id: "u-voce", handle: "voce", role: "OWNER", since: h(24 * 36) }, { user_id: "u-kauan", handle: "kauan.t", role: "MEMBER", since: h(24 * 10) }], invitations: [{ id: "i1", email: "novo@exemplo.com", role: "MEMBER", created_at: h(24), expires_at: h(-24 * 13) }] },
+  cobrinha: { members: [{ user_id: "u-dudu", handle: "dudu", role: "OWNER", since: h(24 * 16) }, { user_id: "u-voce", handle: "voce", role: "MEMBER", since: h(24 * 3) }], invitations: [] },
+};
+const env = { "turma-3b": [{ key: "VITE_API_URL", created_at: h(24 * 4), updated_at: h(20) }], "clima-agora": [], cobrinha: [] };
+const activity = (p) => [
+  { id: "a1", type: "DEPLOY_SUCCESS", actor_id: "u-voce", actor_handle: "voce", payload: { commit_sha: "e4f5a6b12" }, created_at: h(4) },
+  { id: "a2", type: "STAR_RECEIVED", actor_id: "u-dudu", actor_handle: "dudu", payload: {}, created_at: h(28) },
+  { id: "a3", type: "VISIBILITY_CHANGED", actor_id: "u-voce", actor_handle: "voce", payload: { is_public: true, slug: p.slug }, created_at: h(24 * 3) },
+];
+
+// ---- turmas ----------------------------------------------------------------
+const turmas = [
+  { id: "t1", name: "Turma 3B — Projetos Web", code: "K7XQ2M", description: "Sites estáticos do segundo bimestre. Cada grupo entrega um projeto.", is_public: false, capacity: 40, group_mode: "GROUPS", owner_id: "u-voce", owner: "voce", created_at: h(24 * 9),
+    groups: [{ id: "grp1", name: "Grupo 1", max_size: 4 }, { id: "grp2", name: "Grupo 2", max_size: 4 }, { id: "grp3", name: "Grupo 3", max_size: 3 }],
+    members: [{ user_id: "u-voce", handle: "voce", role: "PROFESSOR", group_id: null, joined_at: h(24 * 9) }, { user_id: "u-dudu", handle: "dudu", role: "ALUNO", group_id: "grp1", joined_at: h(24 * 8) }, { user_id: "u-helena", handle: "helena.r", role: "ALUNO", group_id: "grp1", joined_at: h(24 * 8) }, { user_id: "u-kauan", handle: "kauan.t", role: "ALUNO", group_id: "grp2", joined_at: h(24 * 7) }, { user_id: "u-bia", handle: "bia.m", role: "ALUNO", group_id: null, joined_at: h(24 * 2) }, { user_id: "u-marina", handle: "marina.s", role: "ALUNO", group_id: "grp1", joined_at: h(24 * 6) }],
+    projects: [{ slug: "clima-agora", group_id: "grp1", grade: 8.5, graded_at: h(24) }, { slug: "cobrinha", group_id: "grp1", grade: null, graded_at: null }, { slug: "senha-forte", group_id: "grp2", grade: 9, graded_at: h(30) }] },
+  { id: "t2", name: "Curso de React", code: "R3ACTX", description: "Do zero ao deploy em oito semanas.", is_public: true, capacity: null, group_mode: "GROUPS", owner_id: "u-ana", owner: "prof.ana", created_at: h(24 * 30),
+    groups: [{ id: "grp4", name: "Equipe Norte", max_size: 5 }, { id: "grp5", name: "Equipe Sul", max_size: 5 }],
+    members: [{ user_id: "u-ana", handle: "prof.ana", role: "PROFESSOR", group_id: null, joined_at: h(24 * 30) }, { user_id: "u-voce", handle: "voce", role: "ALUNO", group_id: null, joined_at: h(24 * 3) }, { user_id: "u-bia", handle: "bia.m", role: "ALUNO", group_id: "grp4", joined_at: h(24 * 20) }, { user_id: "u-marina", handle: "marina.s", role: "ALUNO", group_id: "grp5", joined_at: h(24 * 18) }],
+    projects: [{ slug: "receitas-da-vo", group_id: "grp4", grade: 9.5, graded_at: h(48) }, { slug: "marina-dev", group_id: "grp5", grade: null, graded_at: null }, { slug: "turma-3b", group_id: null, grade: 7.5, graded_at: h(10) }] },
+  { id: "t3", name: "Oficina de Git", code: "G1TBRA", description: "Branches, PRs e o medo do rebase.", is_public: true, capacity: 30, group_mode: "NONE", owner_id: "u-carlos", owner: "prof.carlos", created_at: h(24 * 12), groups: [], members: Array.from({ length: 19 }, (_, i) => ({ user_id: "u-x" + i, handle: "aluno" + i, role: i === 0 ? "PROFESSOR" : "ALUNO", group_id: null, joined_at: h(24 * (12 - (i % 10))) })), projects: [] },
+  { id: "t4", name: "JavaScript do zero", code: "JSZER0", description: null, is_public: true, capacity: null, group_mode: "NONE", owner_id: "u-lia", owner: "prof.lia", created_at: h(24 * 40), groups: [], members: [{ user_id: "u-lia", handle: "prof.lia", role: "PROFESSOR", group_id: null, joined_at: h(24 * 40) }], projects: [] },
+];
+const students = (t) => t.members.filter((m) => m.role === "ALUNO");
+const memberOf = (t) => t.members.find((m) => m.user_id === me.id);
+const groupView = (t, g) => ({ id: g.id, name: g.name, max_size: g.max_size, members_count: t.members.filter((m) => m.group_id === g.id).length });
+const turmaSummary = (t) => ({ id: t.id, name: t.name, is_public: t.is_public, my_role: memberOf(t).role, students_count: students(t).length, capacity: t.capacity, created_at: t.created_at });
+const turmaDetail = (t) => { const m = memberOf(t); return { id: t.id, name: t.name, description: t.description, code: t.code, is_public: t.is_public, capacity: t.capacity, group_mode: t.group_mode, my_role: m.role, my_group_id: m.group_id, students_count: students(t).length, groups: t.groups.map((g) => groupView(t, g)), created_at: t.created_at }; };
+const projectOf = (slug) => gallery.find((p) => p.slug === slug) ?? mine.find((p) => p.slug === slug);
+// Dono de verdade primeiro: um projeto seu é seu, mesmo que a galeria de exemplo diga outro nome.
+const authorOf = (slug) => (mine.find((p) => p.slug === slug && p.my_role === "OWNER") ? me.handle : gallery.find((p) => p.slug === slug)?.author ?? "dudu");
+const card = (p, auth) => ({ id: p.id, name: p.name, slug: p.slug, author: p.author, thumbnail_url: THUMBS[p.slug] ?? null, stars: p.stars + (starred.has(p.slug) ? 1 : 0), starred_by_viewer: auth && starred.has(p.slug), created_at: p.created_at });
+const turmaGallery = (t, auth) => t.projects.map((s) => { const p = projectOf(s.slug); const g = t.groups.find((x) => x.id === s.group_id); return { ...card({ ...p, author: authorOf(s.slug), stars: p.stars ?? 0 }, auth), group: g ? { id: g.id, name: g.name } : null, grade: s.grade, graded_at: s.graded_at }; });
+
+// ---- captura falsa (PNG gerado) --------------------------------------------
+function crc32(buf) { let c, crc = 0xffffffff; for (let n = 0; n < buf.length; n++) { c = (crc ^ buf[n]) & 0xff; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; crc = (crc >>> 8) ^ c; } return (crc ^ 0xffffffff) >>> 0; }
+function chunk(type, data) { const len = Buffer.alloc(4); len.writeUInt32BE(data.length); const td = Buffer.concat([Buffer.from(type), data]); const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(td)); return Buffer.concat([len, td, crc]); }
+function png(w, hgt, pixel) { const row = w * 3 + 1; const raw = Buffer.alloc(row * hgt); for (let y = 0; y < hgt; y++) { raw[y * row] = 0; for (let x = 0; x < w; x++) { const [r, g, b] = pixel(x, y); const i = y * row + 1 + x * 3; raw[i] = r; raw[i + 1] = g; raw[i + 2] = b; } } const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(hgt, 4); ihdr[8] = 8; ihdr[9] = 2; return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk("IHDR", ihdr), chunk("IDAT", zlib.deflateSync(raw)), chunk("IEND", Buffer.alloc(0))]); }
+const SHOT = png(640, 400, (x, y) => (y < 56 ? [12, 15, 22] : y > 90 && y < 140 && x > 40 && x < 600 ? [94, 226, 255] : y > 170 && y < 330 && ((x > 40 && x < 300) || (x > 340 && x < 600)) ? [230, 233, 240] : [250, 251, 253]));
+const SHOTS = new Set(["clima-agora", "turma-3b"]);
+
+// ---- servidor ------------------------------------------------------------------
+const readBody = (req) => new Promise((resolve) => { let d = ""; req.on("data", (c) => (d += c)); req.on("end", () => { try { resolve(d ? JSON.parse(d) : {}); } catch { resolve({}); } }); });
+
+http.createServer(async (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", ORIGIN);
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, ngrok-skip-browser-warning");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PATCH,PUT,DELETE,OPTIONS");
+  if (req.method === "OPTIONS") { res.writeHead(204); return res.end(); }
+  const u = new URL(req.url, "http://x"); const path = u.pathname;
+  const auth = /(^|;\s*)mollire_at=1/.test(req.headers.cookie ?? "");
+  const send = (code, body) => { res.setHeader("Content-Type", "application/json"); res.writeHead(code); res.end(body === undefined ? "" : JSON.stringify(body)); };
+  const body = /POST|PATCH|PUT/.test(req.method) ? await readBody(req) : {};
+  let m;
+
+  // --- auth (cookie de mentira) ---
+  if (path === "/auth/login") { if (body.email) me.email = body.email; res.setHeader("Set-Cookie", "mollire_at=1; Path=/; SameSite=Lax"); return send(204); }
+  if (path === "/auth/logout") { res.setHeader("Set-Cookie", "mollire_at=; Path=/; Max-Age=0"); return send(204); }
+  if (path === "/auth/refresh") return send(401, { message: "missing session" });
+  if (path.startsWith("/auth/")) return send(204);
+
+  // --- capturas ---
+  if ((m = path.match(/^\/thumbnails\/([a-z0-9-]+)\.png$/))) { if (!SHOTS.has(m[1])) return send(404, { message: "not found" }); res.writeHead(200, { "Content-Type": "image/png" }); return res.end(SHOT); }
+
+  // --- galeria (pública) ---
+  if (path === "/gallery") { const f = u.searchParams.get("filter"); const list = f === "destaque" ? [...gallery].sort((a, b) => b.stars - a.stars) : gallery; return send(200, list.map((p) => card(p, auth))); }
+  if ((m = path.match(/^\/gallery\/([^/]+)\/star$/))) { if (!auth) return send(401, {}); const p = gallery.find((x) => x.slug === m[1]); if (!p) return send(404, {}); req.method === "DELETE" ? starred.delete(p.slug) : starred.add(p.slug); return send(200, { stars: p.stars + (starred.has(p.slug) ? 1 : 0), starred_by_viewer: starred.has(p.slug) }); }
+  if ((m = path.match(/^\/gallery\/([^/]+)\/comments\/([^/]+)\/helpful$/))) { if (!auth) return send(401, {}); const c = (comments[m[1]] ?? []).find((x) => x.id === m[2]); if (!c) return send(404, {}); c.helpful = req.method !== "DELETE"; return send(204); }
+  if ((m = path.match(/^\/gallery\/([^/]+)\/comments(?:\/([^/]+))?$/))) { const p = gallery.find((x) => x.slug === m[1]); if (!p) return send(404, { message: "not found" }); const list = (comments[p.slug] ??= []); if (req.method === "POST") { if (!auth) return send(401, {}); const c = { id: "c" + Date.now(), body: body.body, author: me.handle, is_project_owner: false, helpful: false, created_at: new Date().toISOString() }; list.push(c); return send(201, { ...c, can_delete: true }); } if (req.method === "DELETE") { const i = list.findIndex((c) => c.id === m[2]); if (i >= 0) list.splice(i, 1); return send(204); } return send(200, list.map((c) => ({ ...c, can_delete: auth && c.author === me.handle }))); }
+  if ((m = path.match(/^\/gallery\/([^/]+)$/))) { const p = gallery.find((x) => x.slug === m[1]); if (!p) return send(404, { message: `project "${m[1]}" not found` }); return send(200, { ...card(p, auth), url: `https://${p.slug}.aulvi.com.br`, uptime_since: p.slug === "clima-agora" ? h(24 * 41) : null, is_owner: auth && mine.some((x) => x.slug === p.slug && x.my_role === "OWNER"), comments: (comments[p.slug] ?? []).length, members: p.members, published_at: p.published_at, last_deploy_at: p.last_deploy_at }); }
+
+  // --- perfil público, progresso (público) ---
+  if (path === "/xp/rules") return send(200, [{ code: "DEPLOY", xp: 10 }, { code: "FIRST_DEPLOY", xp: 50 }, { code: "PUBLISH", xp: 20 }, { code: "STAR_RECEIVED", xp: 5 }, { code: "QUEST", xp: 10 }, { code: "ACHIEVEMENT", xp: 25 }, { code: "HELPFUL_COMMENT", xp: 5 }]);
+  const achievements = [{ code: "first_deploy", unlocked_at: h(46) }, { code: "ten_deploys", unlocked_at: null, progress: { current: 6, target: 10 } }, { code: "first_star", unlocked_at: h(20) }, { code: "fast_deploy", unlocked_at: h(5) }, { code: "rollback", unlocked_at: null }, { code: "collaborator", unlocked_at: null, progress: { current: 1, target: 3 } }, { code: "uptime_30", unlocked_at: null, progress: { current: 12, target: 30 } }];
+  if (path === "/users/me/achievements") { if (!auth) return send(401, {}); return send(200, achievements); }
+  if ((m = path.match(/^\/users\/([^/]+)\/achievements$/))) return send(200, achievements.filter((a) => a.unlocked_at));
+  if ((m = path.match(/^\/users\/([^/]+)$/)) && m[1] !== "me") { const owned = gallery.filter((p) => p.author === m[1]); if (!owned.length) return send(404, { message: "not found" }); return send(200, { handle: m[1], xp: 1240, level: 5, next: 1500, joined_at: h(24 * 90), frame: "silver", projects: owned.map((p) => ({ slug: p.slug, name: p.name, thumbnail_url: THUMBS[p.slug] ?? null, stars: p.stars, published_at: p.published_at })), heatmap: Array.from({ length: 40 }, (_, i) => ({ date: new Date(Date.now() - i * 3 * 864e5).toISOString().slice(0, 10), count: (i * 7) % 5 })) }); }
+
+  // --- daqui para baixo, só logado ---
+  if (!auth) return send(401, { message: "missing session" });
+
+  if (path === "/users/me") { if (req.method === "PATCH") { if (body.frame !== undefined) me.frame = body.frame === "default" ? null : String(body.frame); if (body.handle) me.handle = String(body.handle).toLowerCase(); } else me.xp += 90; const level = levelOf(me.xp); return send(200, { ...me, level, next: thresholdFor(level + 1) }); }
+  if (path === "/users/me/quests") { const q = [["connect_github", 10, h(48)], ["create_project", 10, h(47)], ["first_deploy", 10, h(46)], ["publish_gallery", 10, h(30)], ["give_star", 5, null], ["invite_member", 10, null], ["add_env_var", 10, null]].map(([code, xp, c]) => ({ code, xp, completed_at: c })); return send(200, { quests: q, completed: q.filter((x) => x.completed_at).length, total: q.length }); }
+  if (path === "/users/me/xp/history") return send(200, [{ id: "x1", amount: 10, reason: "DEPLOY", ref: { project: { slug: "turma-3b", name: "Agenda da Turma 3B" } }, created_at: h(2) }, { id: "x2", amount: 5, reason: "STAR_RECEIVED", ref: { project: { slug: "clima-agora", name: "Clima Agora" }, handle: "helena.r" }, created_at: h(5) }, { id: "x3", amount: 10, reason: "QUEST", ref: null, created_at: h(30) }, { id: "x4", amount: 20, reason: "PUBLISH", ref: { project: { slug: "turma-3b", name: "Agenda da Turma 3B" } }, created_at: h(30) }, { id: "x5", amount: 10, reason: "DEPLOY", ref: { project: { slug: "clima-agora", name: "Clima Agora" } }, created_at: h(44) }, { id: "x6", amount: 50, reason: "FIRST_DEPLOY", ref: { project: { slug: "clima-agora", name: "Clima Agora" } }, created_at: h(46) }, { id: "x7", amount: 10, reason: "DEPLOY", ref: { project: { slug: "clima-agora", name: "Clima Agora" } }, created_at: h(46) }]);
+
+  // --- github ---
+  if (path === "/github/accounts") return send(200, [{ installation_id: "inst-1", account_login: "jpselas05", account_avatar_url: "https://avatars.githubusercontent.com/u/1?v=4", account_type: "User", repository_selection: "all" }]);
+  if (path === "/github/repos") { const names = ["cosmic-stowaway", "storage-explorer", "ramlive-erp", "biz-glow-48", "pastel-tasks-hub", "portfolio-2026", "clima-widget", "quiz-historia", "landing-cafe", "notas-markdown", "galeria-fotos", "todo-svelte"]; return send(200, names.map((n, i) => ({ id: i + 1, installation_id: "inst-1", full_name: "jpselas05/" + n, name: n, private: i % 3 !== 2, html_url: "https://github.com/jpselas05/" + n, clone_url: "https://github.com/jpselas05/" + n + ".git", default_branch: "main" }))); }
+  if (path === "/github/build-script") { const repo = u.searchParams.get("repo") || ""; if (repo.endsWith("storage-explorer")) return send(200, { build_command: null, candidates: [{ name: "build", command: "vite build", priority: 1 }, { name: "build:prod", command: "vite build --mode prod", priority: 2 }, { name: "docs", command: "typedoc", priority: 3 }] }); return send(200, { build_command: "npm install && npm run build", candidates: [] }); }
+  if (path.startsWith("/github/")) return send(404, { message: "GitHub not connected" });
+
+  // --- projetos ---
+  if (path === "/projects" && req.method === "GET") return send(200, mine.map(({ deployments, ...p }) => p));
+  if (path === "/projects" && req.method === "POST") { const p = { id: "p" + Date.now(), name: body.name, slug: body.slug, repository_url: body.repository_url, build_command: body.build_command, output_dir: body.output_dir, root_dir: body.root_dir ?? null, is_public: false, thumbnail_url: null, uptime_since: null, user_id: me.id, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), my_role: "OWNER", deployments: [] }; mine.unshift(p); members[p.slug] = { members: [{ user_id: me.id, handle: me.handle, role: "OWNER", since: p.created_at }], invitations: [] }; env[p.slug] = []; return send(201, p); }
+  if (path === "/projects/check-root-dir") return send(200, { status: body.root_dir ? "exists" : "unverified" });
+  if (path === "/analytics" || (m = path.match(/^\/analytics\/([^/]+)$/))) return send(200, { total: 412, byDay: Array.from({ length: 30 }, (_, i) => ({ date: new Date(Date.now() - (29 - i) * 864e5).toISOString().slice(0, 10), views: 5 + ((i * 13) % 20) })), byCountry: [{ country: "BR", views: 380 }, { country: "PT", views: 21 }, { country: null, views: 11 }], byPath: [{ path: "/", views: 300 }, { path: "/sobre", views: 80 }, { path: "/contato", views: 32 }] });
+  if ((m = path.match(/^\/projects\/([^/]+)\/deploy$/))) { const p = mine.find((x) => x.slug === m[1]); if (!p) return send(404, {}); if (p.deployments[0] && NEXT[p.deployments[0].status]) return send(409, { message: `project "${p.slug}" already has a deploy in progress` }); p.deployments.unshift(deployment("d" + Date.now(), "BUILDING", body.commit_sha ?? Math.random().toString(16).slice(2, 9), body.commit_sha ? "restaurar versão" : "deploy manual", 0, null)); return send(201, {}); }
+  if ((m = path.match(/^\/projects\/([^/]+)\/visibility$/))) { const p = mine.find((x) => x.slug === m[1]); if (!p) return send(404, {}); p.is_public = !!body.is_public; const { deployments, ...rest } = p; return send(200, rest); }
+  if ((m = path.match(/^\/projects\/([^/]+)\/members(?:\/([^/]+))?$/))) { const r = members[m[1]]; if (!r) return send(404, {}); if (req.method === "DELETE") { r.members = r.members.filter((x) => x.user_id !== m[2]); return send(204); } return send(200, { my_role: r.members.find((x) => x.user_id === me.id)?.role ?? "MEMBER", ...r }); }
+  if ((m = path.match(/^\/projects\/([^/]+)\/invitations(?:\/([^/]+))?$/))) { const r = members[m[1]]; if (!r) return send(404, {}); if (req.method === "DELETE") { r.invitations = r.invitations.filter((x) => x.id !== m[2]); return send(204); } const inv = { id: "i" + Date.now(), email: String(body.email).toLowerCase(), role: "MEMBER", created_at: new Date().toISOString(), expires_at: h(-24 * 14) }; r.invitations.unshift(inv); return send(201, { status: "invited", invitation: inv }); }
+  if ((m = path.match(/^\/projects\/([^/]+)\/env(?:\/([^/]+))?$/))) { const list = (env[m[1]] ??= []); if (req.method === "DELETE") { const i = list.findIndex((v) => v.key === decodeURIComponent(m[2])); if (i >= 0) list.splice(i, 1); return send(204); } if (req.method === "POST" || req.method === "PUT") { const now = new Date().toISOString(); const key = m[2] ? decodeURIComponent(m[2]) : body.key; const i = list.findIndex((v) => v.key === key); const v = { key, created_at: i >= 0 ? list[i].created_at : now, updated_at: now }; i >= 0 ? (list[i] = v) : list.push(v); return send(201, v); } return send(200, list); }
+  if ((m = path.match(/^\/projects\/([^/]+)\/activity$/))) { const p = mine.find((x) => x.slug === m[1]); return p ? send(200, activity(p)) : send(404, {}); }
+  if ((m = path.match(/^\/projects\/([^/]+)\/status$/))) return send(404, {}); // SSE: o web cai para o polling
+  if ((m = path.match(/^\/projects\/([^/]+)$/))) { const p = mine.find((x) => x.slug === m[1]); if (!p) return send(404, { message: `project "${m[1]}" not found` }); if (req.method === "DELETE") { mine.splice(mine.indexOf(p), 1); return send(204); } if (req.method === "PATCH") { Object.assign(p, body, { updated_at: new Date().toISOString() }); return send(200, p); } const d = p.deployments[0]; if (d && NEXT[d.status]) { d.status = NEXT[d.status]; if (d.status === "SUCCESS") { d.finished_at = new Date().toISOString(); d.log = "> npm install\n> npm run build\n✓ built in 21s\npublicado"; d.release_path = "/r"; } } return send(200, p); }
+
+  // --- turmas ---
+  if (path === "/turmas" && req.method === "POST") { if (turmas.some((t) => t.owner_id === me.id && t.name.toLowerCase() === String(body.name).toLowerCase())) return send(409, { message: "você já tem uma turma com esse nome" }); const code = Math.random().toString(36).replace(/[01ilo]/g, "").slice(2, 8).toUpperCase().padEnd(6, "X"); const t = { id: "t" + Date.now(), name: body.name, code, description: body.description ?? null, is_public: !!body.is_public, capacity: body.capacity ?? null, group_mode: body.group_mode ?? "NONE", owner_id: me.id, owner: me.handle, created_at: new Date().toISOString(), groups: (body.group_mode === "GROUPS" ? body.groups ?? [] : []).map((g, i) => ({ id: "grp" + Date.now() + i, name: g.name, max_size: g.max_size })), members: [{ user_id: me.id, handle: me.handle, role: "PROFESSOR", group_id: null, joined_at: new Date().toISOString() }], projects: [] }; turmas.unshift(t); return send(201, turmaDetail(t)); }
+  if (path === "/turmas/join") { const t = turmas.find((x) => x.code.toLowerCase() === String(body.code).toLowerCase()); if (!t) return send(404, { message: "código não encontrado" }); let mem = memberOf(t); if (!mem) { if (t.capacity !== null && students(t).length >= t.capacity) return send(409, { message: "turma cheia" }); mem = { user_id: me.id, handle: me.handle, role: "ALUNO", group_id: null, joined_at: new Date().toISOString() }; t.members.push(mem); } return send(200, { turma_id: t.id, role: mem.role, group_id: mem.group_id }); }
+  if (path === "/turmas/mine") return send(200, turmas.filter((t) => memberOf(t)).map(turmaSummary));
+  if (path === "/turmas/public") return send(200, turmas.filter((t) => t.is_public).map((t) => ({ id: t.id, name: t.name, description: t.description, owner: t.owner, students_count: students(t).length, capacity: t.capacity, is_member: !!memberOf(t), created_at: t.created_at })));
+  if ((m = path.match(/^\/turmas\/([^/]+)\/join$/))) { const t = turmas.find((x) => x.id === m[1] && x.is_public); if (!t) return send(404, {}); let mem = memberOf(t); if (!mem) { if (t.capacity !== null && students(t).length >= t.capacity) return send(409, { message: "turma cheia" }); mem = { user_id: me.id, handle: me.handle, role: "ALUNO", group_id: null, joined_at: new Date().toISOString() }; t.members.push(mem); } return send(200, { turma_id: t.id, role: mem.role, group_id: mem.group_id }); }
+  const turmaFor = (id) => turmas.find((t) => t.id === id && memberOf(t));
+  if ((m = path.match(/^\/turmas\/([^/]+)\/students$/))) { const t = turmaFor(m[1]); if (!t || memberOf(t).role !== "PROFESSOR") return send(404, {}); return send(200, students(t).map((s) => { const g = t.groups.find((x) => x.id === s.group_id); return { user_id: s.user_id, handle: s.handle, role: s.role, group: g ? { id: g.id, name: g.name } : null, joined_at: s.joined_at }; })); }
+  if ((m = path.match(/^\/turmas\/([^/]+)\/groups$/))) { const t = turmaFor(m[1]); if (!t || memberOf(t).role !== "PROFESSOR") return send(404, {}); if (t.groups.some((g) => g.name.toLowerCase() === String(body.name).toLowerCase())) return send(409, { message: "já existe um grupo com esse nome" }); const g = { id: "grp" + Date.now(), name: body.name, max_size: body.max_size }; t.groups.push(g); t.group_mode = "GROUPS"; return send(201, groupView(t, g)); }
+  if ((m = path.match(/^\/turmas\/([^/]+)\/groups\/([^/]+)\/join$/))) { const t = turmaFor(m[1]); if (!t) return send(404, {}); const g = t.groups.find((x) => x.id === m[2]); if (!g) return send(404, {}); if (t.members.filter((x) => x.group_id === g.id).length >= g.max_size) return send(409, { message: "grupo cheio" }); memberOf(t).group_id = g.id; return send(204); }
+  if ((m = path.match(/^\/turmas\/([^/]+)\/groups\/([^/]+)$/)) && req.method === "DELETE") { const t = turmaFor(m[1]); if (!t || memberOf(t).role !== "PROFESSOR") return send(404, {}); t.groups = t.groups.filter((g) => g.id !== m[2]); t.members.forEach((x) => { if (x.group_id === m[2]) x.group_id = null; }); t.projects.forEach((p) => { if (p.group_id === m[2]) p.group_id = null; }); return send(204); }
+  if ((m = path.match(/^\/turmas\/([^/]+)\/group$/)) && req.method === "DELETE") { const t = turmaFor(m[1]); if (!t) return send(404, {}); memberOf(t).group_id = null; return send(204); }
+  if ((m = path.match(/^\/turmas\/([^/]+)\/gallery$/))) { const t = turmas.find((x) => x.id === m[1] && (x.is_public || memberOf(x))); if (!t) return send(404, {}); return send(200, turmaGallery(t, true)); }
+  if ((m = path.match(/^\/turmas\/([^/]+)\/projects$/)) && req.method === "POST") { const t = turmaFor(m[1]); if (!t) return send(404, {}); const p = mine.find((x) => x.slug === body.project_slug && x.my_role === "OWNER"); if (!p) return send(404, { message: "projeto não encontrado" }); turmas.forEach((o) => { o.projects = o.projects.filter((s) => s.slug !== p.slug); }); t.projects.unshift({ slug: p.slug, group_id: memberOf(t).group_id, grade: null, graded_at: null }); return send(201, {}); }
+  if ((m = path.match(/^\/turmas\/([^/]+)\/projects\/([^/]+)\/grade$/))) { const t = turmaFor(m[1]); if (!t || memberOf(t).role !== "PROFESSOR") return send(404, {}); const s = t.projects.find((x) => x.slug === m[2]); if (!s) return send(404, {}); s.grade = Number(body.grade); s.graded_at = new Date().toISOString(); return send(200, {}); }
+  if ((m = path.match(/^\/turmas\/([^/]+)\/projects\/([^/]+)\/star$/))) { const t = turmaFor(m[1]); if (!t) return send(404, {}); const p = projectOf(m[2]); if (!p) return send(404, {}); req.method === "DELETE" ? starred.delete(m[2]) : starred.add(m[2]); return send(200, { stars: (p.stars ?? 0) + (starred.has(m[2]) ? 1 : 0), starred_by_viewer: starred.has(m[2]) }); }
+  if ((m = path.match(/^\/turmas\/([^/]+)\/projects\/([^/]+)$/)) && req.method === "DELETE") { const t = turmaFor(m[1]); if (!t) return send(404, {}); t.projects = t.projects.filter((s) => s.slug !== m[2]); return send(204); }
+  if ((m = path.match(/^\/turmas\/([^/]+)$/))) { const t = turmaFor(m[1]); if (!t) return send(404, { message: "turma não encontrada" }); return send(200, turmaDetail(t)); }
+
+  // --- admin ---
+  if (path === "/admin/projects") return send(200, mine.map((p) => ({ ...p, user: { email: me.email } })));
+  if (path === "/admin/admins") return send(200, [{ id: me.id, email: me.email, handle: me.handle, since: h(24 * 60) }]);
+  if ((m = path.match(/^\/admin\/projects\/([^/]+)$/))) { const p = mine.find((x) => x.slug === m[1]); return p ? send(200, { ...p, user: { email: me.email } }) : send(404, {}); }
+
+  send(404, { message: "not found" });
+}).listen(PORT, () => console.log(`backend de mentira em http://localhost:${PORT} (origem permitida: ${ORIGIN})`));

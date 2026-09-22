@@ -1,7 +1,8 @@
-import { ChevronsUpDown, LayoutGrid, Plus, Star } from "lucide-react";
+import { ChevronsUpDown, GraduationCap, LayoutGrid, Plus, Star } from "lucide-react";
 import { Link, useLocation } from "react-router";
 import { useCurrentUser } from "@/modules/auth";
 import { frameColor } from "@/modules/progress";
+import { useMyTurmas } from "@/modules/turmas";
 import { LevelBar } from "@/shared/components/level-bar";
 import { LevelInsignia } from "@/shared/components/level-insignia";
 import { Logo } from "@/shared/components/logo";
@@ -30,6 +31,13 @@ const PANEL: Item = {
   label: "Projetos",
   icon: LayoutGrid,
   active: (p) => p === "/" || (p.startsWith("/projects/") && p !== "/projects/new"),
+};
+
+const TURMAS: Item = {
+  to: "/turmas",
+  label: "Turmas",
+  icon: GraduationCap,
+  active: (p) => p.startsWith("/turmas"),
 };
 
 function RailLink({ item, pathname }: { item: Item; pathname: string }) {
@@ -128,7 +136,9 @@ function NewProjectCta() {
 export function SideRail() {
   const { pathname } = useLocation();
   const { user } = useCurrentUser();
-  const items = user ? [PANEL, GALLERY] : [GALLERY];
+  // "Turmas" só aparece quando a API responde: antes da migração do back, o item some em silêncio.
+  const { isError: turmasUnavailable } = useMyTurmas(!!user, { silent: true });
+  const items = user ? [PANEL, ...(turmasUnavailable ? [] : [TURMAS]), GALLERY] : [GALLERY];
 
   return (
     <aside className="bg-card/70 border-border sticky top-0 hidden h-screen w-[232px] shrink-0 flex-col border-r backdrop-blur-md md:flex">
@@ -157,31 +167,39 @@ export function SideRail() {
 export function MobileBar() {
   const { pathname } = useLocation();
   const { user } = useCurrentUser();
-  const items = user ? [PANEL, GALLERY] : [GALLERY];
+  // "Turmas" só aparece quando a API responde: antes da migração do back, o item some em silêncio.
+  const { isError: turmasUnavailable } = useMyTurmas(!!user, { silent: true });
+  const items = user ? [PANEL, ...(turmasUnavailable ? [] : [TURMAS]), GALLERY] : [GALLERY];
 
   return (
     <header className="bg-card/85 border-border sticky top-0 z-40 flex h-14 items-center justify-between border-b px-4 backdrop-blur-md md:hidden">
       <Link to={user ? "/" : "/galeria"} aria-label="Mollire" className="focus-ring flex items-center">
         <Logo height={18} />
       </Link>
-      <nav className="flex items-center gap-1" aria-label="Principal">
+      <nav className="flex min-w-0 items-center gap-1" aria-label="Principal">
         {items.map((item) => {
+          const Icon = item.icon;
           const active = item.active(pathname);
           return (
             <Link
               key={item.to}
               to={item.to}
               aria-current={active ? "page" : undefined}
+              aria-label={item.label}
+              title={item.label}
               className={cn(
                 "label focus-ring text-mini flex h-10 items-center px-2.5 transition-colors",
                 active ? "text-primary" : "text-muted-foreground",
               )}
             >
-              {item.label}
+              {/* Num celular estreito só o ícone cabe; a partir de `sm` o nome volta. */}
+              <Icon className="size-4 shrink-0 sm:hidden" />
+              <span className="hidden sm:inline">{item.label}</span>
             </Link>
           );
         })}
-        <ThemeToggle className="size-10" />
+        {/* Logado, abaixo de `sm` o tema mora no menu da conta: a barra não tem largura pra tudo. */}
+        <ThemeToggle className={cn("size-10", user && "hidden sm:grid")} />
         {user && (
           <Link
             to="/projects/new"
