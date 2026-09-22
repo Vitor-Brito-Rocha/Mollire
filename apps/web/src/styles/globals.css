@@ -490,3 +490,56 @@
     color: var(--primary);
   }
 }
+
+/* ---- Scroll Bar ------------------------------------------------------
+
+/* Firefox — sem controle sobre as setas, só thumb/track */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-2) transparent;
+}
+
+/* Chrome */
+*::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--line-2);
+  border-radius: 0; 
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--text-3);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-button {
+  display: block;
+  background-color: transparent;
+  height: 9px;
+}
+
+*::-webkit-scrollbar-button:vertical:decrement {
+  border-left: 3px solid transparent;
+  border-right: 3px solid transparent;
+  border-bottom: 6px solid var(--line-2);
+}
+
+*::-webkit-scrollbar-button:vertical:increment {
+  border-left: 3px solid transparent;
+  border-right: 3px solid transparent;
+  border-top: 6px solid var(--line-2);
+}
+
+*::-webkit-scrollbar-button:hover {
+  filter: brightness(1.3);
+}
