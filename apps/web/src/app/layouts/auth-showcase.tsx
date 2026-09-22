@@ -31,7 +31,7 @@ export function AuthShowcase({ className }: { className?: string }) {
     >
       <GridBeams key={theme} density={10} />
 
-      <Eyebrow>Deploy de sites estáticos, com XP</Eyebrow>
+      <Eyebrow>Faça Deploy do seu Front-End e seja recompensado por isso</Eyebrow>
 
       <div className="flex flex-col gap-10">
         <h1 className="font-display text-display-lg font-bold tracking-display uppercase lg:text-display-xl xl:text-display-2xl">
