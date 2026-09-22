@@ -6,6 +6,7 @@ import { Button } from "@/shared/ui/button";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { DeleteProject } from "../components/delete-project";
 import { DeploymentHistory } from "../components/deployment-history";
+import { TimeMachinePanel } from "../components/time-machine-panel";
 import { ProjectActivityFeed } from "../components/project-activity";
 import { ProjectConfig } from "../components/project-config";
 import { ProjectEnvVars } from "../components/project-env-vars";
@@ -13,12 +14,14 @@ import { ProjectHeader } from "../components/project-header";
 import { ProjectMembers } from "../components/project-members";
 import { VisibilityCard } from "../components/visibility-card";
 import { useDeploymentStream } from "../hooks/use-deployment-stream";
-import { useDeploy, useProject, useSetVisibility } from "../hooks/use-projects";
+import { useDeploy, useProject, useSetDeploymentNote, useSetVisibility, useSnapshots } from "../hooks/use-projects";
 import { isInFlight, latestDeployment } from "../lib/deployments";
 
 export default function ProjectDetailPage() {
   const slug = useRequiredParam("slug");
   const { data: project, isPending, isError } = useProject(slug);
+  const { data: snapshots } = useSnapshots(slug);
+  const setNote = useSetDeploymentNote(slug);
   const deploy = useDeploy(slug);
   const setVisibility = useSetVisibility(slug);
 
@@ -65,8 +68,11 @@ export default function ProjectDetailPage() {
         onDeploy={() => deploy.mutate(undefined)}
       />
 
-      {/* O histórico ocupa a largura toda: é a lista principal da tela e cresce
-          com o tempo. O resto vai em linhas de três, sem coluna vazia embaixo. */}
+      {/* A máquina do tempo só aparece com duas capturas ou mais (e com o back
+          capturando por deploy). Depois, o histórico ocupa a largura toda: é a
+          lista principal da tela e cresce com o tempo. O resto vai em linhas de
+          três, sem coluna vazia embaixo. */}
+      <TimeMachinePanel snapshots={snapshots} />
       <DeploymentHistory
         slug={slug}
         deployments={project.deployments ?? []}
@@ -75,6 +81,8 @@ export default function ProjectDetailPage() {
         redeployingSha={redeployingSha}
         deployPending={deploy.isPending}
         onRedeploy={handleRedeploy}
+        savingNoteFor={setNote.isPending ? setNote.variables?.deploymentId ?? null : null}
+        onSaveNote={(deploymentId, text) => setNote.mutate({ deploymentId, text })}
       />
 
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">

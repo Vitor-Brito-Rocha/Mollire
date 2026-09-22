@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { galleryKeys } from "@/modules/gallery";
 import { projectsApi, type NewProject, type ProjectPatch } from "../api/projects.api";
 import { isInFlight, latestDeployment } from "../lib/deployments";
-import type { Project } from "../types";
+import type { DeploymentNote, Project } from "../types";
 import { projectKeys } from "./keys";
 
 // `silent`: quem só decora a tela com a lista (a barra lateral) não avisa se
@@ -57,6 +57,36 @@ export function useUpdateProject(slug: string) {
       return queryClient.invalidateQueries({ queryKey: projectKeys.list() });
     },
     meta: { successMessage: "Configuração salva", errorMessage: "Erro ao salvar configuração" },
+  });
+}
+
+// Máquina do tempo (docs/api-maquina-do-tempo.md): silencioso porque o
+// painel some enquanto o back não captura por deploy.
+export function useSnapshots(slug: string) {
+  return useQuery({
+    queryKey: projectKeys.snapshots(slug),
+    queryFn: () => projectsApi.snapshots(slug),
+    meta: { silent: true },
+  });
+}
+
+// Diário de bordo: grava no deploy dentro do projeto em cache e renova as
+// capturas (a anotação aparece na máquina do tempo também).
+export function useSetDeploymentNote(slug: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ deploymentId, text }: { deploymentId: string; text: string }) =>
+      projectsApi.setDeploymentNote(slug, deploymentId, text),
+    onSuccess: (note: DeploymentNote | null, { deploymentId }) => {
+      queryClient.setQueryData<Project>(projectKeys.detail(slug), (previous) =>
+        previous
+          ? { ...previous, deployments: previous.deployments?.map((d) => (d.id === deploymentId ? { ...d, note } : d)) }
+          : previous,
+      );
+      void queryClient.invalidateQueries({ queryKey: projectKeys.snapshots(slug) });
+      void queryClient.invalidateQueries({ queryKey: galleryKeys.snapshots(slug) });
+    },
+    meta: { successMessage: "Diário salvo", errorMessage: "Erro ao salvar o diário" },
   });
 }
 

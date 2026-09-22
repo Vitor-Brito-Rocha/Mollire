@@ -29,6 +29,15 @@ export function useGalleryProject(slug: string) {
   });
 }
 
+// Máquina do tempo na página pública: some quando o back não captura por deploy.
+export function useGallerySnapshots(slug: string) {
+  return useQuery({
+    queryKey: galleryKeys.snapshots(slug),
+    queryFn: () => galleryApi.snapshots(slug),
+    meta: { silent: true },
+  });
+}
+
 // A failed comments load reads as "no comments yet" instead of an error toast.
 export function useComments(slug: string) {
   return useQuery({

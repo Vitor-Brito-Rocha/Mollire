@@ -14,6 +14,9 @@ type DeploymentHistoryProps = {
   redeployingSha: string | null;
   deployPending: boolean;
   onRedeploy: (commitSha: string) => void;
+  // Diário de bordo: o deploy cuja anotação está sendo salva, e o salvar.
+  savingNoteFor: string | null;
+  onSaveNote: (deploymentId: string, text: string) => void;
 };
 
 export function DeploymentHistory({
@@ -24,7 +27,11 @@ export function DeploymentHistory({
   redeployingSha,
   deployPending,
   onRedeploy,
+  savingNoteFor,
+  onSaveNote,
 }: DeploymentHistoryProps) {
+  // A chave `note` presente (mesmo null) é como o back diz que o diário existe.
+  const noteSupported = deployments.some((d) => d.note !== undefined);
   return (
     <Panel title="Histórico de deploys" count={deployments.length}>
       {deployments.length === 0 ? (
@@ -49,6 +56,9 @@ export function DeploymentHistory({
               canRedeploy={!inFlight && !deployPending}
               redeploying={redeployingSha === deployment.commit_sha}
               onRedeploy={onRedeploy}
+              canNote={noteSupported && deployment.status === "SUCCESS"}
+              savingNote={savingNoteFor === deployment.id}
+              onSaveNote={onSaveNote}
             />
           );
         })

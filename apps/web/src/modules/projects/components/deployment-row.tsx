@@ -1,5 +1,6 @@
-import { ChevronDown, RefreshCw, RotateCcw } from "lucide-react";
+import { ChevronDown, NotebookPen, RefreshCw, RotateCcw } from "lucide-react";
 import { memo, useEffect, useRef, useState } from "react";
+import { InlineAction } from "@/shared/components/inline-action";
 import { StatusChip } from "@/shared/components/status-chip";
 import { formatDayMonthTime, formatDuration } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/utils";
@@ -20,7 +21,13 @@ type DeploymentRowProps = {
   canRedeploy: boolean;
   redeploying: boolean;
   onRedeploy: (commitSha: string) => void;
+  // Diário de bordo: quem trabalha no projeto escreve duas linhas por deploy.
+  canNote: boolean;
+  savingNote: boolean;
+  onSaveNote: (deploymentId: string, text: string) => void;
 };
+
+const NOTE_MAX = 500;
 
 // Uma linha por deploy: o estado, a mensagem do commit como texto principal,
 // os metadados numa linha discreta, e as ações à direita. Voltar a uma versão
@@ -37,8 +44,14 @@ export const DeploymentRow = memo(function DeploymentRow({
   canRedeploy,
   redeploying,
   onRedeploy,
+  canNote,
+  savingNote,
+  onSaveNote,
 }: DeploymentRowProps) {
   const hasLog = !!log;
+  const note = deployment.note ?? null;
+  const [editingNote, setEditingNote] = useState(false);
+  const [draft, setDraft] = useState("");
   const duration = formatDuration(deployment.created_at, deployment.finished_at);
   const sha = deployment.commit_sha;
   const running = isInFlight(deployment.status);
@@ -59,6 +72,7 @@ export const DeploymentRow = memo(function DeploymentRow({
   const Icon = current ? RefreshCw : RotateCcw;
 
   return (
+    <>
     <details
       className={cn("group border-border border-b last:border-b-0", sweep === "good" && "sweep-good", sweep === "bad" && "sweep-bad")}
       open={defaultOpen}
@@ -89,9 +103,29 @@ export const DeploymentRow = memo(function DeploymentRow({
               </>
             )}
           </span>
+          {note && !editingNote && (
+            <span className="text-muted-foreground mt-1 line-clamp-2 text-xs leading-relaxed">
+              <NotebookPen className="mr-1.5 inline size-3 align-[-2px]" aria-hidden="true" />
+              {note.text}
+              <span className="text-text-3"> · {note.author}</span>
+            </span>
+          )}
         </span>
 
         <span className="flex shrink-0 items-center gap-2">
+          {canNote && !editingNote && (
+            <InlineAction
+              onClick={(event) => {
+                // Inside <summary>: don't toggle the log open/closed.
+                event.preventDefault();
+                setDraft(note?.text ?? "");
+                setEditingNote(true);
+              }}
+              title="Duas linhas: o que mudou, o que você aprendeu"
+            >
+              {note ? "editar diário" : "diário"}
+            </InlineAction>
+          )}
           {sha && canRedeploy && (
             <Button
               variant="outline"
@@ -123,5 +157,45 @@ export const DeploymentRow = memo(function DeploymentRow({
         </pre>
       )}
     </details>
+    {/* Fora do <details>: o editor precisa aparecer com o log fechado. */}
+    {editingNote && (
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSaveNote(deployment.id, draft.trim());
+          setEditingNote(false);
+        }}
+        className="border-border bg-raised/40 flex flex-col gap-2 border-b px-4 py-3"
+      >
+        <label htmlFor={`note-${deployment.id}`} className="label text-text-3 text-micro">
+          Diário de bordo · {deployment.commit_message || "deploy manual"}
+        </label>
+        <textarea
+          id={`note-${deployment.id}`}
+          value={draft}
+          onChange={(event) => setDraft(event.target.value.slice(0, NOTE_MAX))}
+          placeholder="O que mudou neste deploy, e o que você aprendeu fazendo."
+          rows={2}
+          maxLength={NOTE_MAX}
+          autoFocus
+          className="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 dark:bg-input/30 w-full resize-y rounded-lg border bg-transparent px-3 py-2 text-sm leading-relaxed outline-none focus-visible:ring-3"
+        />
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-text-3 font-mono text-xs tabular-nums">
+            {draft.length}/{NOTE_MAX}
+          </span>
+          <span className="flex items-center gap-2">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setEditingNote(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" size="sm" variant="outline" disabled={savingNote || draft.trim() === (note?.text ?? "")} aria-busy={savingNote}>
+              {savingNote && <Spinner />}
+              {note && draft.trim() === "" ? "Apagar" : "Salvar"}
+            </Button>
+          </span>
+        </div>
+      </form>
+    )}
+    </>
   );
 });

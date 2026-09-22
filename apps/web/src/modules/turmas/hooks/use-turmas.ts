@@ -40,12 +40,15 @@ export function useTurmaStudents(id: string, enabled: boolean) {
   });
 }
 
-export function useTurmaGallery(id: string) {
+// `live`: o modo apresentação relê a cada poucos segundos, para as estrelas
+// contarem na parede enquanto a turma vota pelo celular.
+export function useTurmaGallery(id: string, options: { live?: boolean } = {}) {
   return useQuery({
     queryKey: turmaKeys.gallery(id),
     queryFn: () => turmasApi.gallery(id),
     // Compartilhada: outros enviam e estrelam; sempre pergunta de novo ao abrir.
     staleTime: 0,
+    refetchInterval: options.live ? 5_000 : false,
     meta: { errorMessage: "Não foi possível carregar os projetos da turma." },
   });
 }

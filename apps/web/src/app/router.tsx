@@ -46,6 +46,7 @@ export const router = createBrowserRouter([
               { path: "turmas", ...page(() => import("@/modules/turmas/pages/turmas-list.page")) },
               { path: "turmas/nova", ...page(() => import("@/modules/turmas/pages/turma-create.page")) },
               { path: "turmas/:id", ...page(() => import("@/modules/turmas/pages/turma-detail.page")) },
+              { path: "turmas/:id/apresentar", ...page(() => import("@/modules/turmas/pages/turma-present.page")) },
               {
                 path: "admin",
                 element: <RequireAdmin />,

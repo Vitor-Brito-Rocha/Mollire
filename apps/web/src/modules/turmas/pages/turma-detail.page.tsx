@@ -1,4 +1,4 @@
-import { Globe, Link2, Lock, Upload, Users } from "lucide-react";
+import { Globe, Link2, Lock, Presentation, Upload, Users } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 import { useCurrentUser } from "@/modules/auth";
@@ -98,10 +98,18 @@ export default function TurmaDetailPage() {
           </>
         }
         actions={
-          <Button size="lg" onClick={() => setSubmitting(true)}>
-            <Upload className="size-4" />
-            Enviar projeto
-          </Button>
+          <>
+            {projects && projects.length > 0 && (
+              <Button variant="outline" size="lg" nativeButton={false} render={<Link to={`/turmas/${turma.id}/apresentar`} />}>
+                <Presentation className="size-4" />
+                Apresentar
+              </Button>
+            )}
+            <Button size="lg" onClick={() => setSubmitting(true)}>
+              <Upload className="size-4" />
+              Enviar projeto
+            </Button>
+          </>
         }
       />
 
