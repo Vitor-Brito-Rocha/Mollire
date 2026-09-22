@@ -36,7 +36,7 @@ export type DeploymentStatus =
   | 'SUCCESS'
   | 'FAILED';
 
-// Diário de bordo (docs/api-maquina-do-tempo.md): duas linhas por deploy,
+// Diário de bordo (docs/api-diario-de-bordo.md): duas linhas por deploy,
 // de quem trabalha no projeto. `author` é o apelido.
 export type DeploymentNote = { text: string; author: string; updated_at: string };
 
@@ -52,16 +52,6 @@ export type Deployment = {
   finished_at: string | null;
   // Ausente enquanto o back não suporta o diário; `null` = sem anotação.
   note?: DeploymentNote | null;
-};
-
-// Uma captura por deploy (GET /projects/:slug/snapshots, GET /gallery/:slug/snapshots).
-export type Snapshot = {
-  deployment_id: string;
-  commit_sha: string | null;
-  commit_message: string | null;
-  url: string;
-  created_at: string;
-  note: DeploymentNote | null;
 };
 
 export type ProjectRole = 'OWNER' | 'MEMBER';

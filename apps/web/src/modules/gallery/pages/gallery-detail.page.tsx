@@ -11,14 +11,12 @@ import { ProjectFacts } from "../components/project-facts";
 import { ProjectStarButton } from "../components/project-star-button";
 import { SitePreview } from "../components/site-preview";
 import { TierBadge } from "../components/tier-badge";
-import { TimeMachinePanel } from "@/modules/projects";
-import { useGalleryProject, useGallerySnapshots } from "../hooks/use-gallery";
+import { useGalleryProject } from "../hooks/use-gallery";
 import { tierFor } from "../lib/tiers";
 
 export default function GalleryDetailPage() {
   const slug = useRequiredParam("slug");
   const { data: project, isPending, error, refetch } = useGalleryProject(slug);
-  const { data: snapshots } = useGallerySnapshots(slug);
 
   const backToGallery = <BackLink to="/galeria">Galeria</BackLink>;
 
@@ -67,7 +65,6 @@ export default function GalleryDetailPage() {
       <div className="grid gap-8 xl:grid-cols-3">
         <div className="flex flex-col gap-6 xl:col-span-2">
           <SitePreview project={project} />
-          <TimeMachinePanel snapshots={snapshots} />
           <CommentsSection slug={slug} count={project.comments} isOwner={project.is_owner} />
         </div>
 

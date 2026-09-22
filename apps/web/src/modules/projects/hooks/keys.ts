@@ -10,5 +10,4 @@ export const projectKeys = {
   rootDirCheck: (repositoryUrl: string, rootDir: string) =>
     [...projectKeys.all, "root-dir-check", repositoryUrl, rootDir] as const,
   members: (slug: string) => [...projectKeys.all, "members", slug] as const,
-  snapshots: (slug: string) => [...projectKeys.all, "snapshots", slug] as const,
 };

@@ -60,18 +60,8 @@ export function useUpdateProject(slug: string) {
   });
 }
 
-// Máquina do tempo (docs/api-maquina-do-tempo.md): silencioso porque o
-// painel some enquanto o back não captura por deploy.
-export function useSnapshots(slug: string) {
-  return useQuery({
-    queryKey: projectKeys.snapshots(slug),
-    queryFn: () => projectsApi.snapshots(slug),
-    meta: { silent: true },
-  });
-}
-
-// Diário de bordo: grava no deploy dentro do projeto em cache e renova as
-// capturas (a anotação aparece na máquina do tempo também).
+// Diário de bordo (docs/api-diario-de-bordo.md): grava no deploy dentro do
+// projeto em cache, sem refazer a tela.
 export function useSetDeploymentNote(slug: string) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -83,8 +73,6 @@ export function useSetDeploymentNote(slug: string) {
           ? { ...previous, deployments: previous.deployments?.map((d) => (d.id === deploymentId ? { ...d, note } : d)) }
           : previous,
       );
-      void queryClient.invalidateQueries({ queryKey: projectKeys.snapshots(slug) });
-      void queryClient.invalidateQueries({ queryKey: galleryKeys.snapshots(slug) });
     },
     meta: { successMessage: "Diário salvo", errorMessage: "Erro ao salvar o diário" },
   });

@@ -8,7 +8,6 @@ import type {
   ProjectActivity,
   ProjectAnalytics,
   RootDirCheckStatus,
-  Snapshot,
 } from "../types";
 
 // Endpoint calls only — they throw ApiError. Caching, toasts and invalidation
@@ -42,7 +41,6 @@ export const projectsApi = {
     http.delete<void>(`/projects/${slug}`, { confirm_name: confirmName }),
   deploy: (slug: string, commitSha?: string) =>
     http.post<void>(`/projects/${slug}/deploy`, commitSha ? { commit_sha: commitSha } : undefined),
-  snapshots: (slug: string) => http.get<Snapshot[]>(`/projects/${slug}/snapshots`),
   // Texto vazio apaga a anotação (a API responde null).
   setDeploymentNote: (slug: string, deploymentId: string, text: string) =>
     http.put<DeploymentNote | null>(`/projects/${slug}/deployments/${deploymentId}/note`, { text }),
