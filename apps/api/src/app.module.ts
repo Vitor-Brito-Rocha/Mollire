@@ -20,6 +20,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProgressModule } from './progress/progress.module';
 import { ProjectsModule } from './projects/projects.module';
+import { TurmasModule } from './turmas/turmas.module';
 import { UptimeModule } from './uptime/uptime.module';
 import { UsersModule } from './users/users.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
@@ -49,6 +50,7 @@ import { XpModule } from './xp/xp.module';
     GalleryModule,
     GithubModule,
     MembersModule,
+    TurmasModule,
     UsersModule,
     XpModule,
     UptimeModule,

@@ -55,17 +55,19 @@ model User {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  projects           Project[]
-  push_subscriptions PushSubscription[]
-  admin_invites_sent AdminInvite[]
-  project_stars      ProjectStar[]
-  comments           Comment[]
+  projects                 Project[]
+  push_subscriptions       PushSubscription[]
+  admin_invites_sent       AdminInvite[]
+  project_stars            ProjectStar[]
+  comments                 Comment[]
   project_memberships      ProjectMember[]
   project_invitations_sent ProjectInvitation[] @relation("ProjectInvitationInviter")
   github_accounts          GithubAccount[]
   xp_events                XpEvent[]
   quest_completions        QuestCompletion[]
   achievements             Achievement[]
+  turmas_owned             Turma[]
+  turma_memberships        TurmaMember[]
 
   @@map("users")
 }
@@ -108,8 +110,8 @@ model XpEvent {
   user_id    String
   amount     Int
   reason     XpReason
-  project_id String?  // deploy, publish, star received
-  actor_id   String?  // who starred / whose comment it was
+  project_id String? // deploy, publish, star received
+  actor_id   String? // who starred / whose comment it was
   created_at DateTime @default(now())
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
@@ -126,8 +128,8 @@ model GithubAccount {
   account_login        String
   account_id           BigInt
   account_avatar_url   String
-  account_type         String   // "User" | "Organization"
-  repository_selection String   // "all" | "selected"
+  account_type         String // "User" | "Organization"
+  repository_selection String // "all" | "selected"
   user_id              String
   created_at           DateTime @default(now())
 
@@ -171,7 +173,19 @@ model Project {
   created_at     DateTime  @default(now())
   updated_at     DateTime  @updatedAt
 
-  user        User         @relation(fields: [user_id], references: [id])
+  // Classroom submission: which turma (and, inside it, which group) this
+  // project was handed in for. Both null until a member submits it via
+  // POST /turmas/:id/projects — independent from is_public, so a project
+  // can be graded inside a private turma without ever hitting the gallery.
+  turma_id       String?
+  turma_group_id String?
+  // Set by the turma's professor only (TurmasService.gradeProject). Cleared
+  // whenever the project is resubmitted or removed from the turma.
+  grade          Float?
+  graded_at      DateTime?
+  graded_by      String?
+
+  user        User                @relation(fields: [user_id], references: [id])
   deployments Deployment[]
   stars       ProjectStar[]
   comments    Comment[]
@@ -181,8 +195,12 @@ model Project {
   views       ProjectView[]
   activities  ProjectActivity[]
   site_checks SiteCheck[]
+  turma       Turma?              @relation(fields: [turma_id], references: [id], onDelete: SetNull)
+  turmaGroup  TurmaGroup?         @relation(fields: [turma_group_id], references: [id], onDelete: SetNull)
 
   @@index([user_id])
+  @@index([turma_id])
+  @@index([turma_group_id])
   @@map("projects")
 }
 
@@ -260,13 +278,13 @@ model ProjectInvitation {
 // author or an admin, so moderation removes it from view without losing the
 // record.
 model Comment {
-  id         String    @id @default(cuid())
-  project_id String
-  user_id    String
-  body       String
-  created_at DateTime  @default(now())
-  updated_at DateTime  @updatedAt
-  deleted_at DateTime?
+  id              String    @id @default(cuid())
+  project_id      String
+  user_id         String
+  body            String
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  deleted_at      DateTime?
   // The project owner flagged this comment as helpful (null = not, or un-flagged).
   helpful_at      DateTime?
   // Set the first time it was flagged and never cleared: the one-time XP for the
@@ -400,4 +418,89 @@ model PushSubscription {
 
   @@index([user_id])
   @@map("push_subscriptions")
+}
+
+enum TurmaRole {
+  PROFESSOR
+  ALUNO
+}
+
+// NONE: no groups, every submission is individual. GROUPS: the professor
+// defines fixed-size groups (TurmaGroup) that students join after entering
+// the turma.
+enum TurmaGroupMode {
+  NONE
+  GROUPS
+}
+
+// A classroom. Any member can create one — the creator becomes its
+// TurmaMember with role PROFESSOR (checked in code, not by a global Role,
+// since the same user is a plain TENANT everywhere else in the product).
+// Name is only unique per-owner (@@unique([owner_id, name])): two different
+// professors, or the same professor across terms, can reuse "Turma 1".
+model Turma {
+  id          String         @id @default(cuid())
+  name        String
+  // Join code — always generated, used by private turmas as the only way in
+  // and offered to public ones too as a shortcut. See TurmasService.generateCode.
+  code        String         @unique
+  description String?
+  // Public: listed for anyone to browse and join. Private: joinable only by code.
+  is_public   Boolean        @default(false)
+  // Max number of ALUNO members; null = unlimited. Never counts the professor.
+  capacity    Int?
+  group_mode  TurmaGroupMode @default(NONE)
+  owner_id    String
+  created_at  DateTime       @default(now())
+  updated_at  DateTime       @updatedAt
+
+  owner    User          @relation(fields: [owner_id], references: [id])
+  members  TurmaMember[]
+  groups   TurmaGroup[]
+  projects Project[]
+
+  @@unique([owner_id, name])
+  @@index([owner_id])
+  @@map("turmas")
+}
+
+// A group within a turma, sized by the professor (max_size). Students join
+// one after entering the turma; only meaningful when Turma.group_mode is
+// GROUPS.
+model TurmaGroup {
+  id         String   @id @default(cuid())
+  turma_id   String
+  name       String
+  max_size   Int
+  created_at DateTime @default(now())
+
+  turma    Turma         @relation(fields: [turma_id], references: [id], onDelete: Cascade)
+  members  TurmaMember[]
+  projects Project[]
+
+  @@unique([turma_id, name])
+  @@index([turma_id])
+  @@map("turma_groups")
+}
+
+// Membership is the boundary for a turma, exactly like ProjectMember is for
+// a project: every tenant-facing lookup goes through
+// TurmasService.findForMember, so a turma you're not in doesn't exist for
+// you — 404, never 403.
+model TurmaMember {
+  id        String    @id @default(cuid())
+  turma_id  String
+  user_id   String
+  role      TurmaRole @default(ALUNO)
+  group_id  String?
+  joined_at DateTime  @default(now())
+
+  turma Turma       @relation(fields: [turma_id], references: [id], onDelete: Cascade)
+  user  User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  group TurmaGroup? @relation(fields: [group_id], references: [id], onDelete: SetNull)
+
+  @@unique([turma_id, user_id])
+  @@index([turma_id])
+  @@index([group_id])
+  @@map("turma_members")
 }
