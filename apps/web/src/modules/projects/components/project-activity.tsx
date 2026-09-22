@@ -12,7 +12,7 @@ const DOT_COLOR: Record<ProjectActivity["type"], string> = {
   MEMBER_REMOVED: "bg-text-3",
   COMMENT_ADDED: "bg-purple-400",
   VISIBILITY_CHANGED: "bg-teal-400",
-  ACHIEVEMENT_UNLOCKED: "bg-amber-400",
+  ACHIEVEMENT_UNLOCKED: "bg-gold",
 };
 
 function activityText(a: ProjectActivity): string {

@@ -265,6 +265,11 @@
   to { transform: translateX(300%); }
 }
 
+/* Duração da abertura. Quer os 5,2 s originais de volta? Troca só este número. */
+:root {
+  --startup-duration: 2.8s;
+}
+
 /* ---- Abertura da aplicação ------------------------------------------------
    A interface nasce por trás desta cortina. A palavra se reorganiza, o "O"
    vira o símbolo central e a tela inteira sobe para revelar o produto. */
@@ -276,7 +281,8 @@
   place-items: center;
   overflow: hidden;
   background: #0c0f16;
-  animation: startup-screen-exit 5.2s cubic-bezier(0.76, 0, 0.24, 1) both;
+  cursor: pointer;
+  animation: startup-screen-exit var(--startup-duration) cubic-bezier(0.76, 0, 0.24, 1) both;
 }
 
 .startup-logo {
@@ -306,7 +312,7 @@
   left: 0;
   width: 57px;
   height: 53px;
-  animation: startup-letter-m 5.2s cubic-bezier(0.65, 0, 0.35, 1) both;
+  animation: startup-letter-m var(--startup-duration) cubic-bezier(0.65, 0, 0.35, 1) both;
 }
 
 .startup-logo__o {
@@ -315,7 +321,7 @@
   width: 56px;
   height: 56px;
   color: #5ee2ff;
-  animation: startup-letter-o 5.2s cubic-bezier(0.65, 0, 0.35, 1) both;
+  animation: startup-letter-o var(--startup-duration) cubic-bezier(0.65, 0, 0.35, 1) both;
 }
 
 .startup-logo__mark {
@@ -328,7 +334,7 @@
   left: 121px;
   width: 189px;
   height: 53px;
-  animation: startup-letter-tail 5.2s cubic-bezier(0.65, 0, 0.35, 1) both;
+  animation: startup-letter-tail var(--startup-duration) cubic-bezier(0.65, 0, 0.35, 1) both;
 }
 
 @keyframes startup-letter-m {
@@ -359,6 +365,23 @@
   78%, 100% {
     transform: translate(66px, 129px) scale(5.6);
   }
+}
+
+/* A dica de pular aparece depois de um instante, discreta. */
+.startup-skip {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  translate: -50% 0;
+  font: 600 11px/1 var(--font-display);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgb(232 237 245 / 0.45);
+  opacity: 0;
+  animation: startup-skip-in 500ms ease-out 900ms both;
+}
+@keyframes startup-skip-in {
+  to { opacity: 1; }
 }
 
 @keyframes startup-screen-exit {

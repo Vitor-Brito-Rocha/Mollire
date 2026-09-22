@@ -1,4 +1,22 @@
-import { useState, type AnimationEvent } from "react";
+import { useEffect, useState, type AnimationEvent } from "react";
+
+const SEEN_KEY = "mollire:startup-seen";
+
+function alreadySeen(): boolean {
+  try {
+    return localStorage.getItem(SEEN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function markSeen() {
+  try {
+    localStorage.setItem(SEEN_KEY, "1");
+  } catch {
+    // sem storage: a cortina volta na próxima visita, e só
+  }
+}
 
 function LetterM() {
   return (
@@ -38,8 +56,31 @@ function LetterO() {
   );
 }
 
+// A cortina de abertura: só na primeira visita deste navegador (não a cada
+// F5), pulável com um clique, Esc, Enter ou espaço, e dispensada para quem
+// pediu menos movimento no sistema. A duração é a variável --startup-duration
+// em globals.css.
 export function StartupScreen() {
-  const [visible, setVisible] = useState(true);
+  const [visible, setVisible] = useState(
+    () => !alreadySeen() && !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
+
+  useEffect(() => {
+    if (!visible) return;
+    markSeen();
+    const skip = (event: KeyboardEvent) => {
+      if (event.key === "Escape" || event.key === "Enter" || event.key === " ") setVisible(false);
+    };
+    window.addEventListener("keydown", skip);
+    // Rede de segurança: se o fim da animação não chegar (aba aberta em segundo
+    // plano pausa animações), a cortina cai mesmo assim no fim da duração.
+    const duration = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--startup-duration")) || 3;
+    const timer = window.setTimeout(() => setVisible(false), duration * 1000 + 300);
+    return () => {
+      window.removeEventListener("keydown", skip);
+      window.clearTimeout(timer);
+    };
+  }, [visible]);
 
   if (!visible) return null;
 
@@ -55,12 +96,16 @@ export function StartupScreen() {
       role="status"
       aria-label="Carregando Mollire"
       onAnimationEnd={finish}
+      onClick={() => setVisible(false)}
     >
       <div className="startup-logo" aria-hidden="true">
         <span className="startup-logo__m"><LetterM /></span>
         <span className="startup-logo__o"><LetterO /></span>
         <span className="startup-logo__tail"><LetterTail /></span>
       </div>
+      <span className="startup-skip" aria-hidden="true">
+        clique para pular
+      </span>
       <span className="sr-only">Carregando Mollire</span>
     </div>
   );
