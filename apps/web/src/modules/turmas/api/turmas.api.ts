@@ -8,6 +8,7 @@ import type {
   NewTurma,
   PublicTurma,
   TurmaDetail,
+  TurmaFeedPage,
   TurmaGroup,
   TurmaMilestone,
   TurmaProgress,
@@ -27,6 +28,13 @@ export const turmasApi = {
   detail: (id: string) => http.get<TurmaDetail>(`/turmas/${id}`),
   students: (id: string) => http.get<TurmaStudent[]>(`/turmas/${id}/students`),
   progress: (id: string) => http.get<TurmaProgress>(`/turmas/${id}/progress`),
+  feed: (id: string, params: { limit?: number; before?: string } = {}) => {
+    const query = new URLSearchParams();
+    if (params.limit) query.set("limit", String(params.limit));
+    if (params.before) query.set("before", params.before);
+    const qs = query.toString();
+    return http.get<TurmaFeedPage>(`/turmas/${id}/feed${qs ? `?${qs}` : ""}`);
+  },
 
   addGroup: (id: string, body: { name: string; max_size: number }) => http.post<TurmaGroup>(`/turmas/${id}/groups`, body),
   removeGroup: (id: string, groupId: string) => http.delete<void>(`/turmas/${id}/groups/${groupId}`),

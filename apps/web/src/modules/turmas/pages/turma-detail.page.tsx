@@ -1,4 +1,4 @@
-import { Globe, Link2, Lock, Presentation, Upload, Users } from "lucide-react";
+import { Activity, Globe, Link2, Lock, Presentation, Upload, Users } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 import { useCurrentUser } from "@/modules/auth";
@@ -12,13 +12,14 @@ import { ApiError } from "@/shared/lib/http";
 import { Button } from "@/shared/ui/button";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { CodeBadge } from "../components/code-badge";
+import { FeedPreviewPanel } from "../components/feed-preview-panel";
 import { GroupsPanel } from "../components/groups-panel";
 import { MilestonesPanel } from "../components/milestones-panel";
 import { StudentsPanel } from "../components/students-panel";
 import { SubmitProjectDialog } from "../components/submit-project-dialog";
 import { TurmaProgressPanel } from "../components/turma-progress-panel";
 import { TurmaProjectCard } from "../components/turma-project-card";
-import { useTurma, useTurmaGallery } from "../hooks/use-turmas";
+import { useTurma, useTurmaFeedPreview, useTurmaGallery } from "../hooks/use-turmas";
 import { formatStudents } from "../lib/format";
 import { copyText, inviteLink } from "../lib/invite";
 
@@ -31,6 +32,8 @@ export default function TurmaDetailPage() {
   const { user } = useCurrentUser();
   const { data: turma, isPending, error, refetch } = useTurma(id);
   const { data: projects, isPending: loadingProjects } = useTurmaGallery(id);
+  // O hub existe quando o feed responde; até lá, botão e prévia somem.
+  const { data: feedPreview } = useTurmaFeedPreview(id);
   const [submitting, setSubmitting] = useState(false);
 
   if (isPending) {
@@ -99,6 +102,12 @@ export default function TurmaDetailPage() {
         }
         actions={
           <>
+            {feedPreview && (
+              <Button variant="outline" size="lg" nativeButton={false} render={<Link to={`/turmas/${turma.id}/hub`} />}>
+                <Activity className="size-4" />
+                Hub da turma
+              </Button>
+            )}
             {projects && projects.length > 0 && (
               <Button variant="outline" size="lg" nativeButton={false} render={<Link to={`/turmas/${turma.id}/apresentar`} />}>
                 <Presentation className="size-4" />
@@ -149,6 +158,7 @@ export default function TurmaDetailPage() {
         </div>
 
         <div className="flex flex-col gap-6">
+          <FeedPreviewPanel turmaId={turma.id} items={feedPreview?.items} />
           <TurmaProgressPanel turmaId={turma.id} />
           {showGroups && <GroupsPanel turma={turma} />}
           {professor && <StudentsPanel turmaId={turma.id} />}

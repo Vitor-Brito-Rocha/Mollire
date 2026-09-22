@@ -140,3 +140,28 @@ export type TurmaProgress = {
   milestones: { id: string; title: string; completed: number; total: number }[];
   xp_week: number;
 };
+
+// ---- Feed da turma, o hub (docs/api-feed-da-turma.md) ----------------------
+
+type FeedBase = {
+  id: string;
+  at: string;
+  // Quem fez; `null` em evento do grupo (entrega) ou agregado (estrelas).
+  actor: TeamMember | null;
+  group: { id: string; name: string } | null;
+  project: { slug: string; name: string } | null;
+};
+
+// Tipos que o front não conhece são ignorados na tela (o mural virá aqui).
+export type TurmaFeedItem = FeedBase &
+  (
+    | { type: "deploy"; commit_message: string | null }
+    | { type: "note"; text: string }
+    | { type: "milestone"; milestone: { id: string; title: string }; status: "done" | "late" }
+    | { type: "submit" }
+    | { type: "star"; stars: number }
+    | { type: "feedback"; text: string }
+    | { type: "join" }
+  );
+
+export type TurmaFeedPage = { items: TurmaFeedItem[]; next: string | null };

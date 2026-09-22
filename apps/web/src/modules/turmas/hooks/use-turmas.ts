@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { turmasApi } from "../api/turmas.api";
 import { turmaKeys } from "./keys";
 
@@ -68,6 +68,31 @@ export function useTurmaMilestones(id: string) {
   return useQuery({
     queryKey: turmaKeys.milestones(id),
     queryFn: () => turmasApi.milestones(id),
+    meta: { silent: true },
+  });
+}
+
+// O feed do hub (docs/api-feed-da-turma.md), paginado por "antes de".
+// Relido a cada minuto: é a turma inteira mexendo.
+export function useTurmaFeed(id: string) {
+  return useInfiniteQuery({
+    queryKey: turmaKeys.feedPages(id),
+    queryFn: ({ pageParam }) => turmasApi.feed(id, { limit: 30, before: pageParam ?? undefined }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.next,
+    staleTime: 0,
+    refetchInterval: 60_000,
+    meta: { silent: true },
+  });
+}
+
+// Os três itens mais novos, para a prévia na tela da turma. Silencioso: sem
+// o back, a prévia e o botão do hub somem.
+export function useTurmaFeedPreview(id: string) {
+  return useQuery({
+    queryKey: turmaKeys.feedPreview(id),
+    queryFn: () => turmasApi.feed(id, { limit: 3 }),
+    staleTime: 0,
     meta: { silent: true },
   });
 }

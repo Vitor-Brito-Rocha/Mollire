@@ -52,6 +52,7 @@ function useTurmaInvalidation(id: string) {
       queryClient.invalidateQueries({ queryKey: turmaKeys.gallery(id) }),
       queryClient.invalidateQueries({ queryKey: turmaKeys.progress(id) }),
       queryClient.invalidateQueries({ queryKey: turmaKeys.milestones(id) }),
+      queryClient.invalidateQueries({ queryKey: turmaKeys.feed(id) }),
     ]);
 }
 
