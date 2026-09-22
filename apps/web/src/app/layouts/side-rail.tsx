@@ -135,10 +135,9 @@ export function SideRail() {
       <div className="border-border flex h-16 shrink-0 items-center justify-between border-b pr-2 pl-5">
         <Link
           to={user ? "/" : "/galeria"}
-          className="font-display focus-ring flex items-center gap-2.5 text-body-lg font-bold tracking-label uppercase"
+          className="focus-ring flex items-center"
         >
-          <Logo height={24} />
-          Mollire
+          <Logo height={18} />
         </Link>
         <ThemeToggle />
       </div>
@@ -163,7 +162,7 @@ export function MobileBar() {
   return (
     <header className="bg-card/85 border-border sticky top-0 z-40 flex h-14 items-center justify-between border-b px-4 backdrop-blur-md md:hidden">
       <Link to={user ? "/" : "/galeria"} aria-label="Mollire" className="focus-ring flex items-center">
-        <Logo height={22} />
+        <Logo height={18} />
       </Link>
       <nav className="flex items-center gap-1" aria-label="Principal">
         {items.map((item) => {
