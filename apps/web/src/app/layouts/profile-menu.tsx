@@ -1,11 +1,9 @@
-import { Bell, LogOut, Moon, Shield, Sun, User } from "lucide-react";
+import { LogOut, Moon, Settings, Shield, Sun, User } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useSignOut, type CurrentUser } from "@/modules/auth";
-import { usePushSubscription } from "@/modules/notifications";
 import { useTheme } from "@/shared/hooks/use-theme";
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
@@ -23,12 +21,11 @@ type ProfileMenuProps = {
   className?: string;
 };
 
-// O menu da conta: perfil, admin, notificações e sair. É o que tira o peso do
-// rodapé da barra lateral sem esconder nada — tudo fica a um clique do cartão.
+// O menu da conta: perfil, configurações, admin e sair. Curto de propósito:
+// o que precisa de explicação (notificações, tema, GitHub) mora em /configuracoes.
 export function ProfileMenu({ user, trigger, align = "start", className }: ProfileMenuProps) {
   const navigate = useNavigate();
   const signOut = useSignOut();
-  const push = usePushSubscription();
   const { theme, toggle: toggleTheme } = useTheme();
 
   // The session cache flips to "signed out" inside the mutation; guards on
@@ -52,24 +49,16 @@ export function ProfileMenu({ user, trigger, align = "start", className }: Profi
           <User />
           Perfil
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate("/configuracoes")}>
+          <Settings />
+          Configurações
+        </DropdownMenuItem>
         {/* UX only: the backend's RolesGuard is the real boundary. */}
         {user.role === "ADMIN" && (
           <DropdownMenuItem onClick={() => navigate("/admin")}>
             <Shield />
             Admin
           </DropdownMenuItem>
-        )}
-        {push.supported && (
-          <DropdownMenuCheckboxItem
-            checked={push.subscribed}
-            onCheckedChange={(checked) => push.setSubscribed(checked)}
-            closeOnClick={false}
-            disabled={push.isPending}
-          >
-            <Bell />
-            Notificações de deploy
-            {push.isPending && <Spinner className="ml-auto size-3" />}
-          </DropdownMenuCheckboxItem>
         )}
         {/* Abaixo de `sm` a barra do celular não tem espaço pro botão de tema; ele mora aqui. */}
         <DropdownMenuItem className="sm:hidden" closeOnClick={false} onClick={toggleTheme}>

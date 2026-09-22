@@ -17,7 +17,7 @@ type Icon = React.ComponentType<{ className?: string; style?: React.CSSPropertie
 
 // O texto de cada missão, o ícone e onde ela se cumpre. O back só diz se foi feita.
 export const QUESTS: Record<QuestCode, { title: string; hint: string; icon: Icon; href: string }> = {
-  connect_github: { title: "Conectar GitHub", hint: "Conecte sua conta do GitHub no perfil", icon: GitBranch, href: "/perfil" },
+  connect_github: { title: "Conectar GitHub", hint: "Conecte sua conta do GitHub nas configurações", icon: GitBranch, href: "/configuracoes" },
   create_project: { title: "Criar projeto", hint: "Crie seu primeiro projeto", icon: PlusSquare, href: "/projects/new" },
   first_deploy: { title: "Primeiro deploy", hint: "Faça o primeiro deploy de um projeto", icon: Rocket, href: "/" },
   publish_gallery: { title: "Publicar", hint: "Publique um projeto na galeria", icon: Globe, href: "/" },

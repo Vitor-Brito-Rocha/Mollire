@@ -1,8 +1,11 @@
-import { ChevronsUpDown, GraduationCap, LayoutGrid, Plus, Star } from "lucide-react";
+import { ChevronsUpDown, GraduationCap, LayoutGrid, Plus, Settings, Shield, Star } from "lucide-react";
+import { useMemo } from "react";
 import { Link, useLocation } from "react-router";
 import { useCurrentUser } from "@/modules/auth";
 import { frameColor } from "@/modules/progress";
+import { isInFlight, latestDeployment, useProjects, type Project } from "@/modules/projects";
 import { useMyTurmas } from "@/modules/turmas";
+import { Eyebrow } from "@/shared/components/eyebrow";
 import { LevelBar } from "@/shared/components/level-bar";
 import { LevelInsignia } from "@/shared/components/level-insignia";
 import { Logo } from "@/shared/components/logo";
@@ -40,6 +43,20 @@ const TURMAS: Item = {
   active: (p) => p.startsWith("/turmas"),
 };
 
+// Os dois do pé da barra: fora da navegação do dia a dia, sempre no mesmo lugar.
+const SETTINGS: Item = {
+  to: "/configuracoes",
+  label: "Configurações",
+  icon: Settings,
+  active: (p) => p.startsWith("/configuracoes"),
+};
+const ADMIN: Item = {
+  to: "/admin",
+  label: "Admin",
+  icon: Shield,
+  active: (p) => p.startsWith("/admin"),
+};
+
 function RailLink({ item, pathname }: { item: Item; pathname: string }) {
   const Icon = item.icon;
   const active = item.active(pathname);
@@ -56,6 +73,62 @@ function RailLink({ item, pathname }: { item: Item; pathname: string }) {
       <Icon className="size-4 shrink-0" />
       {item.label}
     </Link>
+  );
+}
+
+// Quantos projetos a lista de recentes mostra: cabe numa tela de 900px com tudo o mais.
+const RECENT_LIMIT = 4;
+
+// Quando o projeto mexeu por último: o deploy mais novo, ou a edição.
+const lastActivity = (project: Project) => latestDeployment(project.deployments)?.created_at ?? project.updated_at;
+
+// A cor do ponto acompanha o deploy mais novo, como o chip de estado.
+function dotClass(project: Project) {
+  const latest = latestDeployment(project.deployments);
+  if (!latest) return "[--dot:var(--text-3)]";
+  if (isInFlight(latest.status)) return "[--dot:var(--primary)] animate-dot-pulse";
+  return latest.status === "SUCCESS" ? "[--dot:var(--good)]" : "[--dot:var(--destructive)]";
+}
+
+// Os últimos projetos mexidos, para pular entre eles de qualquer tela — a
+// "biblioteca" do launcher. Some quando não há projeto: a barra de quem está
+// começando fica limpa.
+function RecentProjects({ pathname }: { pathname: string }) {
+  const { data: projects } = useProjects({ silent: true });
+  const recent = useMemo(
+    () => [...(projects ?? [])].sort((a, b) => lastActivity(b).localeCompare(lastActivity(a))).slice(0, RECENT_LIMIT),
+    [projects],
+  );
+
+  if (recent.length === 0) return null;
+
+  return (
+    <nav className="flex flex-col gap-0.5 px-3" aria-label="Projetos recentes">
+      <Eyebrow tone="muted" className="text-mini px-3 pt-1 pb-2">
+        Recentes
+      </Eyebrow>
+      {recent.map((project) => {
+        const active = pathname === `/projects/${project.slug}`;
+        return (
+          <Link
+            key={project.slug}
+            to={`/projects/${project.slug}`}
+            aria-current={active ? "page" : undefined}
+            title={project.name}
+            className={cn(
+              "focus-ring flex h-9 items-center gap-3 px-3 text-sm transition-colors",
+              active ? "text-foreground bg-primary/8" : "text-muted-foreground hover:text-foreground hover:bg-raised/70",
+            )}
+          >
+            <span
+              className={cn("ml-0.5 size-1.5 shrink-0 bg-(--dot) shadow-[0_0_8px_var(--dot)]", dotClass(project))}
+              aria-hidden="true"
+            />
+            <span className="truncate">{project.name}</span>
+          </Link>
+        );
+      })}
+    </nav>
   );
 }
 
@@ -131,8 +204,9 @@ function NewProjectCta() {
 }
 
 // A coluna da esquerda de toda tela (públicas e logadas): marca e tema no
-// topo, o cartão do jogador (que abre o menu da conta), a ação principal e a
-// navegação. Sem rodapé: nada aqui pesa mais que a navegação.
+// topo, o cartão do jogador (que abre o menu da conta), a ação principal, a
+// navegação e os projetos recentes. No pé, só ajustes e admin — leves, como
+// João pediu: nada ali pesa mais que a navegação.
 export function SideRail() {
   const { pathname } = useLocation();
   const { user } = useCurrentUser();
@@ -158,6 +232,13 @@ export function SideRail() {
           <RailLink key={item.to} item={item} pathname={pathname} />
         ))}
       </nav>
+      {user && <RecentProjects pathname={pathname} />}
+      {user && (
+        <nav className="border-border mt-auto flex flex-col gap-0.5 border-t px-3 py-3" aria-label="Conta">
+          {user.role === "ADMIN" && <RailLink item={ADMIN} pathname={pathname} />}
+          <RailLink item={SETTINGS} pathname={pathname} />
+        </nav>
+      )}
     </aside>
   );
 }

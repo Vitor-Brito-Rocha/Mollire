@@ -23,6 +23,6 @@ export function useGithubReturnNotice() {
     } else {
       return;
     }
-    navigate("/perfil", { replace: true });
+    navigate("/configuracoes", { replace: true });
   }, [result, message, navigate]);
 }

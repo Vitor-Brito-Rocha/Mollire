@@ -19,21 +19,21 @@ export function GithubConnectionCard({
   const disconnect = useDisconnectGithub();
 
   return (
-    <Panel className="gap-4 p-5">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <span className="text-sm font-medium">GitHub</span>
-          <p className="text-text-3 text-xs">
-            Conecte sua conta para acessar repositórios privados e receber deploys automáticos no push.
-          </p>
-        </div>
+    <Panel
+      title="GitHub"
+      aside={
         <Button
           variant="outline"
           size="sm"
           nativeButton={false}
           render={<a href={githubInstallUrl()}>{connected ? "Adicionar conta" : "Conectar GitHub"}</a>}
         />
-      </div>
+      }
+    >
+      <div className="flex flex-col gap-4 p-5">
+        <p className="text-text-3 text-xs">
+          Conecte sua conta para acessar repositórios privados e receber deploys automáticos no push.
+        </p>
 
       {isLoading && <Skeleton className="h-6 w-full" />}
 
@@ -72,6 +72,7 @@ export function GithubConnectionCard({
           })}
         </ul>
       )}
+      </div>
     </Panel>
   );
 }

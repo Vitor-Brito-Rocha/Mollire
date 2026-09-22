@@ -1,6 +1,6 @@
 # Design system do Mollire (web)
 
-A interface é um **launcher de jogo** (Steam, Epic, Riot): escura por padrão, com um acento ciano, cantos chanfrados e ferragens em L, tipografia de display em caixa alta. Não é um dashboard de SaaS nem pixel art. Existe um **tema claro** opcional (`useTheme`, botão na barra lateral, na barra do celular e no login; a escolha fica no navegador em `mollire:theme`). Tudo que está aqui vive em `apps/web/src/styles/globals.css` (tokens e utilitários) e em `apps/web/src/shared/` (componentes).
+A interface é um **launcher de jogo** (Steam, Epic, Riot): escura por padrão, com um acento ciano, cantos chanfrados e ferragens em L, tipografia de display em caixa alta. Não é um dashboard de SaaS nem pixel art. Existe um **tema claro** opcional (`useTheme`, botão na barra lateral e no login, item no menu da conta no celular, painel "Aparência" em /configuracoes; a escolha fica no navegador em `mollire:theme`). Tudo que está aqui vive em `apps/web/src/styles/globals.css` (tokens e utilitários) e em `apps/web/src/shared/` (componentes).
 
 ## Tokens
 

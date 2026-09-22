@@ -44,10 +44,10 @@ export default function GithubCallbackPage() {
 
     installApp
       .mutateAsync(Number(installationId))
-      .then(() => navigate("/perfil?github=conectado", { replace: true }))
+      .then(() => navigate("/configuracoes?github=conectado", { replace: true }))
       .catch((error) => {
         const msg = error instanceof ApiError ? error.message : "Erro ao conectar GitHub";
-        navigate(`/perfil?github=erro&msg=${encodeURIComponent(msg)}`, { replace: true });
+        navigate(`/configuracoes?github=erro&msg=${encodeURIComponent(msg)}`, { replace: true });
       });
   }, [createSession, installApp, navigate, searchParams]);
 

@@ -34,6 +34,7 @@ export const router = createBrowserRouter([
             children: [
               { index: true, ...page(() => import("@/modules/projects/pages/projects-list.page")) },
               { path: "perfil", ...page(() => import("@/modules/profile/pages/perfil.page")) },
+              { path: "configuracoes", ...page(() => import("@/modules/settings/pages/configuracoes.page")) },
               { path: "projects/new", ...page(() => import("@/modules/projects/pages/new-project.page")) },
               { path: "projects/:slug", ...page(() => import("@/modules/projects/pages/project-detail.page")) },
               {

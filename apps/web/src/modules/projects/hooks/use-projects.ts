@@ -5,11 +5,13 @@ import { isInFlight, latestDeployment } from "../lib/deployments";
 import type { Project } from "../types";
 import { projectKeys } from "./keys";
 
-export function useProjects() {
+// `silent`: quem só decora a tela com a lista (a barra lateral) não avisa se
+// ela falhar — a tela principal já avisa.
+export function useProjects({ silent = false }: { silent?: boolean } = {}) {
   return useQuery({
     queryKey: projectKeys.list(),
     queryFn: projectsApi.list,
-    meta: { errorMessage: "Não foi possível carregar seus projetos." },
+    meta: silent ? { silent: true } : { errorMessage: "Não foi possível carregar seus projetos." },
   });
 }
 

@@ -40,7 +40,7 @@ function ConnectGithub() {
           sozinho. Sem conectar, cole a URL de um repositório público ao lado.
         </p>
       </div>
-      <Button variant="outline" size="lg" nativeButton={false} render={<Link to="/perfil">Conectar no perfil</Link>} />
+      <Button variant="outline" size="lg" nativeButton={false} render={<Link to="/configuracoes">Conectar nas configurações</Link>} />
     </div>
   );
 }
