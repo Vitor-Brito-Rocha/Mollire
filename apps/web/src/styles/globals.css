@@ -265,6 +265,124 @@
   to { transform: translateX(300%); }
 }
 
+/* ---- Abertura da aplicação ------------------------------------------------
+   A interface nasce por trás desta cortina. A palavra se reorganiza, o "O"
+   vira o símbolo central e a tela inteira sobe para revelar o produto. */
+.startup-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #0c0f16;
+  animation: startup-screen-exit 5.2s cubic-bezier(0.76, 0, 0.24, 1) both;
+}
+
+.startup-logo {
+  position: relative;
+  width: 310px;
+  height: 56px;
+  color: #e8edf5;
+  scale: 1;
+}
+
+.startup-logo > span {
+  position: absolute;
+  bottom: 0;
+  display: block;
+  transform-origin: center bottom;
+  will-change: transform, opacity;
+}
+
+.startup-logo svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.startup-logo__m {
+  left: 0;
+  width: 57px;
+  height: 53px;
+  animation: startup-letter-m 5.2s cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+
+.startup-logo__o {
+  left: 61px;
+  z-index: 2;
+  width: 56px;
+  height: 56px;
+  color: #5ee2ff;
+  animation: startup-letter-o 5.2s cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+
+.startup-logo__mark {
+  filter:
+    drop-shadow(0 0 3px rgb(94 226 255 / 0.9))
+    drop-shadow(0 0 9px rgb(94 226 255 / 0.38));
+}
+
+.startup-logo__tail {
+  left: 121px;
+  width: 189px;
+  height: 53px;
+  animation: startup-letter-tail 5.2s cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+
+@keyframes startup-letter-m {
+  0%, 10% { transform: translateX(0); opacity: 1; }
+  28%, 39% { transform: translateX(0); opacity: 1; }
+  53%, 100% { transform: translateX(0); opacity: 0; }
+}
+
+@keyframes startup-letter-tail {
+  0%, 10% { transform: translateX(0); opacity: 1; }
+  28%, 39% { transform: translateX(-60px); opacity: 1; }
+  53%, 100% { transform: translateX(-60px); opacity: 0; }
+}
+
+@keyframes startup-letter-o {
+  0%, 10% {
+    transform: translate(0, 0) scale(1);
+  }
+  28%, 35% {
+    transform: translate(193px, 0) scale(1);
+  }
+  53% {
+    transform: translate(193px, 0) scale(5.6);
+  }
+  66% {
+    transform: translate(66px, 0) scale(5.6);
+  }
+  78%, 100% {
+    transform: translate(66px, 129px) scale(5.6);
+  }
+}
+
+@keyframes startup-screen-exit {
+  0%, 82% { transform: translateY(0); }
+  100% { transform: translateY(-100%); }
+}
+
+@media (max-width: 420px) {
+  .startup-logo {
+    scale: 0.78;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .startup-screen {
+    animation-duration: 700ms;
+  }
+  .startup-logo__m,
+  .startup-logo__o,
+  .startup-logo__tail {
+    animation: none;
+  }
+}
+
 /* ---- Movimento: momentos de recompensa ------------------------------------
    Um jogo celebra o que você fez; um dashboard só atualiza estado. Estas
    animações marcam os eventos que importam — estrela acesa, deploy publicado,

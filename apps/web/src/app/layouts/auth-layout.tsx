@@ -14,10 +14,9 @@ export default function AuthLayout() {
         <header className="flex h-16 items-center justify-between px-6 md:px-12">
           <Link
             to="/galeria"
-            className="font-display focus-ring flex items-center gap-2.5 text-body-lg font-bold tracking-label uppercase"
+            className="focus-ring flex items-center"
           >
             <Logo height={24} />
-            Mollire
           </Link>
           <div className="flex items-center gap-2">
             <Link
