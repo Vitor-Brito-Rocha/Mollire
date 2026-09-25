@@ -13,14 +13,18 @@ export function ThemeToggle({ className }: { className?: string }) {
     <button
       type="button"
       onClick={toggle}
+      data-theme={theme}
       aria-label={`Mudar para o modo ${next}`}
       title={`Modo ${next}`}
       className={cn(
-        "focus-ring text-muted-foreground hover:text-foreground hover:bg-raised/70 grid size-9 place-items-center transition-colors",
+        "theme-toggle focus-ring text-muted-foreground hover:text-foreground hover:bg-raised/70 grid size-9 place-items-center transition-colors",
         className,
       )}
     >
-      {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+      <span className="theme-toggle__icons" aria-hidden="true">
+        <Sun className="theme-toggle__sun size-4" />
+        <Moon className="theme-toggle__moon size-4" />
+      </span>
     </button>
   );
 }

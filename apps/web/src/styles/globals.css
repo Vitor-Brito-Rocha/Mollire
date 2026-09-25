@@ -449,6 +449,100 @@
 @utility animate-star-ring { animation: star-ring 650ms ease-out forwards; }
 @utility animate-level-up { animation: level-up 2200ms cubic-bezier(0.2, 0.9, 0.3, 1.2) forwards; }
 @utility animate-dot-pulse { animation: dot-pulse 1.4s ease-in-out infinite; }
+
+/* Os dois destinos do tema ocupam o mesmo ponto. No hover, o ícone atual gira
+   para fora e revela o oposto; somente o clique persiste a mudança de tema. */
+.theme-toggle__icons {
+  position: relative;
+  display: block;
+  width: 1rem;
+  height: 1rem;
+}
+
+.theme-toggle__icons > svg {
+  position: absolute;
+  inset: 0;
+  transition:
+    transform 420ms var(--ease-reward),
+    opacity 220ms var(--ease);
+  will-change: transform, opacity;
+}
+
+.theme-toggle[data-theme="dark"] .theme-toggle__sun,
+.theme-toggle[data-theme="light"] .theme-toggle__moon {
+  opacity: 1;
+  transform: rotate(0deg) scale(1);
+}
+
+.theme-toggle[data-theme="dark"] .theme-toggle__moon {
+  opacity: 0;
+  transform: rotate(-180deg) scale(0.55);
+}
+
+.theme-toggle[data-theme="light"] .theme-toggle__sun {
+  opacity: 0;
+  transform: rotate(180deg) scale(0.55);
+}
+
+@media (hover: hover) {
+  .theme-toggle[data-theme="dark"]:hover .theme-toggle__sun {
+    opacity: 0;
+    transform: rotate(180deg) scale(0.55);
+  }
+
+  .theme-toggle[data-theme="dark"]:hover .theme-toggle__moon {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+  }
+
+  .theme-toggle[data-theme="light"]:hover .theme-toggle__moon {
+    opacity: 0;
+    transform: rotate(-180deg) scale(0.55);
+  }
+
+  .theme-toggle[data-theme="light"]:hover .theme-toggle__sun {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-toggle__icons > svg {
+    transition-duration: 0.01ms;
+  }
+}
+
+
+.interactive-switch {
+  transition-property: background-color, border-color, box-shadow;
+  transition-duration: 880ms;
+  transition-timing-function: var(--ease);
+}
+
+.interactive-switch [data-slot="switch-thumb"] {
+  transition-property: transform, background-color, box-shadow;
+  transition-duration: 880ms;
+  transition-timing-function: var(--ease);
+}
+
+@keyframes switch-preview-on {
+  0% { transform: translateX(0) scale(1); }
+  68% { transform: translateX(15px) scale(0.9, 1.08); }
+  100% { transform: translateX(14px) scale(1); }
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .interactive-switch[data-unchecked]:not([data-disabled]):hover {
+    background-color: var(--primary);
+    box-shadow: 0 0 14px var(--glow);
+  }
+
+  .interactive-switch[data-unchecked]:not([data-disabled]):hover [data-slot="switch-thumb"] {
+    background-color: var(--primary-foreground);
+    box-shadow: 0 0 8px var(--glow);
+    animation: switch-preview-on 360ms var(--ease-reward) both;
+  }
+}
 /* Varredura de luz sobre a linha do deploy que acabou de terminar. */
 @utility sweep-good {
   background-image: linear-gradient(100deg, transparent 20%, color-mix(in srgb, var(--good) 22%, transparent) 50%, transparent 80%);
